@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Mock (백엔드 없이)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=USE_MOCK=true"]
+    },
+    {
+      "name": "Dev API",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--dart-define=USE_MOCK=false",
+        "--dart-define=API_BASE_URL=http://localhost:8080"
+      ]
+    },
+    {
+      "name": "Mock + D-Day 기능 켜기",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=USE_MOCK=true", "--dart-define=FEATURE_DDAY=true"]
+    }
+  ]
+}

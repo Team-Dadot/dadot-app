@@ -1,0 +1,48 @@
+name: swipe
+description: "취준생 관심기업 퀴즈 앱 (가제) — 관심 기업 공시·뉴스 퀴즈 + 이슈 기반 면접 답변 연습"
+publish_to: 'none'
+
+# 스토어 버전: 이름+빌드번호. 출시할 때마다 빌드번호(+ 뒤)를 올린다.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # 상태관리 · 의존성 주입
+  flutter_riverpod: ^3.4.3
+  # 라우팅 (하단 탭 + 온보딩 가드)
+  go_router: ^18.0.2
+  # 네트워크
+  dio: ^5.11.1
+  # 저장소: 토큰은 보안 저장소, 나머지는 SharedPreferences
+  flutter_secure_storage: ^11.2.0
+  shared_preferences: ^2.5.6
+  # 음성 답변 (기기 STT, 1분 이내)
+  speech_to_text: ^7.5.0
+  # 원문 링크 · 약관 열기
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # 피그마(스위프 7기 와이어프레임) 폰트: Noto Sans KR (SIL Open Font License)
+  fonts:
+    - family: NotoSansKR
+      fonts:
+        - asset: assets/fonts/NotoSansKR-Regular.ttf
+        - asset: assets/fonts/NotoSansKR-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansKR-Bold.ttf
+          weight: 700
