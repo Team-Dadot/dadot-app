@@ -7,7 +7,7 @@ import '../tokens/app_typography.dart';
 import 'app_button.dart';
 
 /// 로딩 / 오류 / 빈 상태 공통 화면.
-/// 피그마의 예외·빈 화면·오류 프레임(1-E, 2-E …)은 아직 비어 있어서 와이어프레임 톤으로 맞춰 그린다.
+/// 빈 화면은 피그마 5-E1 (가운데 아이콘 + 제목 18 SemiBold + 설명 14) 기준.
 
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key, this.message});
@@ -61,9 +61,20 @@ class ErrorView extends StatelessWidget {
 }
 
 class EmptyView extends StatelessWidget {
-  const EmptyView({super.key, required this.title, this.description, this.actionLabel, this.onAction, this.compact = false});
+  const EmptyView({
+    super.key,
+    required this.title,
+    this.description,
+    this.actionLabel,
+    this.onAction,
+    this.compact = false,
+    this.icon = Icons.rocket_launch_rounded,
+  });
 
   final String title;
+
+  /// 제목 위 아이콘 (null 이면 없음)
+  final IconData? icon;
   final String? description;
   final String? actionLabel;
   final VoidCallback? onAction;
@@ -76,7 +87,11 @@ class EmptyView extends StatelessWidget {
     final body = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(title, textAlign: TextAlign.center, style: AppTypography.subheading),
+        if (icon != null && !compact) ...[
+          Icon(icon, size: 40, color: const Color(0xFFA9B1C2)),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        Text(title, textAlign: TextAlign.center, style: AppTypography.heading.copyWith(fontSize: 18)),
         if (description != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(description!, textAlign: TextAlign.center, style: AppTypography.body2.copyWith(color: AppColors.textSecondary)),

@@ -64,10 +64,10 @@ class _QuizRetryScreenState extends ConsumerState<QuizRetryScreen> {
       body = const EmptyView(title: '문제를 찾지 못했어요', description: '복습 목록에서 다시 골라 주세요.');
     } else {
       body = ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 28, AppSpacing.screenH, AppSpacing.xl),
         children: [
           QuizPrompt(question: q),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 39),
           QuizAnswerArea(
             question: q,
             selectedChoiceId: _selected,
@@ -82,7 +82,7 @@ class _QuizRetryScreenState extends ConsumerState<QuizRetryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '다시 풀기'),
+      appBar: const AppNavBar(title: '다시 풀기', divider: true),
       body: body,
       bottomNavigationBar: q == null
           ? null

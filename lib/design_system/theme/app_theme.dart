@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../tokens/app_colors.dart';
+import '../tokens/app_spacing.dart';
 import '../tokens/app_typography.dart';
 
 /// 앱 테마. 세부 컴포넌트 모양은 design_system/widgets 에서 토큰으로 직접 그린다.
@@ -23,6 +24,7 @@ class AppTheme {
       fontFamily: AppTypography.fontFamily,
       splashFactory: NoSplash.splashFactory,
       highlightColor: AppColors.surfaceMuted,
+      dividerColor: AppColors.divider,
       textTheme: TextTheme(
         displaySmall: AppTypography.display,
         headlineSmall: AppTypography.title1,
@@ -41,16 +43,16 @@ class AppTheme {
       datePickerTheme: const DatePickerThemeData(
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg))),
       ),
       timePickerTheme: const TimePickerThemeData(
         backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg))),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.primary,
-        contentTextStyle: AppTypography.body1.copyWith(color: AppColors.white),
-        shape: const RoundedRectangleBorder(),
+        contentTextStyle: AppTypography.body2Medium.copyWith(color: AppColors.white),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
       ),
       visualDensity: VisualDensity.standard,
     );

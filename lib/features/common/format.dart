@@ -36,3 +36,11 @@ String prepSubtitle({String? jobName, int? dday, DateTime? date, bool showDate =
   if (date == null) return '$job · 면접일 미정';
   return '$job · ${showDate ? formatDot(date) : formatDday(dday ?? 0)}';
 }
+
+/// 받침에 따라 "을/를" 붙이기 (현대자동차를 · 삼성물산을). 한글이 아니면 "을(를)".
+String withObjectParticle(String word) {
+  if (word.isEmpty) return word;
+  final code = word.codeUnitAt(word.length - 1);
+  if (code < 0xAC00 || code > 0xD7A3) return '$word을(를)';
+  return (code - 0xAC00) % 28 == 0 ? '$word를' : '$word을';
+}

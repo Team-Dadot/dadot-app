@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/config/app_policy.dart';
 import '../../core/providers.dart';
 import '../../core/router/app_router.dart';
 import '../../data/models/interview.dart';
@@ -13,7 +13,7 @@ import '../common/format.dart';
 import '../common/pickers.dart';
 import '../home/company_switch_sheet.dart';
 
-/// 5-1 퀴즈 복습 · 5-2 면접 복습
+/// 피그마 5-1 퀴즈 복습 · 5-2 면접 복습 (작업 프레임): 상단 "Review" + 기업 칩, 밑줄 탭, 알약 필터, 폴더 탭 카드
 class ReviewScreen extends ConsumerStatefulWidget {
   const ReviewScreen({super.key, this.initialTab});
 
@@ -45,6 +45,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppHeader(
+        title: 'Review',
         trailing: current == null
             ? null
             : CompanyChip(
@@ -69,13 +70,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               ref.invalidate(interviewRecordsProvider(companyId));
             },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
+              padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xl),
               children: [
-                const PageTitle('기록을 다시 보면,\n답변이 더 단단해져요.', large: false),
+                SegmentedTabs(labels: const ['퀴즈', '면접'], index: _tab, onChanged: (i) => setState(() => _tab = i)),
                 const SizedBox(height: AppSpacing.md),
-                SegmentedTabs(labels: const ['퀴즈 복습', '면접 복습'], index: _tab, onChanged: (i) => setState(() => _tab = i)),
-                const SizedBox(height: AppSpacing.md),
-                if (_tab == 0) _QuizReview(companyId: companyId) else _InterviewReview(companyId: companyId),
+                Padding(
+                  padding: AppSpacing.screen,
+                  child: _tab == 0 ? _QuizReview(companyId: companyId) : _InterviewReview(companyId: companyId),
+                ),
               ],
             ),
           );
@@ -108,13 +110,7 @@ class _QuizReviewState extends ConsumerState<_QuizReview> {
       error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(quizReviewProvider(widget.companyId))),
       data: (all) {
         if (all.isEmpty) {
-          return EmptyView(
-            compact: true,
-            title: '아직 푼 퀴즈가 없어요',
-            description: '오늘의 퀴즈를 풀면 여기에서 다시 볼 수 있어요.',
-            actionLabel: '오늘의 퀴즈 풀기',
-            onAction: () => context.push(Routes.quiz(widget.companyId)),
-          );
+          return const _ReviewEmpty(title: '아직 푼 퀴즈가 없어요.', description: '퀴즈를 풀고 기업 정보를 익혀보세요!');
         }
         final wrong = all.where((i) => i.wrong).toList();
         final shown = _wrongOnly ? wrong : all;
@@ -123,12 +119,12 @@ class _QuizReviewState extends ConsumerState<_QuizReview> {
           children: [
             Row(
               children: [
-                SelectChip(label: '오답 ${wrong.length}', selected: _wrongOnly, onTap: () => setState(() => _wrongOnly = true)),
+                SelectChip(label: '오답', selected: _wrongOnly, onTap: () => setState(() => _wrongOnly = true)),
                 const SizedBox(width: AppSpacing.xs),
-                SelectChip(label: '풀었던 문제 ${all.length}', selected: !_wrongOnly, onTap: () => setState(() => _wrongOnly = false)),
+                SelectChip(label: '풀었던 문제', selected: !_wrongOnly, onTap: () => setState(() => _wrongOnly = false)),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.xxl),
             if (shown.isEmpty)
               const EmptyView(compact: true, title: '다시 풀 오답이 없어요', description: '틀린 문제가 생기면 여기에 모아 둘게요.')
             else
@@ -148,44 +144,161 @@ class _QuizReviewCard extends StatelessWidget {
 
   final QuizReviewItem item;
 
-  @override
-  Widget build(BuildContext context) {
+  /// "해설 보기": 해설 + 공시 근거
+  void _showExplanation(BuildContext context) {
     final ev = item.evidence ?? item.question.evidence;
-    return OutlinedBox(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TagRow([item.wrong ? '오답' : '정답', item.question.kind.label]),
-          const SizedBox(height: AppSpacing.sm),
-          Text(item.question.prompt, style: AppTypography.cardTitle),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(item.explanation, style: AppTypography.body2.copyWith(color: AppColors.textSecondary)),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              if (ev != null)
-                TextLink(
-                  label: '공시 근거  ›',
-                  style: AppTypography.body2Medium,
-                  onTap: () => showEvidenceSheet(context, evidence: ev, questionId: item.question.id),
-                ),
-              const Spacer(),
-              TextLink(
-                label: '이 문제 다시 풀기  ›',
-                style: AppTypography.body2Strong,
-                onTap: () => context.push(Routes.quizRetry(item.id, item.companyId)),
+    showAppSheet<void>(
+      context,
+      title: '해설',
+      builder: (_) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xxs, AppSpacing.screenH, AppSpacing.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(item.question.prompt, style: AppTypography.subheading),
+            const SizedBox(height: AppSpacing.sm),
+            InfoBox(child: Text(item.explanation, style: AppTypography.body1.copyWith(color: AppColors.textStrong, height: 1.6))),
+            if (ev != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppButton(
+                label: '공시 근거 보기',
+                variant: AppButtonVariant.secondary,
+                small: true,
+                onPressed: () => showEvidenceSheet(context, evidence: ev, questionId: item.question.id),
               ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ReviewFolderCard(
+      date: formatDotSpaced(item.solvedAt).replaceAll(RegExp(r'\.$'), ''),
+      status: item.wrong ? '오답' : '정답',
+      tone: item.wrong ? ReviewTone.warn : ReviewTone.done,
+      title: item.question.prompt,
+      secondaryLabel: '해설 보기',
+      onSecondary: () => _showExplanation(context),
+      primaryLabel: '다시 풀기',
+      onPrimary: () => context.push(Routes.quizRetry(item.id, item.companyId)),
+    );
+  }
+}
+
+/// 상태 알약 색 (보완 필요·오답 = 주황, 작성 중 = 라임, 완성 답변·정답 = 파랑)
+enum ReviewTone { warn, draft, done }
+
+/// 복습 기록 카드 (피그마 최종 5-1 · 5-2): 흰 카드 · 날짜(12, 60%) + 오른쪽 상태 알약 · 질문 16 · 버튼(42, 모서리 10)
+/// [secondaryLabel] 이 null 이면 라임 버튼 하나, [primaryLabel] 이 null 이면 회색 버튼 하나.
+class ReviewFolderCard extends StatelessWidget {
+  const ReviewFolderCard({
+    super.key,
+    required this.date,
+    required this.status,
+    required this.tone,
+    required this.title,
+    this.secondaryLabel,
+    this.onSecondary,
+    this.primaryLabel,
+    this.onPrimary,
+    this.scoreTag,
+    this.onLongPress,
+  });
+
+  final String date;
+  final String status;
+  final ReviewTone tone;
+  final String title;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
+  final String? primaryLabel;
+  final VoidCallback? onPrimary;
+
+  /// 날짜 옆 점수 (76점)
+  final String? scoreTag;
+  final VoidCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color bg, Color fg, IconData icon) = switch (tone) {
+      ReviewTone.warn => (AppColors.accentSoft, AppColors.accent, Icons.warning_rounded),
+      ReviewTone.draft => (AppColors.pointSoft, AppColors.pointText, Icons.edit_rounded),
+      ReviewTone.done => (AppColors.infoSoft, AppColors.info, Icons.description_rounded),
+    };
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(date, style: AppTypography.caption.copyWith(color: AppColors.textStrong.withValues(alpha: 0.6))),
+                if (scoreTag != null) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(scoreTag!, style: AppTypography.captionStrong.copyWith(color: fg)),
+                ],
+                const Spacer(),
+                Container(
+                  height: 20,
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                  decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 12, color: fg),
+                      const SizedBox(width: 2),
+                      Text(status, style: AppTypography.captionStrong.copyWith(color: fg, height: 1.2)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(title, style: AppTypography.subheading.copyWith(color: AppColors.textStrong, height: 1.45)),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                if (secondaryLabel != null)
+                  Expanded(
+                    child: AppButton(label: secondaryLabel!, small: true, variant: AppButtonVariant.secondary, onPressed: onSecondary),
+                  ),
+                if (secondaryLabel != null && primaryLabel != null) const SizedBox(width: AppSpacing.sm),
+                if (primaryLabel != null)
+                  Expanded(child: AppButton(label: primaryLabel!, small: true, variant: AppButtonVariant.point, onPressed: onPrimary)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 5-E1 · 5-E2 빈 화면 (가운데 로켓 + 제목 + 설명)
+class _ReviewEmpty extends StatelessWidget {
+  const _ReviewEmpty({required this.title, required this.description});
+
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 140),
+      child: EmptyView(title: title, description: description),
     );
   }
 }
 
 // ---------------------------------------------------------------- 면접 복습
 
-enum _InterviewFilter { all, needsWork, complete }
+enum _InterviewFilter { all, needsWork, draft, complete }
 
 class _InterviewReview extends ConsumerStatefulWidget {
   const _InterviewReview({required this.companyId});
@@ -225,17 +338,12 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
       error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(interviewRecordsProvider(widget.companyId))),
       data: (all) {
         if (all.isEmpty) {
-          return EmptyView(
-            compact: true,
-            title: '아직 답한 면접 질문이 없어요',
-            description: '오늘의 면접 질문에 답하면 피드백과 함께 모아 둘게요.',
-            actionLabel: '오늘의 면접 질문 보기',
-            onAction: () => context.push(Routes.todayInterview(widget.companyId)),
-          );
+          return const _ReviewEmpty(title: '아직 답한 면접 질문이 없어요.', description: '면접 연습을 하고 답변을 다듬어 보세요!');
         }
         final shown = switch (_filter) {
           _InterviewFilter.all => all,
           _InterviewFilter.needsWork => all.where((r) => r.status == AnswerStatus.needsWork).toList(),
+          _InterviewFilter.draft => all.where((r) => r.status == AnswerStatus.draft).toList(),
           _InterviewFilter.complete => all.where((r) => r.status == AnswerStatus.complete).toList(),
         };
         return Column(
@@ -246,6 +354,7 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
                 for (final (f, label) in const [
                   (_InterviewFilter.all, '전체'),
                   (_InterviewFilter.needsWork, '보완 필요'),
+                  (_InterviewFilter.draft, '작성중'),
                   (_InterviewFilter.complete, '완성 답변'),
                 ]) ...[
                   SelectChip(label: label, selected: _filter == f, onTap: () => setState(() => _filter = f)),
@@ -253,7 +362,7 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
                 ],
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.xxl),
             if (shown.isEmpty)
               const EmptyView(compact: true, title: '해당하는 답변이 없어요')
             else
@@ -272,55 +381,37 @@ class _InterviewRecordCard extends StatelessWidget {
   const _InterviewRecordCard({required this.record, required this.onDelete});
 
   final InterviewRecord record;
+
+  /// 길게 누르면 삭제 확인
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final r = record;
     final draft = r.status == AnswerStatus.draft;
-    return OutlinedBox(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              TagChip(r.status.label),
-              if (r.score != null) ...[
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  '${r.score}점 · 기준 ${r.metCount ?? 0}/${AppPolicy.criteriaCount}',
-                  style: AppTypography.captionMedium.copyWith(color: AppColors.textPrimary),
-                ),
-              ],
-              const Spacer(),
-              InkWell(
-                onTap: onDelete,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.xxs),
-                  child: Text('삭제', style: AppTypography.caption.copyWith(color: AppColors.textSub)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(r.questionText, style: AppTypography.cardTitle),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  draft || r.lastAt == null ? '아직 답변 없음' : '시도 ${r.attempts}회 · ${formatShort(r.lastAt!)}',
-                  style: AppTypography.caption,
-                ),
-              ),
-              TextLink(
-                label: '이어서 답변하기  ›',
-                style: AppTypography.body2Strong,
-                onTap: () => context.push(draft ? Routes.interviewAnswer(r.questionId) : Routes.answerView(r.questionId)),
-              ),
-            ],
-          ),
-        ],
+    final (String status, ReviewTone tone) = switch (r.status) {
+      AnswerStatus.needsWork => ('보완필요', ReviewTone.warn),
+      AnswerStatus.draft => ('작성 중', ReviewTone.draft),
+      AnswerStatus.complete => ('완성 답변', ReviewTone.done),
+    };
+    return Semantics(
+      customSemanticsActions: {const CustomSemanticsAction(label: '삭제'): onDelete},
+      child: ReviewFolderCard(
+        date: r.lastAt == null ? '작성 중' : formatDotSpaced(r.lastAt!).replaceAll(RegExp(r'\.$'), ''),
+        scoreTag: r.score == null ? null : '${r.score}점',
+        status: status,
+        tone: tone,
+        title: r.questionText,
+        // 피그마: 보완 필요 = 평가 보기 + 다시 답변하기 / 작성 중 = 이어서 답변하기 / 완성 답변 = 평가 보기
+        secondaryLabel: draft ? null : '평가 보기',
+        onSecondary: draft ? null : () => context.push(Routes.answerView(r.questionId)),
+        primaryLabel: switch (r.status) {
+          AnswerStatus.draft => '이어서 답변하기',
+          AnswerStatus.needsWork => '다시 답변하기',
+          AnswerStatus.complete => null,
+        },
+        onPrimary: () => context.push(Routes.interviewAnswer(r.questionId)),
+        onLongPress: onDelete,
       ),
     );
   }

@@ -62,12 +62,14 @@ class _InterviewTodayScreenState extends ConsumerState<InterviewTodayScreen> {
         },
       );
     } else {
-      body = const ProcessingView(title: '질문을 만들고 있어요');
+      body = const ProcessingView(title: '질문을 만들고 있어요', iconAsset: 'assets/images/icons/load_question.png');
     }
+    // 피그마 4-1 로딩: 내비 바 없이 가운데 회색 원 + "질문을 만들고 있어요"
+    final loading = _error == null && !_allDone;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppNavBar(title: _allDone ? '면접 질문' : '처리 중'),
-      body: body,
+      appBar: loading ? null : const AppNavBar(title: '면접 질문'),
+      body: loading ? SafeArea(child: body) : body,
     );
   }
 }

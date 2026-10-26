@@ -37,8 +37,29 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # 피그마(스위프 7기 와이어프레임) 폰트: Noto Sans KR (SIL Open Font License)
+  # 피그마 로고 섹션에서 내보낸 이미지
+  assets:
+    - assets/images/
+    - assets/images/icons/
+
+  # 피그마(스위프 7기 작업 프레임) 폰트: Pretendard (SIL Open Font License, assets/fonts/Pretendard-LICENSE.txt)
+  # Noto Sans KR 는 예전 와이어프레임 폰트 (지금은 안 씀, 나중에 지워도 됨)
   fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+        - asset: assets/fonts/Pretendard-Medium.otf
+          weight: 500
+        - asset: assets/fonts/Pretendard-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700
+        - asset: assets/fonts/Pretendard-ExtraBold.otf
+          weight: 800
+    # 숫자 · D-day · Q1 (Zalando Sans SemiExpanded, OFL, assets/fonts/ZalandoSans-OFL.txt) — 가변 폰트
+    - family: ZalandoSansSemiExpanded
+      fonts:
+        - asset: assets/fonts/ZalandoSansSemiExpanded-Variable.ttf
     - family: NotoSansKR
       fonts:
         - asset: assets/fonts/NotoSansKR-Regular.ttf

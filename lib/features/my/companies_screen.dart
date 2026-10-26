@@ -11,14 +11,14 @@ import '../common/data_providers.dart';
 import '../common/format.dart';
 import '../common/pickers.dart';
 
-/// 6-2 준비 기업 관리 · 6-3 기업 추가 시트 (직무·면접일)
+/// 피그마 6-2 준비 기업 관리 · 6-3 기업 추가 시트 ("현대자동차를 추가할까요?" · 지원 직무 · 면접일)
 class CompaniesScreen extends ConsumerWidget {
   const CompaniesScreen({super.key});
 
   Future<void> _remove(BuildContext context, WidgetRef ref, Preparation p) async {
     final ok = await showConfirmDialog(
       context,
-      title: '${p.companyName}을(를) 준비 기업에서 뺄까요?',
+      title: '${withObjectParticle(p.companyName)} 준비 기업에서 뺄까요?',
       message: '오늘의 퀴즈·면접 질문이 더 이상 열리지 않아요. 지난 기록은 남아 있어요.',
       confirmLabel: '빼기',
     );
@@ -37,8 +37,8 @@ class CompaniesScreen extends ConsumerWidget {
       showToast(context, '준비 기업은 최대 ${AppPolicy.maxCompanies}개까지예요. 다른 기업을 빼고 추가해 주세요.');
       return;
     }
-    final added = await showAppSheet<bool>(context, title: '${c.name} 추가', builder: (_) => _AddCompanySheet(company: c));
-    if (added == true && context.mounted) showToast(context, '${c.name}을(를) 준비 기업에 추가했어요.');
+    final added = await showAppSheet<bool>(context, title: '${withObjectParticle(c.name)} 추가할까요?', builder: (_) => _AddCompanySheet(company: c));
+    if (added == true && context.mounted) showToast(context, '${withObjectParticle(c.name)} 준비 기업에 추가했어요.');
   }
 
   @override
@@ -55,42 +55,42 @@ class CompaniesScreen extends ConsumerWidget {
         data: (list) => ListView(
           padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
           children: [
-            SectionTitle('내 준비 기업', trailing: Text('${list.length} / ${AppPolicy.maxCompanies}', style: AppTypography.body2Strong)),
-            const SizedBox(height: AppSpacing.gap),
-            if (list.isEmpty) const EmptyView(compact: true, title: '준비 중인 기업이 없어요', description: '아래에서 기업을 추가해 주세요.'),
-            for (final p in list) ...[
-              CompanyTile(
-                name: p.companyName,
-                subtitle: prepSubtitle(jobName: p.jobName, dday: p.ddayFrom(now), date: p.interviewDate),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    InkWell(
-                      onTap: () => context.push(Routes.myApplication(p.companyId)),
-                      child: Padding(padding: const EdgeInsets.all(AppSpacing.xxs), child: Text('수정', style: AppTypography.body2Medium)),
-                    ),
-                    Text(' · ', style: AppTypography.body2Medium),
-                    InkWell(
-                      onTap: () => _remove(context, ref, p),
-                      child: Padding(padding: const EdgeInsets.all(AppSpacing.xxs), child: Text('빼기', style: AppTypography.body2Medium)),
-                    ),
-                  ],
-                ),
+            SectionTitle(
+              '나의 준비 기업',
+              trailing: Text(
+                '${list.length}/${AppPolicy.maxCompanies}',
+                style: AppTypography.body2Medium.copyWith(color: AppColors.textTertiary),
               ),
-              const SizedBox(height: AppSpacing.gap),
-            ],
-            const SizedBox(height: AppSpacing.xs),
-            const SectionTitle('기업 추가'),
-            const SizedBox(height: AppSpacing.gap),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // 검색창 (피그마 "새로운 기업 추가하기") — 검색 결과는 아래에 "추가" 카드로
             CompanySearch(
               exclude: {for (final p in list) p.companyId},
               itemBuilder: (c) => CompanyTile(
                 name: c.name,
                 subtitle: c.industry,
                 onTap: () => _add(context, ref, c, list.length),
-                trailing: Text('＋ 추가', style: AppTypography.body2Medium),
+                trailing: Text('추가', style: AppTypography.body2Medium.copyWith(color: AppColors.textPlaceholder)),
               ),
             ),
+            const SizedBox(height: AppSpacing.md),
+            if (list.isEmpty) const EmptyView(compact: true, title: '준비 중인 기업이 없어요', description: '위에서 기업을 검색해 추가해 주세요.'),
+            for (final p in list) ...[
+              CompanyTile(
+                name: p.companyName,
+                subtitle: prepSubtitle(jobName: p.jobName, dday: p.ddayFrom(now), date: p.interviewDate),
+                onTap: () => context.push(Routes.myApplication(p.companyId)),
+                trailing: InkWell(
+                  onTap: () => _remove(context, ref, p),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xs),
+                    child: Text('빼기', style: AppTypography.caption.copyWith(color: AppColors.textPlaceholder)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
           ],
         ),
       ),
@@ -139,7 +139,7 @@ class _AddCompanySheetState extends ConsumerState<_AddCompanySheet> {
           const SizedBox(height: AppSpacing.xs),
           SelectField(
             value: _job?.name,
-            placeholder: '직무를 선택해 주세요',
+            placeholder: '직무를 선택해주세요',
             onTap: () async {
               final job = await showJobPicker(context, companyName: widget.company.name, selectedName: _job?.name);
               if (job != null) setState(() => _job = job);
@@ -158,7 +158,8 @@ class _AddCompanySheetState extends ConsumerState<_AddCompanySheet> {
             },
           ),
           const SizedBox(height: AppSpacing.md),
-          AppButton(label: '준비 기업에 추가', loading: _saving, onPressed: _job == null ? null : _save),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(label: '추가하기', loading: _saving, onPressed: _job == null ? null : _save),
         ],
       ),
     );

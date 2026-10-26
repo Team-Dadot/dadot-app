@@ -80,16 +80,22 @@ void main() {
     expect(find.text('준비가 끝났어요!'), findsOneWidget);
     await tester.tap(find.text('오늘의 학습 시작하기  →'));
     await tester.pumpAndSettle();
-    expect(find.text('기업 퀴즈'), findsOneWidget);
-    expect(find.text('1 / 5'), findsOneWidget);
-    await tester.tap(find.text('〈'));
+    // 3-1 퀴즈 (피그마 최종: 제목 없는 내비 + "Q1." + 문제)
+    expect(find.textContaining('Q1.'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
     await tester.pumpAndSettle();
 
-    // 2-1 홈
-    expect(find.text('지민님,'), findsOneWidget);
-    expect(find.text('오늘도 한 걸음 준비해요.'), findsOneWidget);
+    // 홈 (라임 폴더 카드: 오늘의 학습 · 기업 퀴즈 0/5 · 면접 연습 0/3 + 학습 현황)
     expect(find.text('오늘의 학습'), findsOneWidget);
-    expect(find.text('0 / 5'), findsOneWidget);
-    expect(find.text('0 / 3'), findsOneWidget);
+    expect(find.text('기업 퀴즈'), findsOneWidget);
+    expect(find.text('0/5'), findsOneWidget);
+    expect(find.text('0/3'), findsOneWidget);
+    expect(find.text('학습 현황'), findsOneWidget);
+    expect(find.text('오늘의 학습하기'), findsOneWidget);
+
+    // 기업 변경 → "기업 선택하기" 시트
+    await tester.tap(find.text('기업 변경'));
+    await tester.pumpAndSettle();
+    expect(find.text('기업 선택하기'), findsOneWidget);
   });
 }

@@ -9,7 +9,8 @@ import '../common/data_providers.dart';
 import '../common/format.dart';
 import 'company_switch_sheet.dart';
 
-/// 2-1 홈 (기본) · 2-2 면접 D-3 집중 모드 · 2-4 오늘의 학습 완료
+/// 피그마 최종: 홈3(기본) · 집중 모드(D-3) · 2-E1 첫 방문(면접 일정 미정) · 2-E2 하루치 학습 완료 · 2-3 기업 선택 시트
+/// 라임 폴더 카드(오늘의 학습 · 기업 변경 ⇄) 위에 기업·면접일·D-day, 아래 진한 몸통에 기업 퀴즈 · 면접 연습 · 오늘의 학습하기.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -22,15 +23,12 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      // 기본: 기업 칩은 인사말 안에 ("지민님, 기아 ▾ 에 대해") · 집중 모드: 헤더 오른쪽 "기아 · D-3 ▾"
       appBar: AppHeader(
-        trailing: current == null || !current.focusMode
-            ? null
-            : CompanyChip(
-                label: current.dday == null ? current.companyName : '${current.companyName} · ${formatDday(current.dday!)}',
-                emphasized: true,
-                onTap: () => showCompanySwitchSheet(context, home: summary!, selectedId: current.companyId),
-              ),
+        trailing: IconButton(
+          tooltip: '알림 설정',
+          onPressed: () => context.push(Routes.myNotifications),
+          icon: const Icon(Icons.notifications_none_rounded, size: 26, color: AppColors.ink),
+        ),
       ),
       body: home.when(
         skipLoadingOnRefresh: true,
@@ -49,7 +47,17 @@ class HomeScreen extends ConsumerWidget {
           return RefreshIndicator(
             color: AppColors.primary,
             onRefresh: () => ref.refresh(homeProvider.future),
-            child: _HomeBody(home: h, current: current),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+              children: [
+                _TodayCard(
+                  current: current,
+                  onSwitch: () => showCompanySwitchSheet(context, home: h, selectedId: current.companyId),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                _Stats(c: current),
+              ],
+            ),
           );
         },
       ),
@@ -57,11 +65,12 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _HomeBody extends ConsumerWidget {
-  const _HomeBody({required this.home, required this.current});
+/// 오늘의 학습 카드: 라임(집중 모드면 진한) 폴더 + 진한 몸통
+class _TodayCard extends StatelessWidget {
+  const _TodayCard({required this.current, required this.onSwitch});
 
-  final HomeSummary home;
   final CompanyHome current;
+  final VoidCallback onSwitch;
 
   void _start(BuildContext context) {
     if (!current.quiz.isDone) {
@@ -72,197 +81,130 @@ class _HomeBody extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = current;
+    final p = c.preparation;
+    final focus = c.focusMode;
+    final title = p.hasJob ? '${c.companyName} · ${p.jobName} 면접' : c.companyName;
+    final front = focus ? AppColors.cardDark : AppColors.point;
+    final onFront = focus ? AppColors.white : AppColors.ink;
+    final tabText = focus ? AppColors.white : AppColors.onPoint;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (c.focusMode)
-          const PageTitle('면접이 거의 다 왔어요.\n오늘은 답변을 다듬어 볼까요?', large: false)
-        else
-          _Greeting(
-            nickname: home.nickname,
-            companyName: c.companyName,
-            onCompanyTap: () => showCompanySwitchSheet(context, home: home, selectedId: c.companyId),
-          ),
-        const SizedBox(height: AppSpacing.md),
-        if (c.focusMode)
-          Container(
-            color: AppColors.surfaceMuted,
-            padding: const EdgeInsets.all(AppSpacing.xs),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.xxs, AppSpacing.xxs, AppSpacing.xxs, AppSpacing.xs),
-                  child: TagChip('면접 집중 모드 · ${formatDday(c.dday ?? 0)}', dark: true),
-                ),
-                _PrepCard(c: c, focus: true),
-              ],
-            ),
-          )
-        else
-          _PrepCard(c: c, focus: false),
-        const SizedBox(height: AppSpacing.md),
-        const SectionTitle('오늘의 학습', large: true),
-        const SizedBox(height: AppSpacing.md),
-        OutlinedBox(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        FolderCard(
+          color: front,
+          backColor: focus ? AppColors.point : AppColors.folderBack,
+          tabWidth: 150,
+          tabHeight: 44,
+          curveWidth: 50,
+          radius: AppRadius.lg,
+          bottomRadius: 0,
+          bodyPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
+          tab: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _TaskRow(
-                index: 1,
-                title: '기업 퀴즈',
-                subtitle: c.focusMode ? '오답들을 집중적으로 점검해요' : '객관식 ${c.quizChoiceCount} + 주관식 ${c.quizShortCount}',
-                task: c.quiz,
-                onTap: () => context.push(Routes.quiz(c.companyId)),
-              ),
-              const LineDivider(),
-              _TaskRow(
-                index: 2,
-                title: '면접 질문',
-                subtitle: c.focusMode ? '보완 필요 질문 다시 말하기' : '기업·직무 맞춤 질문',
-                task: c.interview,
-                onTap: () => context.push(Routes.todayInterview(c.companyId)),
-              ),
-              if (c.allDone)
-                _DonePanel(home: home, current: c)
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AppButton(label: '오늘의 학습 시작하기  →', onPressed: () => _start(context)),
-                      const SizedBox(height: AppSpacing.xs),
-                      if (!c.focusMode)
-                        Text(
-                          '단계를 눌러 퀴즈나 면접부터 바로 시작할 수도 있어요.',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.micro.copyWith(color: AppColors.textHint),
-                        ),
-                    ],
-                  ),
-                ),
+              if (focus) ...[const _FocusBadge(), const SizedBox(width: 6)],
+              Text('오늘의 학습', style: AppTypography.body2Strong.copyWith(color: tabText)),
             ],
           ),
+          trailing: Semantics(
+            button: true,
+            label: '준비 기업 바꾸기',
+            excludeSemantics: true,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('기업 변경', style: AppTypography.body2Medium.copyWith(color: AppColors.onPoint)),
+                const SizedBox(width: 6),
+                const Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.onPoint),
+              ],
+            ),
+          ),
+          onTrailingTap: onSwitch,
+          child: Row(
+            children: [
+              CompanyLogo(name: c.companyName, size: 48, bordered: true),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.subheading.copyWith(fontSize: 18, color: onFront, height: 1.4),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      p.interviewDate == null ? '면접 일정 미정' : formatMonthDayWeek(p.interviewDate!),
+                      style: AppTypography.body2Medium.copyWith(
+                        color: focus ? AppColors.white.withValues(alpha: 0.7) : AppColors.onPointSub,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (c.dday != null)
+                Text(formatDday(c.dday!), style: AppTypography.number(26, color: focus ? AppColors.point : AppColors.ink)),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xxs, AppSpacing.lg, AppSpacing.lg),
+          decoration: const BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
+          ),
+          child: c.allDone
+              ? const _DoneBody()
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _TaskRow(title: '기업 퀴즈', task: c.quiz, onTap: () => context.push(Routes.quiz(c.companyId))),
+                    const SizedBox(height: 0.5, child: ColoredBox(color: AppColors.cardDarkLine)),
+                    _TaskRow(title: '면접 연습', task: c.interview, onTap: () => context.push(Routes.todayInterview(c.companyId))),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppButton(
+                      label: '오늘의 학습하기',
+                      variant: focus ? AppButtonVariant.point : AppButtonVariant.ink,
+                      onPressed: () => _start(context),
+                    ),
+                  ],
+                ),
         ),
       ],
     );
   }
 }
 
-/// 면접 일정 + 누적 정답률·완성률 카드
-class _PrepCard extends StatelessWidget {
-  const _PrepCard({required this.c, required this.focus});
-
-  final CompanyHome c;
-  final bool focus;
+/// 집중 모드 배지 (라임 알약 "⚡ 집중")
+class _FocusBadge extends StatelessWidget {
+  const _FocusBadge();
 
   @override
   Widget build(BuildContext context) {
-    final p = c.preparation;
-    final job = p.hasJob ? ' · ${p.jobName} 면접' : ' 면접';
-    final accuracy = c.accuracy;
-    final completion = c.completionRate;
     return Container(
-      decoration: BoxDecoration(
-        color: focus ? AppColors.surfaceMuted : AppColors.surface,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(color: AppColors.point, borderRadius: BorderRadius.circular(AppRadius.pill)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              children: [
-                LogoBox(label: focus ? '달력' : '로고'),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${c.companyName}$job', style: AppTypography.cardTitle),
-                      const SizedBox(height: 2),
-                      Text(p.interviewDate == null ? '면접일 미정' : formatMonthDayWeek(p.interviewDate!), style: AppTypography.caption),
-                    ],
-                  ),
-                ),
-                if (c.dday != null) Text(formatDday(c.dday!), style: AppTypography.title2),
-              ],
-            ),
-          ),
-          const LineDivider(),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _Stat(
-                    label: '누적 퀴즈 정답률',
-                    value: accuracy == null ? '-' : '$accuracy%',
-                    detail: c.quizSolved == 0
-                        ? '학습 기록 없음'
-                        : focus
-                            ? '지금까지 푼 ${c.quizSolved}문제 중 ${c.quizCorrect}개 정답'
-                            : '${c.quizSolved}문제 중 ${c.quizCorrect}개 정답',
-                  ),
-                ),
-                Expanded(
-                  child: _Stat(
-                    label: '누적 면접 완성률',
-                    value: completion == null ? '-' : '$completion%',
-                    detail: c.interviewAnswered == 0
-                        ? '학습 기록 없음'
-                        : focus
-                            ? '답한 ${c.interviewAnswered}개 질문 중 ${c.interviewCompleted}개 완성'
-                            : '완성 질문 ${c.interviewCompleted}개',
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const Icon(Icons.bolt_rounded, size: 12, color: AppColors.ink),
+          Text('집중', style: AppTypography.captionStrong.copyWith(color: AppColors.ink)),
         ],
       ),
     );
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, required this.detail});
-
-  final String label;
-  final String value;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.card),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: AppTypography.caption),
-          const SizedBox(height: 2),
-          Text(value, style: AppTypography.title1),
-          const SizedBox(height: 2),
-          Text(detail, style: AppTypography.micro),
-        ],
-      ),
-    );
-  }
-}
-
-/// 오늘의 학습 한 줄 (1 기업 퀴즈 · 0 / 5 ›)
+/// "🔥 기업 퀴즈 · 5/5" (다 하면 라임 숫자)
 class _TaskRow extends StatelessWidget {
-  const _TaskRow({required this.index, required this.title, required this.subtitle, required this.task, required this.onTap});
+  const _TaskRow({required this.title, required this.task, required this.onTap});
 
-  final int index;
   final String title;
-  final String subtitle;
   final TodayTask task;
   final VoidCallback onTap;
 
@@ -274,27 +216,24 @@ class _TaskRow extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Row(
-            children: [
-              IndexBox(label: '$index', done: task.isDone),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: AppTypography.cardTitle),
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: AppTypography.caption),
-                  ],
+        child: SizedBox(
+          height: 64,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+            child: Row(
+              children: [
+                Image.asset('assets/images/icons/fire.png', width: 20, height: 20, excludeFromSemantics: true),
+                const SizedBox(width: AppSpacing.xxs),
+                Expanded(child: Text(title, style: AppTypography.subheading.copyWith(color: AppColors.white, height: 1.4))),
+                Text(
+                  '${task.done}/${task.total}',
+                  style: AppTypography.subheading.copyWith(
+                    fontWeight: AppTypography.regular,
+                    color: task.isDone ? AppColors.point : const Color(0xFFB9B9BC),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text('${task.done} / ${task.total}', style: AppTypography.body1Strong),
-              const SizedBox(width: AppSpacing.sm),
-              const Chevron(),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -302,82 +241,128 @@ class _TaskRow extends StatelessWidget {
   }
 }
 
-/// "지민님, [기아 ▾] 에 대해 / 오늘도 한 걸음 준비해요." (기업 칩을 누르면 전환 시트)
-class _Greeting extends StatelessWidget {
-  const _Greeting({required this.nickname, required this.companyName, required this.onCompanyTap});
-
-  final String nickname;
-  final String companyName;
-  final VoidCallback onCompanyTap;
+/// 2-E2 하루치 학습 완료: 깃발 + "오늘의 학습을 / 모두 완료했어요!"
+class _DoneBody extends StatelessWidget {
+  const _DoneBody();
 
   @override
   Widget build(BuildContext context) {
-    final style = AppTypography.title2;
-    return Semantics(
-      header: true,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              if (nickname.isNotEmpty) Text('$nickname님,', style: style),
-              CompanyChip(label: companyName, onTap: onCompanyTap),
-              Text('에 대해', style: style),
-            ],
+          const Icon(Icons.flag_rounded, size: 40, color: Color(0xFF5C5D63)),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '오늘의 학습을\n모두 완료했어요!',
+            textAlign: TextAlign.center,
+            style: AppTypography.body1Medium.copyWith(color: const Color(0xFFB9B9BC)),
           ),
-          const SizedBox(height: 2),
-          Text('오늘도 한 걸음 준비해요.', style: style),
+          const SizedBox(height: AppSpacing.xs),
+          TextLink(
+            label: '복습하러 가기 ›',
+            style: AppTypography.body2Medium.copyWith(color: AppColors.point),
+            onTap: () => context.go(Routes.review),
+          ),
         ],
       ),
     );
   }
 }
 
-/// 2-1 오늘의 학습 완료: "기아 오늘의 학습 완료!" · 복습 탭 안내 · 다른 기업 학습하기
-class _DonePanel extends ConsumerWidget {
-  const _DonePanel({required this.home, required this.current});
+/// 학습 현황: 퀴즈 정답률(주황 막대) · 면접 완성률(라임 막대)
+class _Stats extends StatelessWidget {
+  const _Stats({required this.c});
 
-  final HomeSummary home;
-  final CompanyHome current;
+  final CompanyHome c;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = current;
-    final others = home.companies.where((x) => x.companyId != c.companyId).toList();
-    final next = others.where((x) => x.remainingToday > 0).firstOrNull;
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Center(child: LogoBox(label: '완료')),
-          const SizedBox(height: AppSpacing.sm),
-          Text('${c.companyName} 오늘의 학습 완료!', textAlign: TextAlign.center, style: AppTypography.subheading),
-          const SizedBox(height: AppSpacing.xxs),
-          Text('복습 탭에서 오늘 기록을 다시 볼 수 있어요.', textAlign: TextAlign.center, style: AppTypography.caption),
-          const SizedBox(height: AppSpacing.md),
-          if (others.isNotEmpty) ...[
-            AppButton(
-              label: next == null ? '다른 기업 학습하기' : '다른 기업 학습하기 · ${next.companyName} 오늘 ${next.remainingToday}개 남음',
-              onPressed: () {
-                if (next == null) {
-                  showCompanySwitchSheet(context, home: home, selectedId: c.companyId);
-                } else {
-                  ref.read(selectedCompanyIdProvider.notifier).select(next.companyId);
-                }
-              },
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('학습 현황', style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: const Color(0xFF9A9A9A))),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                label: '퀴즈 정답률',
+                value: c.accuracy ?? 0,
+                detail: c.quizSolved == 0 ? '아직 푼 퀴즈가 없어요' : '${c.quizSolved}문제 중 ${c.quizCorrect}개 정답',
+                barColor: AppColors.statQuiz,
+              ),
             ),
-            const SizedBox(height: AppSpacing.ctaGap),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _StatCard(
+                label: '면접 완성률',
+                value: c.completionRate ?? 0,
+                detail: c.interviewAnswered == 0 ? '아직 답변한 질문이 없어요' : '${c.interviewAnswered}질문 중 ${c.interviewCompleted}개 완성',
+                barColor: AppColors.point,
+              ),
+            ),
           ],
-          AppButton(
-            label: '복습하러 가기',
-            variant: others.isEmpty ? AppButtonVariant.primary : AppButtonVariant.secondary,
-            onPressed: () => context.go(Routes.review),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.label, required this.value, required this.detail, required this.barColor});
+
+  final String label;
+  final int value;
+  final String detail;
+  final Color barColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$label $value퍼센트, $detail',
+      excludeSemantics: true,
+      child: Container(
+        height: 175,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: const Color(0xFF22282F))),
+            const Spacer(),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: '$value', style: AppTypography.number(32, color: const Color(0xFF2B2B2C))),
+                  TextSpan(text: '%', style: AppTypography.number(20, color: const Color(0xFF2B2B2C))),
+                ],
+              ),
+            ),
+            Text(
+              detail,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(fontWeight: AppTypography.regular, color: const Color(0xFF979BA3)),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: Container(
+                height: 6,
+                color: AppColors.statTrack,
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: (value / 100).clamp(0.0, 1.0),
+                  heightFactor: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -5,10 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/router/app_router.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
-import '../common/pickers.dart';
 import 'interview_widgets.dart';
 
-/// 4-1 면접 질문 · 답변에 활용할 정보 → 음성으로 답변하기 / 답변하기
+/// 피그마 최종 4-2 면접 질문 · 공시 근거: 질문 24 + 라임/진한 "답변에 활용할 정보" 카드 → 답변하기
 class QuestionScreen extends ConsumerWidget {
   const QuestionScreen({super.key, required this.questionId});
 
@@ -24,26 +23,22 @@ class QuestionScreen extends ConsumerWidget {
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(interviewQuestionProvider(questionId))),
         data: (q) => ListView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.xl),
           children: [
             QuestionCard(question: q),
             if (q.evidence.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.lg),
-              const SectionTitle('답변에 활용할 정보'),
-              const SizedBox(height: AppSpacing.sm),
-              for (final e in q.evidence) ...[EvidenceCard(evidence: e), const SizedBox(height: AppSpacing.sm)],
+              const SizedBox(height: 36),
+              for (var i = 0; i < q.evidence.length; i++) ...[
+                EvidenceFolderCard(evidence: q.evidence[i], showTab: i == 0),
+                const SizedBox(height: AppSpacing.md),
+              ],
             ],
           ],
         ),
       ),
       bottomNavigationBar: q.hasValue
           ? BottomCta(children: [
-              AppButton(
-                label: '음성으로 답변하기',
-                variant: AppButtonVariant.secondary,
-                onPressed: () => context.push(Routes.interviewAnswer(questionId, voice: true)),
-              ),
-              AppButton(label: '답변하기  →', onPressed: () => context.push(Routes.interviewAnswer(questionId))),
+              AppButton(label: '답변하기', onPressed: () => context.push(Routes.interviewAnswer(questionId))),
             ])
           : null,
     );

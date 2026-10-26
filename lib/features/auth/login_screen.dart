@@ -87,8 +87,7 @@ class _Intro extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // TODO(디자인): 로고 이미지가 나오면 교체
-          const LogoBox(size: AppSizes.logo),
+          Image.asset(AppHeader.logoAsset, height: 40, semanticLabel: 'Dadot'),
           const SizedBox(height: AppSpacing.introGap),
           Text('기업의 이야기,\n나의 답변으로.', textAlign: TextAlign.center, style: AppTypography.display),
           const SizedBox(height: AppSpacing.introGap),

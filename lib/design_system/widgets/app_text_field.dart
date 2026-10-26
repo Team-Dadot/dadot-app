@@ -5,7 +5,7 @@ import '../tokens/app_colors.dart';
 import '../tokens/app_spacing.dart';
 import '../tokens/app_typography.dart';
 
-/// 공통 입력창. 피그마: 흰 바탕, #BFBFBF 1px 테두리, 모서리 없음, 안쪽 14.
+/// 공통 입력창. 피그마 작업 프레임: 흰 바탕, 테두리 없음, 모서리 16, 안쪽 20·16.
 /// [maxLength] 를 주면 상자 안 오른쪽 아래에 "0 / 10,000자" 카운터가 보인다.
 class AppTextField extends StatelessWidget {
   const AppTextField({
@@ -52,7 +52,7 @@ class AppTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final multiline = maxLines > 1;
-    final style = textStyle ?? (multiline ? AppTypography.body2.copyWith(color: AppColors.textPrimary) : AppTypography.body1);
+    final style = textStyle ?? (multiline ? AppTypography.body1.copyWith(color: AppColors.textStrong, height: 1.6) : AppTypography.body1);
     final field = TextField(
       controller: controller,
       readOnly: readOnly,
@@ -81,10 +81,10 @@ class AppTextField extends StatelessWidget {
       textField: true,
       child: Container(
         constraints: BoxConstraints(minHeight: multiline ? 0 : AppSizes.inputHeight),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.card, vertical: AppSpacing.sm),
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: multiline ? AppSpacing.lg : AppSpacing.sm),
         decoration: BoxDecoration(
           color: readOnly ? AppColors.surfaceMuted : AppColors.surface,
-          border: Border.all(color: readOnly ? AppColors.divider : AppColors.border),
+          borderRadius: BorderRadius.circular(multiline ? AppRadius.lg : AppRadius.md),
         ),
         alignment: multiline ? null : Alignment.centerLeft,
         child: maxLength == null
@@ -130,10 +130,11 @@ class SelectField extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
-          height: AppSizes.inputHeight + 4,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.card),
-          decoration: BoxDecoration(color: AppColors.surface, border: Border.all(color: AppColors.border)),
+          height: AppSizes.inputHeight,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.md)),
           child: Row(
             children: [
               Expanded(
@@ -142,7 +143,10 @@ class SelectField extends StatelessWidget {
                   style: AppTypography.body1.copyWith(color: empty ? AppColors.textPlaceholder : AppColors.textPrimary),
                 ),
               ),
-              Text(trailing, style: AppTypography.body2Medium),
+              if (trailing == '›')
+                const Icon(Icons.chevron_right_rounded, size: 22, color: AppColors.placeholder)
+              else
+                Text(trailing, style: AppTypography.body2Medium.copyWith(color: AppColors.textPlaceholder)),
             ],
           ),
         ),

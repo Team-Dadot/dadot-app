@@ -12,7 +12,7 @@ class SwipeApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: '공시노트',
+      title: 'Dadot',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,

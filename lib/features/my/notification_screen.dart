@@ -7,7 +7,7 @@ import '../../data/models/settings.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
 
-/// 6-9 학습 알림
+/// 피그마 6-9 알림 설정
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
 
@@ -50,7 +50,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     final settings = ref.watch(notificationSettingsProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '학습 알림'),
+      appBar: const AppNavBar(title: '알림 설정'),
       body: settings.when(
         skipLoadingOnReload: true,
         loading: () => const LoadingView(),
@@ -61,6 +61,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             const PageTitle('나의 준비에 맞춰\n필요할 때만 알려줘요.'),
             const SizedBox(height: AppSpacing.lg),
             OutlinedBox(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
               child: Row(
                 children: [
                   Expanded(
@@ -69,7 +70,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                       children: [
                         Text('학습 알림 받기', style: AppTypography.cardTitle),
                         const SizedBox(height: 2),
-                        Text('퀴즈·면접 학습 상태에 맞춘 제안', style: AppTypography.caption),
+                        Text('퀴즈 · 면접 학습 상태에 맞춘 제안을 받을 수 있어요.', style: AppTypography.caption.copyWith(color: AppColors.textPlaceholder)),
                       ],
                     ),
                   ),
@@ -80,6 +81,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             const SizedBox(height: AppSpacing.sm),
             OutlinedBox(
               onTap: s.enabled && !_saving ? () => _pickTime(s) : null,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
               child: Row(
                 children: [
                   Expanded(child: Text('알림 시간', style: AppTypography.rowTitle)),

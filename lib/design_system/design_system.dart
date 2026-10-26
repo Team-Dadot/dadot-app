@@ -11,5 +11,6 @@ export 'widgets/app_button.dart';
 export 'widgets/app_text_field.dart';
 export 'widgets/boxes.dart';
 export 'widgets/dialogs.dart';
+export 'widgets/folder_card.dart';
 export 'widgets/progress.dart';
 export 'widgets/state_views.dart';

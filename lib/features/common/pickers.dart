@@ -197,18 +197,26 @@ class EvidenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 피그마 4-2: 흰 카드 · 제목 16 · "공시일 | 2026.03.12" / "대상 기간 | …" 12 회색 · 본문 15
+    final meta = [
+      if (evidence.publishedAt != null) '공시일  |  ${evidence.publishedAt}',
+      if (evidence.period != null) '대상 기간  |  ${evidence.period}',
+    ];
     return OutlinedBox(
-      borderColor: AppColors.border,
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(evidence.title, style: compactTitle ? AppTypography.body1Strong : AppTypography.cardTitle),
-          if (evidence.metaLine.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xxs),
-            Text(evidence.metaLine, style: AppTypography.micro),
+          if (meta.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            for (final m in meta) Text(m, style: AppTypography.caption.copyWith(color: AppColors.textPlaceholder)),
           ],
-          const SizedBox(height: AppSpacing.xs),
-          Text(quoted ? '“${evidence.excerpt}”' : evidence.excerpt, style: AppTypography.body2),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            quoted ? '“${evidence.excerpt}”' : evidence.excerpt,
+            style: AppTypography.body1.copyWith(color: AppColors.textStrong, height: 1.6),
+          ),
           if (evidence.interpretation != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text('해석 · ${evidence.interpretation}', style: AppTypography.caption.copyWith(color: AppColors.textSub)),

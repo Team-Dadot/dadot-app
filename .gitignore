@@ -49,3 +49,6 @@ app.*.map.json
 
 # Claude Code 개인 설정
 .claude/settings.local.json
+
+# 로컬 작업 스냅샷 (커밋하지 않음)
+.backup_*/

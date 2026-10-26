@@ -6,6 +6,7 @@ import '../../core/providers.dart';
 import '../../core/session/session_controller.dart';
 import '../../data/models/auth.dart';
 import '../../design_system/design_system.dart';
+import 'my_screen.dart' show LoginBadge;
 
 /// 6-11 회원정보 수정
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -57,7 +58,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isEmail = _user?.loginMethod == LoginMethod.email;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '회원정보 수정'),
+      appBar: const AppNavBar(title: '내 정보'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
         children: [
@@ -76,12 +77,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   excludeSemantics: true,
                   child: InkWell(
                     onTap: () => setState(() => _avatar = i),
+                    customBorder: const CircleBorder(),
                     child: Container(
                       width: 48,
                       height: 48,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: AppColors.placeholder,
+                        shape: BoxShape.circle,
                         border: Border.all(color: i == _avatar ? AppColors.primary : AppColors.placeholder, width: i == _avatar ? 2 : 1),
                       ),
                       // TODO(디자인): 기본 프로필 이미지가 나오면 교체
@@ -97,13 +100,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: AppSpacing.xs),
           AppTextField(controller: _nickname, hint: '닉네임', onChanged: (_) => setState(() {})),
           const SizedBox(height: AppSpacing.md),
-          const FieldLabel('연결된 계정'),
-          const SizedBox(height: AppSpacing.xs),
-          AppTextField(controller: _email, readOnly: true),
-          const SizedBox(height: AppSpacing.md),
-          const FieldLabel('로그인 방식'),
-          const SizedBox(height: AppSpacing.xs),
-          AppTextField(controller: _method, readOnly: true),
+          Text('연결된 계정', style: AppTypography.subheading),
+          const SizedBox(height: AppSpacing.sm),
+          // 피그마 6-11: 흰 카드에 이메일 + 로그인 배지
+          OutlinedBox(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    (_user?.email ?? '').isEmpty ? _method.text : _user!.email!,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body1Medium,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                if (_user != null) LoginBadge(method: _user!.loginMethod),
+                const Spacer(),
+                Text(_method.text, style: AppTypography.caption.copyWith(color: AppColors.textPlaceholder)),
+              ],
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             isEmail ? '로그인 이메일은 변경할 수 없어요.' : '카카오·Apple 로그인은 계정 정보를 해당 서비스에서 관리해요.',

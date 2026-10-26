@@ -11,7 +11,7 @@ import '../../data/models/auth.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
 
-/// 6-1 마이
+/// 피그마 최종 6-1 마이: 내 계정 · 학습 현황 · 고객 지원 · 계정 흰 카드 묶음 (줄마다 제목 + 설명 + ›)
 class MyScreen extends ConsumerWidget {
   const MyScreen({super.key});
 
@@ -51,73 +51,118 @@ class MyScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppHeader(),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
-        children: [
-          const PageTitle('나의 준비를\n차곡차곡 모아요.', large: false),
-          const SizedBox(height: AppSpacing.xxs),
-          // 프로필 (누르면 회원정보 수정)
-          Semantics(
-            button: true,
-            label: '회원정보 수정, ${user?.nickname ?? ''}',
-            excludeSemantics: true,
-            child: InkWell(
-              onTap: () => context.push(Routes.myProfile),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.card),
-                child: Row(
-                  children: [
-                    const LogoBox(size: AppSizes.profile, label: '프로필'),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(user?.nickname ?? '', style: AppTypography.subheading),
-                          const SizedBox(height: 2),
-                          Text(
-                            [user?.loginMethod.label ?? '', if ((user?.email ?? '').isNotEmpty) user!.email!].join(' '),
-                            style: AppTypography.caption,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+          children: [
+            const _GroupLabel('내 계정', first: true),
+            // 프로필 카드 (누르면 내 정보)
+            MenuGroup(children: [
+              Semantics(
+                button: true,
+                label: '내 정보, ${user?.nickname ?? ''}',
+                excludeSemantics: true,
+                child: InkWell(
+                  onTap: () => context.push(Routes.myProfile),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(user?.nickname ?? '', style: AppTypography.subheading.copyWith(color: AppColors.textStrong)),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      (user?.email ?? '').isNotEmpty ? user!.email! : '${user?.loginMethod.detailLabel ?? ''} 로그인',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.caption,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.xxs),
+                                  if (user != null) LoginBadge(method: user.loginMethod),
+                                ],
+                              ),
+                            ],
                           ),
-                          Text('${user?.loginMethod.detailLabel ?? ''}${isEmailUser ? '로' : '으로'} 로그인 중', style: AppTypography.micro),
-                        ],
-                      ),
+                        ),
+                        const Chevron(),
+                      ],
                     ),
-                    const Chevron(),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-          const LineDivider(),
-          const _GroupLabel('학습'),
-          MenuRow(
-            title: '준비 기업 관리',
-            subtitle: '준비 기업 ${preps?.length ?? '-'} / ${AppPolicy.maxCompanies}',
-            onTap: () => context.push(Routes.myCompanies),
-          ),
-          MenuRow(title: '지원 정보·면접 일정', subtitle: '기업별 직무·면접일', onTap: () => context.push(Routes.myApplications)),
-          MenuRow(
-            title: '내 경험·자소서',
-            subtitle: '저장한 경험 ${experiences?.length ?? '-'} / ${AppPolicy.maxExperiences}개',
-            onTap: () => context.push(Routes.myExperiences),
-          ),
-          MenuRow(title: '학습 알림', subtitle: notification?.summary, onTap: () => context.push(Routes.myNotifications)),
-          const _GroupLabel('고객 지원'),
-          MenuRow(title: '서비스 문의·오류 제보', onTap: () => context.push(Routes.myInquiry)),
-          const _GroupLabel('계정'),
-          MenuRow(title: '회원정보 수정', subtitle: '닉네임 · 프로필 이미지', onTap: () => context.push(Routes.myProfile)),
-          if (isEmailUser) MenuRow(title: '비밀번호 변경', onTap: () => context.push(Routes.myPassword)),
-          MenuRow(title: '로그아웃', onTap: () => _signOut(context, ref)),
-          MenuRow(title: '회원 탈퇴', onTap: () => _delete(context, ref)),
-          const SizedBox(height: AppSpacing.sm),
-          Text('비밀번호 변경은 이메일로 가입한 경우에만 보여요.', style: AppTypography.micro),
-          if (ref.watch(appConfigProvider).useMock) ...[
-            const SizedBox(height: AppSpacing.lg),
-            TextLink(label: '[개발] Mock 데이터 초기화', onTap: () => _resetMock(ref)),
+            ]),
+            const _GroupLabel('학습 현황'),
+            MenuGroup(children: [
+              MenuRow(
+                title: '준비 기업 관리',
+                subtitle: '준비 기업 ${preps?.length ?? '-'}/${AppPolicy.maxCompanies}',
+                onTap: () => context.push(Routes.myCompanies),
+              ),
+              MenuRow(title: '지원 정보·면접 일정', subtitle: '기업별 직무 · 면접일', onTap: () => context.push(Routes.myApplications)),
+              MenuRow(
+                title: '내 경험 정보',
+                subtitle: '저장한 경험 ${experiences?.length ?? '-'}/${AppPolicy.maxExperiences}',
+                onTap: () => context.push(Routes.myExperiences),
+              ),
+              MenuRow(
+                title: '알림',
+                subtitle: notification == null ? null : (notification.enabled ? notification.summary.split(' · ').first : '꺼짐'),
+                onTap: () => context.push(Routes.myNotifications),
+              ),
+            ]),
+            const _GroupLabel('고객 지원'),
+            MenuGroup(children: [
+              MenuRow(title: '서비스 문의 및 오류제보', onTap: () => context.push(Routes.myInquiry)),
+            ]),
+            const SizedBox(height: AppSpacing.md),
+            MenuGroup(children: [
+              MenuRow(title: '회원 정보 수정', onTap: () => context.push(Routes.myProfile)),
+              if (isEmailUser) MenuRow(title: '비밀번호 변경', onTap: () => context.push(Routes.myPassword)),
+              MenuRow(title: '로그아웃', onTap: () => _signOut(context, ref)),
+              MenuRow(title: '회원 탈퇴', onTap: () => _delete(context, ref)),
+            ]),
+            if (ref.watch(appConfigProvider).useMock) ...[
+              const SizedBox(height: AppSpacing.lg),
+              TextLink(label: '[개발] Mock 데이터 초기화', onTap: () => _resetMock(ref)),
+            ],
           ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 로그인 방법 표시 (카카오는 노란 말풍선, 나머지는 글자)
+class LoginBadge extends StatelessWidget {
+  const LoginBadge({super.key, required this.method});
+
+  final LoginMethod method;
+
+  @override
+  Widget build(BuildContext context) {
+    final kakao = method == LoginMethod.kakao;
+    return Semantics(
+      label: '${method.label} 계정',
+      excludeSemantics: true,
+      child: Container(
+        width: kakao ? 16 : null,
+        height: 16,
+        padding: kakao ? null : const EdgeInsets.symmetric(horizontal: 6),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: kakao ? AppColors.kakao : AppColors.fillSecondary,
+          borderRadius: BorderRadius.circular(kakao ? 4 : AppRadius.pill),
+        ),
+        child: kakao
+            ? const Icon(Icons.chat_bubble_rounded, size: 10, color: Color(0xFF191919))
+            : Text(method.label, style: AppTypography.micro.copyWith(fontSize: 10, height: 1)),
       ),
     );
   }
@@ -125,15 +170,16 @@ class MyScreen extends ConsumerWidget {
 
 /// 마이 목록 묶음 이름 (학습 · 고객 지원 · 계정)
 class _GroupLabel extends StatelessWidget {
-  const _GroupLabel(this.text);
+  const _GroupLabel(this.text, {this.first = false});
 
   final String text;
+  final bool first;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.lg, bottom: AppSpacing.xxs),
-      child: Text(text, style: AppTypography.captionStrong.copyWith(color: AppColors.textSecondary)),
+      padding: EdgeInsets.only(top: first ? AppSpacing.sm : 28, bottom: AppSpacing.sm, left: AppSpacing.xxs),
+      child: Text(text, style: AppTypography.body2Medium.copyWith(color: AppColors.textTertiary)),
     );
   }
 }

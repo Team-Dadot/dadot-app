@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/app_policy.dart';
 import '../../core/router/app_router.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
@@ -16,7 +17,7 @@ class ApplicationsScreen extends ConsumerWidget {
     final preps = ref.watch(preparationsProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '지원 정보·면접 일정'),
+      appBar: const AppNavBar(title: '지원 정보 · 면접 일정'),
       body: preps.when(
         skipLoadingOnReload: true,
         loading: () => const LoadingView(),
@@ -24,8 +25,14 @@ class ApplicationsScreen extends ConsumerWidget {
         data: (list) => ListView(
           padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
           children: [
-            const PageTitle('기업마다 따로\n지원 정보를 관리해요.'),
-            const SizedBox(height: AppSpacing.gap),
+            SectionTitle(
+              '내가 지원한 기업',
+              trailing: Text(
+                '${list.length}/${AppPolicy.maxCompanies}',
+                style: AppTypography.body2Medium.copyWith(color: AppColors.textTertiary),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
             if (list.isEmpty)
               EmptyView(
                 compact: true,
@@ -36,11 +43,11 @@ class ApplicationsScreen extends ConsumerWidget {
             for (final p in list) ...[
               CompanyTile(
                 name: p.companyName,
-                subtitle: prepSubtitle(jobName: p.jobName, date: p.interviewDate, showDate: true),
-                trailing: const Chevron(),
+                subtitle: prepSubtitle(jobName: p.jobName, dday: p.ddayFrom(DateTime.now()), date: p.interviewDate),
+                trailing: Text('수정', style: AppTypography.caption.copyWith(color: AppColors.textPlaceholder)),
                 onTap: () => context.push(Routes.myApplication(p.companyId)),
               ),
-              const SizedBox(height: AppSpacing.gap),
+              const SizedBox(height: AppSpacing.sm),
             ],
           ],
         ),

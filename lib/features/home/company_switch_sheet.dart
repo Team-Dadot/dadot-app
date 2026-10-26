@@ -6,44 +6,138 @@ import '../../core/router/app_router.dart';
 import '../../data/models/home.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
-import '../common/format.dart';
 
-/// 2-3 준비 기업 전환 시트 (홈·복습 헤더의 "기아 ▾")
+/// 피그마 최종 2-3 "기업 선택하기" 시트 (홈 기업 변경 ⇄ · 복습 헤더 기업 칩)
+/// 면접이 가까운 집중 모드 기업은 위에 진한 카드(라임 테두리)로, 나머지는 흰 목록에 라디오 체크.
 Future<void> showCompanySwitchSheet(BuildContext context, {required HomeSummary home, required String selectedId}) {
   return showAppSheet<void>(
     context,
-    title: '어느 기업을 준비할까요?',
+    title: '기업 선택하기',
     builder: (sheetContext) => Consumer(
-      builder: (_, ref, _) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xxs, AppSpacing.screenH, AppSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final c in home.companies) ...[
-              CompanyTile(
-                name: c.companyName,
-                subtitle: prepSubtitle(jobName: c.preparation.jobName, dday: c.dday, date: c.preparation.interviewDate),
-                extra: c.remainingToday == 0 ? '오늘 학습 완료' : '오늘 ${c.remainingToday}개 남음',
-                selected: c.companyId == selectedId,
-                trailing: c.companyId == selectedId ? Text('✓', style: AppTypography.body2Medium) : null,
+      builder: (_, ref, _) {
+        final focus = home.companies.where((c) => c.focusMode).toList()
+          ..sort((a, b) => (a.dday ?? 999).compareTo(b.dday ?? 999));
+        final top = focus.firstOrNull;
+        final rest = home.companies.where((c) => c.companyId != top?.companyId).toList();
+
+        void pick(String id) {
+          ref.read(selectedCompanyIdProvider.notifier).select(id);
+          Navigator.of(sheetContext).pop();
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xxl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (top != null) ...[
+                _FocusCompany(c: top, selected: top.companyId == selectedId, onTap: () => pick(top.companyId)),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              if (rest.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < rest.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 0.5, width: double.infinity, child: ColoredBox(color: Color(0xFFDCDCDC))),
+                        _CompanyRow(c: rest[i], selected: rest[i].companyId == selectedId, onTap: () => pick(rest[i].companyId)),
+                      ],
+                    ],
+                  ),
+                ),
+              const SizedBox(height: AppSpacing.md),
+              TextLink(
+                label: '준비 기업 추가·관리 ›',
                 onTap: () {
-                  ref.read(selectedCompanyIdProvider.notifier).select(c.companyId);
                   Navigator.of(sheetContext).pop();
+                  context.push(Routes.myCompanies);
                 },
               ),
-              const SizedBox(height: AppSpacing.gap),
             ],
-            AppButton(
-              label: '준비 기업 추가·관리',
-              variant: AppButtonVariant.secondary,
-              onPressed: () {
-                Navigator.of(sheetContext).pop();
-                context.push(Routes.myCompanies);
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     ),
   );
+}
+
+class _FocusCompany extends StatelessWidget {
+  const _FocusCompany({required this.c, required this.selected, required this.onTap});
+
+  final CompanyHome c;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadius.button);
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: AppColors.cardDark,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: const BorderSide(color: AppColors.point, width: 1.5)),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${c.companyName} 면접', style: AppTypography.subheading.copyWith(fontWeight: AppTypography.bold, color: AppColors.point)),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text.rich(
+                        TextSpan(
+                          style: AppTypography.caption.copyWith(color: const Color(0xFFB9B9BC)),
+                          children: const [
+                            TextSpan(text: '면접이 얼마 남지 않았어요!\n'),
+                            TextSpan(text: '집중모드로 연습해봐요', style: TextStyle(fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                CheckMark(checked: selected),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompanyRow extends StatelessWidget {
+  const _CompanyRow({required this.c, required this.selected, required this.onTap});
+
+  final CompanyHome c;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              Expanded(child: Text(c.companyName, style: AppTypography.subheading.copyWith(color: AppColors.primary))),
+              CheckMark(checked: selected),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

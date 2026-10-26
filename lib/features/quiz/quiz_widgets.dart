@@ -8,7 +8,8 @@ const _letters = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 enum ChoiceState { idle, selected, correct, myWrong }
 
-/// 객관식 보기 한 줄 (A 크게 줄었다)
+/// 객관식 보기 한 줄 — 피그마 최종 3-1: 높이 64, 모서리 16.
+/// 고른 보기는 차콜 2px 테두리 + 라임 체크, 나머지는 #C5C5C5 1px 테두리 + 빈 원.
 class ChoiceTile extends StatelessWidget {
   const ChoiceTile({super.key, required this.index, required this.text, required this.state, this.onTap});
 
@@ -19,47 +20,56 @@ class ChoiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final strong = state == ChoiceState.selected || state == ChoiceState.correct;
+    final filled = state == ChoiceState.selected || state == ChoiceState.correct;
     final letter = index < _letters.length ? _letters[index] : '${index + 1}';
     final trailing = switch (state) {
       ChoiceState.correct => '정답',
       ChoiceState.myWrong => '내 답',
       _ => null,
     };
+    final radius = BorderRadius.circular(AppRadius.button);
     return Semantics(
       button: onTap != null,
       selected: state == ChoiceState.selected,
       label: '$letter. $text${trailing == null ? '' : ', $trailing'}',
       excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.all(strong ? AppSpacing.card - 1 : AppSpacing.card),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border.all(color: strong ? AppColors.primary : AppColors.borderLight, width: strong ? 2 : 1),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: AppSizes.indexBox,
-                height: AppSizes.indexBox,
-                alignment: Alignment.center,
-                color: strong ? AppColors.primary : AppColors.fillChoice,
-                child: Text(letter, style: AppTypography.body2Strong.copyWith(color: strong ? AppColors.white : AppColors.textBody)),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text(text, style: strong ? AppTypography.body1Strong : AppTypography.body1)),
-              if (trailing != null) ...[
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  trailing,
-                  style: AppTypography.captionStrong.copyWith(
-                    color: state == ChoiceState.correct ? AppColors.textPrimary : AppColors.textSecondary,
+      child: Material(
+        color: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: filled
+              ? const BorderSide(color: AppColors.primary, width: 2)
+              : BorderSide(color: state == ChoiceState.myWrong ? AppColors.accent : AppColors.borderLight),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: AppSizes.choiceHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: AppTypography.subheading.copyWith(color: filled ? AppColors.primary : AppColors.textSub, height: 1.45),
+                    ),
                   ),
-                ),
-              ],
-            ],
+                  const SizedBox(width: AppSpacing.sm),
+                  if (trailing != null) ...[
+                    Text(
+                      trailing,
+                      style: AppTypography.captionStrong.copyWith(
+                        color: state == ChoiceState.correct ? AppColors.textPrimary : AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
+                  CheckMark(checked: filled),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -67,20 +77,41 @@ class ChoiceTile extends StatelessWidget {
   }
 }
 
-/// 문제 머리: 태그 + 문제 (20 Bold)
+/// 문제 머리: 첫 줄 "Q1." (Zalando Sans) + 문제 26 Bold. 주관식이면 위에 작은 태그.
 class QuizPrompt extends StatelessWidget {
-  const QuizPrompt({super.key, required this.question});
+  const QuizPrompt({super.key, required this.question, this.number});
 
   final QuizQuestion question;
+
+  /// 문제 번호 (1부터). 주면 "Q1." 을 붙인다.
+  final int? number;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TagRow([question.kind.label, ...question.tags]),
-        const SizedBox(height: AppSpacing.sm),
-        Semantics(header: true, child: Text(question.prompt, style: AppTypography.title3)),
+        if (question.kind != QuizKind.choice) ...[
+          TagChip(question.kind.label),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        Semantics(
+          header: true,
+          label: number == null ? question.prompt : '$number번. ${question.prompt}',
+          excludeSemantics: true,
+          child: Text.rich(
+            TextSpan(
+              style: AppTypography.title3,
+              children: [
+                if (number != null) ...[
+                  TextSpan(text: 'Q$number', style: AppTypography.number(26, weight: FontWeight.w700, height: 1.45)),
+                  TextSpan(text: '.\n', style: AppTypography.title3.copyWith(color: AppColors.ink)),
+                ],
+                TextSpan(text: question.prompt),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -137,7 +168,7 @@ class QuizAnswerArea extends StatelessWidget {
             maxLines: 8,
             readOnly: r != null,
             onChanged: onShortChanged,
-            textStyle: AppTypography.body1,
+            textStyle: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium),
           ),
           const SizedBox(height: AppSpacing.sm),
           if (r == null) Text('핵심 키워드가 들어가면 정답으로 인정돼요.', style: AppTypography.caption),

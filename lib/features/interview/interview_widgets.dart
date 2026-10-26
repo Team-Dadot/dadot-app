@@ -2,27 +2,31 @@ import 'package:flutter/material.dart';
 
 import '../../core/config/app_policy.dart';
 import '../../data/models/interview.dart';
+import '../../data/models/quiz.dart' show Evidence;
 import '../../design_system/design_system.dart';
 import '../common/format.dart';
 
-/// 질문 카드: [기아] [마케팅] + 질문 (18 Bold)
+/// 화면 위 질문 (피그마 4-2 · 4-3: 카드 없이 20 SemiBold)
 class QuestionCard extends StatelessWidget {
   const QuestionCard({super.key, required this.question});
 
   final InterviewQuestion question;
 
   @override
-  Widget build(BuildContext context) {
-    return OutlinedBox(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (question.tags.isNotEmpty) ...[TagRow(question.tags), const SizedBox(height: AppSpacing.sm)],
-          Semantics(header: true, child: Text(question.text, style: AppTypography.title4)),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => QuestionTitle(question.text);
+}
+
+/// 질문 글자 (피그마 최종 24 Bold, 줄 높이 1.45)
+class QuestionTitle extends StatelessWidget {
+  const QuestionTitle(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        header: true,
+        child: Text(text, style: AppTypography.title1.copyWith(color: const Color(0xFF212121), height: 1.45)),
+      );
 }
 
 /// "기준 2/5 충족 · 3개 이상이면 완성"
@@ -37,11 +41,13 @@ class ScoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedBox(
-      borderColor: AppColors.borderLight,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
-          Align(alignment: Alignment.centerLeft, child: TagChip(feedback.status.label)),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TagChip(feedback.status.label, tone: feedback.metCount >= AppPolicy.completeMetCount ? TagTone.info : TagTone.accent),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text('${feedback.score} / 100', textAlign: TextAlign.center, style: AppTypography.score),
           const SizedBox(height: AppSpacing.xs),
@@ -124,7 +130,7 @@ class FeedbackContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (questionText != null) ...[
-          Semantics(header: true, child: Text(questionText!, style: AppTypography.title4)),
+          QuestionTitle(questionText!),
           const SizedBox(height: AppSpacing.gap),
         ],
         if (attemptPicker != null) ...[attemptPicker!, const SizedBox(height: AppSpacing.sm)],
@@ -136,17 +142,17 @@ class FeedbackContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.gap),
         SectionTitle('${f.criteria.length}개 항목 평가'),
         const SizedBox(height: AppSpacing.sm),
-        OutlinedBox(borderColor: AppColors.borderLight, child: CriteriaBars(criteria: f.criteria)),
+        OutlinedBox(padding: const EdgeInsets.all(AppSpacing.lg), child: CriteriaBars(criteria: f.criteria)),
         const SizedBox(height: AppSpacing.gap),
         const SectionTitle('답변을 돌아보면'),
         const SizedBox(height: AppSpacing.sm),
-        OutlinedBox(borderColor: AppColors.borderLight, child: ReviewPoints(good: f.goodPoint, improve: f.improvement)),
+        OutlinedBox(padding: const EdgeInsets.all(AppSpacing.lg), child: ReviewPoints(good: f.goodPoint, improve: f.improvement)),
         if (related != null) ...[
           const SizedBox(height: AppSpacing.gap),
           const SectionTitle('연결해볼 만한 내 경험'),
           const SizedBox(height: AppSpacing.sm),
           OutlinedBox(
-            borderColor: AppColors.borderLight,
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -210,6 +216,82 @@ class _SubmittedAnswerBoxState extends State<SubmittedAnswerBox> {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// 피그마 최종 4-2 "답변에 활용할 정보" 카드: 라임 폴더 탭 + 라임 제목 칸 + 진한 몸통(공시일 · 대상 기간 · 내용)
+class EvidenceFolderCard extends StatelessWidget {
+  const EvidenceFolderCard({super.key, required this.evidence, this.showTab = true});
+
+  final Evidence evidence;
+
+  /// 근거가 여러 개면 첫 카드만 탭을 단다
+  final bool showTab;
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = [
+      if (evidence.publishedAt != null) '공시일 ㅣ ${evidence.publishedAt}',
+      if (evidence.period != null) '대상 기간 ㅣ ${evidence.period}',
+    ];
+    final title = Text(evidence.title, style: AppTypography.title4.copyWith(color: const Color(0xFF212121)));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showTab)
+          FolderCard(
+            color: AppColors.point,
+            tabWidth: 148,
+            tabHeight: 39,
+            curveWidth: 51,
+            radius: AppRadius.lg,
+            bottomRadius: 0,
+            bodyPadding: const EdgeInsets.all(AppSpacing.lg),
+            tab: Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                '답변에 활용할 정보',
+                style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: const Color(0xFF6E7D14)),
+              ),
+            ),
+            child: title,
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: const BoxDecoration(
+              color: AppColors.point,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+            ),
+            child: title,
+          ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
+          decoration: const BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (meta.isNotEmpty) ...[
+                for (final m in meta) Text(m, style: AppTypography.body2.copyWith(color: const Color(0xFFF9F9F9), height: 1.4)),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              Text(
+                evidence.excerpt,
+                style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: AppColors.white, height: 1.8),
+              ),
+              if (evidence.interpretation != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text('해석 · ${evidence.interpretation}', style: AppTypography.body2.copyWith(color: const Color(0xFFB9B9BC))),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

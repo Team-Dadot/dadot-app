@@ -12,6 +12,8 @@ import 'quiz_widgets.dart';
 /// 3-1 오늘의 퀴즈 · 문제 풀이 (객관식 · 주관식)
 /// 완성본 와이어프레임: 문제마다 정답을 보여주지 않고 "다음 문제로" 넘어간다. 정답·해설·공시 근거는 결과(3-1 결과)에서 본다.
 /// 이미 푼 문항은 건너뛰고 이어서 푼다. 다 풀었으면 결과로.
+/// 피그마 최종 3-1: 흰 바탕, 제목 없는 내비(‹) + 라임 진행 막대 + "Q1." + 문제 26 + 보기 64 + 하단 "다음".
+/// 3-E6: 풀다가 뒤로 가면 "퀴즈를 그만두시나요?" 팝업 (나가기 / 진행하기).
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.companyId});
 
@@ -25,6 +27,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   QuizSet? _set;
   Object? _error;
   int _index = 0;
+
+  /// 화면을 열었을 때 시작한 문항 (이어 풀기면 0 이 아님)
+  int _startIndex = 0;
   String? _selected;
   final _short = TextEditingController();
   bool _submitting = false;
@@ -53,6 +58,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       setState(() {
         _set = set;
         _index = set.nextIndex;
+        _startIndex = set.nextIndex;
       });
     } catch (e) {
       if (mounted) setState(() => _error = e);
@@ -104,17 +110,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       body = ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(set.companyName, style: AppTypography.body2Strong.copyWith(color: AppColors.textBody))),
-              Text('${_index + 1} / ${set.questions.length}', style: AppTypography.body2Strong),
-            ],
+          Semantics(
+            label: '${set.companyName} 퀴즈 ${set.questions.length}문제 중 ${_index + 1}번째',
+            child: StepBar(current: _index + 1, total: set.questions.length, gap: 0),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          StepBar(current: _index + 1, total: set.questions.length, gap: AppSpacing.xxs),
-          const SizedBox(height: AppSpacing.sm),
-          QuizPrompt(question: q),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 36),
+          QuizPrompt(question: q, number: _index + 1),
+          const SizedBox(height: AppSpacing.xl),
           QuizAnswerArea(
             question: q,
             selectedChoiceId: _selected,
@@ -125,16 +127,33 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           ),
         ],
       );
-      bottom = BottomCta(children: [
-        AppButton(label: last ? '결과 보기' : '다음 문제로', loading: _submitting, onPressed: _answer == null ? null : _submitAndNext),
+      bottom = BottomCta(color: AppColors.surface, children: [
+        AppButton(label: last ? '결과 보기' : '다음', loading: _submitting, onPressed: _answer == null ? null : _submitAndNext),
       ]);
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '기업 퀴즈'),
-      body: body,
-      bottomNavigationBar: bottom,
+    // 한 문제라도 고르거나 풀었으면 나갈 때 확인
+    final dirty = set != null && (_index > _startIndex || _answer != null);
+    return PopScope(
+      canPop: !dirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final keepGoing = await showChoiceDialog(
+          context,
+          title: '퀴즈를 그만두시나요?',
+          message: '나가면 지금 풀던 문제는 저장되지 않아요',
+          cancelLabel: '나가기',
+          confirmLabel: '진행하기',
+          warning: true,
+        );
+        if (keepGoing == false && context.mounted) Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: const AppNavBar(title: '', color: AppColors.surface),
+        body: body,
+        bottomNavigationBar: bottom,
+      ),
     );
   }
 }

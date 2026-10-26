@@ -1,4 +1,4 @@
-package com.example.swipe
+package com.dadot.app
 
 import io.flutter.embedding.android.FlutterActivity
 

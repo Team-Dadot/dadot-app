@@ -4,9 +4,10 @@ import '../tokens/app_colors.dart';
 import '../tokens/app_spacing.dart';
 import '../tokens/app_typography.dart';
 
-/// 피그마 Button 컴포넌트 Primary / Secondary / Outline. 높이 52, 모서리 없음.
+/// 피그마 버튼. Primary(차콜) / Secondary(연회색) / Point(라임) / Outline. 큰 버튼 높이 56·모서리 16, 작은 버튼 42·모서리 10.
 /// text 는 "공시 근거 먼저 보기 ›" 같은 글자 링크.
-enum AppButtonVariant { primary, secondary, outline, text }
+/// [point] 은 라임 버튼 (복습 "다시 풀기 · 다시 답변하기"), [ink] 는 가장 진한 바탕에 라임 글자 (홈 오늘의 학습하기).
+enum AppButtonVariant { primary, secondary, outline, text, point, ink }
 
 /// 공통 버튼. [loading] 이면 스피너를 보여주고 누를 수 없다.
 class AppButton extends StatelessWidget {
@@ -37,7 +38,14 @@ class AppButton extends StatelessWidget {
     final height = small ? AppSizes.buttonHeightSmall : AppSizes.buttonHeight;
     final (Color bg, Color fg, BorderSide? side) = switch (variant) {
       AppButtonVariant.primary => (AppColors.primary, AppColors.onPrimary, null),
-      AppButtonVariant.secondary => (AppColors.fillSecondary, AppColors.textPrimary, null),
+      AppButtonVariant.secondary => (
+          small ? AppColors.fillSecondary : AppColors.fillMuted,
+          small ? AppColors.textStrong.withValues(alpha: 0.65) : AppColors.textSub,
+          null,
+        ),
+      AppButtonVariant.point => (AppColors.point, AppColors.ink, null),
+      // 홈 "오늘의 학습하기": 가장 진한 바탕 + 라임 글자
+      AppButtonVariant.ink => (AppColors.ink, AppColors.point, null),
       AppButtonVariant.outline => (AppColors.white, AppColors.textPrimary, const BorderSide(color: AppColors.borderStrong)),
       AppButtonVariant.text => (Colors.transparent, AppColors.textSub, null),
     };
@@ -52,10 +60,13 @@ class AppButton extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: small ? AppSpacing.sm : AppSpacing.lg),
       backgroundColor: bg,
       foregroundColor: fg,
-      disabledBackgroundColor: variant == AppButtonVariant.primary ? AppColors.disabledFill : bg,
-      disabledForegroundColor: variant == AppButtonVariant.primary ? AppColors.white : AppColors.textDisabled,
-      textStyle: small ? AppTypography.body2Strong : AppTypography.button,
-      shape: RoundedRectangleBorder(side: side ?? BorderSide.none),
+      disabledBackgroundColor: variant == AppButtonVariant.secondary ? bg : AppColors.disabledFill,
+      disabledForegroundColor: AppColors.textDisabled,
+      textStyle: small ? AppTypography.buttonSmall : AppTypography.button,
+      shape: RoundedRectangleBorder(
+        side: side ?? BorderSide.none,
+        borderRadius: BorderRadius.circular(small ? AppRadius.sm : AppRadius.button),
+      ),
       splashFactory: NoSplash.splashFactory,
     );
 
@@ -82,6 +93,7 @@ class TextLink extends StatelessWidget {
       button: true,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 32),
           child: Center(
@@ -94,16 +106,19 @@ class TextLink extends StatelessWidget {
   }
 }
 
-/// 화면 하단에 고정되는 버튼 영역 (피그마 Bottom CTA: 위 8, 좌우 20, 간격 6)
+/// 화면 하단에 고정되는 버튼 영역 (피그마: 좌우 20, 간격 8, 바탕은 화면색)
 class BottomCta extends StatelessWidget {
-  const BottomCta({super.key, required this.children});
+  const BottomCta({super.key, required this.children, this.color = AppColors.background});
 
   final List<Widget> children;
+
+  /// 바탕색 (화면 바탕과 맞춘다 — 퀴즈는 흰색)
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: AppColors.background,
+      color: color,
       child: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.sm),
