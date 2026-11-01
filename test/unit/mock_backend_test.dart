@@ -31,9 +31,7 @@ void main() {
     final set = await b.run(() => b.todaySet('kia'));
     for (final q in set.questions) {
       final seed = MockData.quizBank('kia').firstWhere((s) => s.id == q.id);
-      final answer = q.kind == QuizKind.choice
-          ? (q.order.isOdd ? seed.correctChoiceId : q.choices.firstWhere((c) => c.id != seed.correctChoiceId).id)
-          : (q.order.isOdd ? seed.keywords.first : '모르겠어요');
+      final answer = q.order.isOdd ? seed.correctChoiceId : q.choices.firstWhere((c) => c.id != seed.correctChoiceId).id;
       await b.run(() => b.answerQuiz(setId: set.id, questionId: q.id, answer: answer));
     }
     return set;
@@ -52,17 +50,17 @@ void main() {
     expect(() => b.savePreparations(six), throwsA(isA<AppException>()));
   });
 
-  test('퀴즈: 객관식 3 + 주관식 2, 정답률 · 복습 · 홈 진행률', () async {
+  test('퀴즈: 객관식 5문제(주관식 없음), 정답률 · 복습 · 홈 진행률', () async {
     await onboard();
     final set = await solveTodayQuiz();
-    expect(set.questions.where((q) => q.kind == QuizKind.choice).length, AppPolicy.quizChoiceCount);
-    expect(set.questions.where((q) => q.kind == QuizKind.short).length, AppPolicy.quizShortCount);
+    expect(set.questions.length, AppPolicy.quizQuestionCount);
+    expect(set.questions.every((q) => q.choices.length == 4), isTrue);
 
     final result = await b.run(() => b.quizResult(set.id));
     expect(result.correctCount, 3);
     expect(result.accuracyAfter, 60);
     // 문제별 해설: 내 답 · 정답이 "C. 늘었다" 형태로 온다
-    final choiceItem = result.items.firstWhere((i) => set.questions.any((q) => q.id == i.questionId && q.kind == QuizKind.choice));
+    final choiceItem = result.items.first;
     expect(choiceItem.myAnswer, matches(RegExp(r'^[A-D]\. ')));
     expect(choiceItem.correctAnswer, matches(RegExp(r'^[A-D]\. ')));
     expect(b.quizReview(companyId: 'kia').where((r) => r.wrong).length, 2);
@@ -75,7 +73,7 @@ void main() {
   test('오답 다시 풀어 맞히면 누적 정답률에 반영', () async {
     await onboard();
     await solveTodayQuiz();
-    final wrong = b.quizReview(companyId: 'kia').firstWhere((r) => r.wrong && r.question.kind == QuizKind.choice);
+    final wrong = b.quizReview(companyId: 'kia').firstWhere((r) => r.wrong);
     final seed = MockData.quizBank('kia').firstWhere((s) => s.id == wrong.question.id);
     final r = await b.run(() => b.retryQuiz(wrong.id, seed.correctChoiceId));
     expect(r.correct, isTrue);

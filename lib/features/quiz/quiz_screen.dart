@@ -9,7 +9,7 @@ import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
 import 'quiz_widgets.dart';
 
-/// 3-1 오늘의 퀴즈 · 문제 풀이 (객관식 · 주관식)
+/// 3-1 오늘의 퀴즈 · 문제 풀이 (모두 객관식)
 /// 완성본 와이어프레임: 문제마다 정답을 보여주지 않고 "다음 문제로" 넘어간다. 정답·해설·공시 근거는 결과(3-1 결과)에서 본다.
 /// 이미 푼 문항은 건너뛰고 이어서 푼다. 다 풀었으면 결과로.
 /// 피그마 최종 3-1: 흰 바탕, 제목 없는 내비(‹) + 라임 진행 막대 + "Q1." + 문제 26 + 보기 64 + 하단 "다음".
@@ -31,19 +31,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   /// 화면을 열었을 때 시작한 문항 (이어 풀기면 0 이 아님)
   int _startIndex = 0;
   String? _selected;
-  final _short = TextEditingController();
   bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _short.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -67,7 +60,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   QuizQuestion get _question => _set!.questions[_index];
 
-  String? get _answer => _question.kind == QuizKind.choice ? _selected : (_short.text.trim().isEmpty ? null : _short.text.trim());
+  String? get _answer => _selected;
 
   /// 답을 제출(채점은 서버)하고 바로 다음 문제로. 마지막 문제면 결과로.
   Future<void> _submitAndNext() async {
@@ -86,7 +79,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       setState(() {
         _index += 1;
         _selected = null;
-        _short.clear();
       });
     } catch (e) {
       if (mounted) showErrorToast(context, e);
@@ -121,8 +113,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             question: q,
             selectedChoiceId: _selected,
             onSelect: (id) => setState(() => _selected = id),
-            shortController: _short,
-            onShortChanged: (_) => setState(() {}),
             result: null,
           ),
         ],
@@ -141,7 +131,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         final keepGoing = await showChoiceDialog(
           context,
           title: '퀴즈를 그만두시나요?',
-          message: '나가면 지금 풀던 문제는 저장되지 않아요',
+          message: '나가면 저장 되지 않아요',
           cancelLabel: '나가기',
           confirmLabel: '진행하기',
           warning: true,

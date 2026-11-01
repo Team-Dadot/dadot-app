@@ -28,8 +28,6 @@ class CompanyHome {
     required this.focusMode,
     required this.adBonusAvailable,
     this.dday,
-    this.quizChoiceCount = 3,
-    this.quizShortCount = 2,
   });
 
   factory CompanyHome.fromJson(Map<String, dynamic> json) => CompanyHome(
@@ -43,8 +41,6 @@ class CompanyHome {
         focusMode: json['focusMode'] as bool? ?? false,
         adBonusAvailable: json['adBonusAvailable'] as bool? ?? false,
         dday: json['dday'] as int?,
-        quizChoiceCount: json['quizChoiceCount'] as int? ?? 3,
-        quizShortCount: json['quizShortCount'] as int? ?? 2,
       );
 
   final Preparation preparation;
@@ -68,8 +64,6 @@ class CompanyHome {
 
   /// 면접까지 남은 날. 면접일이 없으면 null.
   final int? dday;
-  final int quizChoiceCount;
-  final int quizShortCount;
 
   String get companyId => preparation.companyId;
   String get companyName => preparation.companyName;

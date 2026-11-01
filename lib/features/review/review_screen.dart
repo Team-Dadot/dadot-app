@@ -119,9 +119,9 @@ class _QuizReviewState extends ConsumerState<_QuizReview> {
           children: [
             Row(
               children: [
-                SelectChip(label: '오답', selected: _wrongOnly, onTap: () => setState(() => _wrongOnly = true)),
+                SelectChip(label: '전체', selected: !_wrongOnly, onTap: () => setState(() => _wrongOnly = false)),
                 const SizedBox(width: AppSpacing.xs),
-                SelectChip(label: '풀었던 문제', selected: !_wrongOnly, onTap: () => setState(() => _wrongOnly = false)),
+                SelectChip(label: '오답', selected: _wrongOnly, onTap: () => setState(() => _wrongOnly = true)),
               ],
             ),
             const SizedBox(height: AppSpacing.xxl),
@@ -338,7 +338,7 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
       error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(interviewRecordsProvider(widget.companyId))),
       data: (all) {
         if (all.isEmpty) {
-          return const _ReviewEmpty(title: '아직 답한 면접 질문이 없어요.', description: '면접 연습을 하고 답변을 다듬어 보세요!');
+          return const _ReviewEmpty(title: '아직 대답한 질문이 없어요.', description: '질문에 답변하고 피드백을 받아보세요!');
         }
         final shown = switch (_filter) {
           _InterviewFilter.all => all,

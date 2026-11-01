@@ -17,6 +17,9 @@ abstract interface class AuthRepository {
   /// 소셜 SDK 토큰을 우리 서비스 토큰으로 교환 (1-1)
   Future<AuthSession> signInWithSocial(SocialCredential credential);
 
+  /// 이메일로 가입 (피그마 이메일로 가입 1~3). 필수 약관 동의가 끝난 뒤 부른다.
+  Future<AuthSession> signUpWithEmail({required String email, required String password});
+
   /// 저장된 토큰으로 내 정보 조회 (앱 시작 시)
   Future<AppUser> fetchMe();
 
@@ -51,6 +54,9 @@ abstract interface class ProfileRepository {
   Future<List<Preparation>> updatePreparation(Preparation item);
   Future<List<Preparation>> removePreparation(String companyId);
 
+  /// 6-2 "준비했던 기업" (뺀 기업과 그동안의 기록 수)
+  Future<List<PastPreparation>> fetchPastPreparations();
+
   /// 내 경험
   Future<List<Experience>> fetchExperiences();
 
@@ -77,7 +83,7 @@ abstract interface class QuizRepository {
   /// 오늘 세트. 이미 푼 문항은 answers 에 들어 있다 (이어하기).
   Future<QuizSet> fetchTodaySet(String companyId);
 
-  /// 문항 하나 제출 → 서버 채점 결과. [answer] 는 객관식 choiceId 또는 주관식 글.
+  /// 문항 하나 제출 → 서버 채점 결과. [answer] 는 고른 보기 choiceId.
   Future<QuizAnswerResult> submitAnswer({required String setId, required String questionId, required String answer});
 
   Future<QuizResult> fetchResult(String setId);

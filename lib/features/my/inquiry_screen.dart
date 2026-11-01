@@ -5,7 +5,7 @@ import '../../core/providers.dart';
 import '../../core/services/app_info.dart';
 import '../../design_system/design_system.dart';
 
-/// 6-4 서비스 문의·오류 제보 — 완성본 와이어프레임: 앱 안 입력 대신 구글폼으로 접수한다.
+/// 6-10 서비스 문의·오류 제보 — 앱 안 입력 대신 구글폼으로 접수한다.
 /// (서버 문의 API · InquiryRepository 는 나중에 다시 쓸 수 있게 남겨 둠)
 class InquiryScreen extends ConsumerStatefulWidget {
   const InquiryScreen({super.key});
@@ -28,29 +28,33 @@ class _InquiryScreenState extends ConsumerState<InquiryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 피그마 최종 6-10 "구글폼으로" (763:15362): 제목 + "서비스 문의 및 오류제보 ›" 한 줄
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '문의'),
+      appBar: const AppNavBar(title: '문의하기'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
         children: [
-          const PageTitle('어떤 점이\n궁금하거나 불편했나요?', description: '문의·오류 제보는 구글폼으로 받아요. 확인 후 답변 드릴게요.'),
-          const SizedBox(height: AppSpacing.lg),
-          InfoBox(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('적어 주시면 빨리 확인할 수 있어요', style: AppTypography.body2Strong),
-                const SizedBox(height: AppSpacing.xs),
-                Text('· 어떤 화면에서 무엇을 하다가 생긴 일인지\n· 앱 버전 ${AppInfo.version} (${AppInfo.platform})', style: AppTypography.body2),
-              ],
+          Semantics(
+            header: true,
+            child: Text('앱을 쓰시다 불편한 점이\n있으시다면 문의해주세요.', style: AppTypography.title2.copyWith(color: AppColors.ink)),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          MenuGroup(children: [
+            MenuRow(
+              title: '서비스 문의 및 오류제보',
+              onTap: _opening ? null : _open,
+              showChevron: !_opening,
+              value: _opening ? '여는 중' : null,
             ),
+          ]),
+          const SizedBox(height: AppSpacing.sm),
+          Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.xxs),
+            child: Text('앱 버전 ${AppInfo.version} (${AppInfo.platform})', style: AppTypography.caption.copyWith(color: AppColors.textGuide)),
           ),
         ],
       ),
-      bottomNavigationBar: BottomCta(children: [
-        AppButton(label: '문의 접수하기', loading: _opening, onPressed: _opening ? null : _open),
-      ]),
     );
   }
 }

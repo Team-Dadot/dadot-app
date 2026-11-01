@@ -9,10 +9,8 @@ class AppPolicy {
   static const int minCompanies = 1;
   static const int maxCompanies = 5;
 
-  /// 하루 퀴즈 (홈 "객관식 3 + 주관식 2")
-  static const int quizChoiceCount = 3;
-  static const int quizShortCount = 2;
-  static const int quizQuestionCount = quizChoiceCount + quizShortCount;
+  /// 하루 퀴즈 5문제 (모두 객관식, 주관식 없음)
+  static const int quizQuestionCount = 5;
 
   /// 하루 면접 질문 (홈 "0 / 3"), 광고 보면 1개 더
   static const int interviewDailyCount = 3;
@@ -22,7 +20,7 @@ class AppPolicy {
   // TODO(결정 7): 재도전 횟수
   static const int retryPerQuestionDaily = 3;
 
-  /// 피드백 평가 항목 (4-6 "4개 항목 평가": 기업 정보의 활용 · 내용의 구체성 · 논리와 답변 구조 · 전달의 명료성, 각 25점)
+  /// 피드백 평가 항목 (4-6 "4개 항목 평가": 기업 이해도 · 구체성 · 논리와 구성 · 명확성, 각 25점)
   static const int criteriaCount = 4;
   static const int criterionMaxScore = 25;
 
@@ -51,15 +49,23 @@ class AppPolicy {
 
   /// 비밀번호 (6-12 "영문·숫자 포함 8자 이상")
   static const int minPasswordLength = 8;
+  static const int maxPasswordLength = 20;
 
+  /// 피그마 이메일 가입: 영문·숫자·특수문자 조합 8-20자
   static bool isValidPassword(String v) =>
-      v.length >= minPasswordLength && RegExp('[A-Za-z]').hasMatch(v) && RegExp(r'\d').hasMatch(v);
+      v.length >= minPasswordLength &&
+      v.length <= maxPasswordLength &&
+      RegExp('[A-Za-z]').hasMatch(v) &&
+      RegExp(r'\d').hasMatch(v) &&
+      RegExp(r'[^A-Za-z0-9\s]').hasMatch(v);
+
+  static bool isValidEmail(String v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim());
 
   /// 로그인 버튼으로 보여줄 소셜 수단 (+ 이메일 버튼은 항상).
   /// iOS 는 다른 소셜 로그인을 넣으면 Apple 로그인도 함께 요구받아서 iOS 에만 Apple 을 둔다.
   // TODO(결정 1): 로그인 수단 확정
   static const List<SocialProvider> loginProvidersAndroid = [SocialProvider.kakao];
-  static const List<SocialProvider> loginProvidersIos = [SocialProvider.apple, SocialProvider.kakao];
+  static const List<SocialProvider> loginProvidersIos = [SocialProvider.kakao, SocialProvider.apple];
 }
 
 /// ◐(여유 있으면 MVP) 기능 스위치. 개발이 끝나면 true 로 켠다.

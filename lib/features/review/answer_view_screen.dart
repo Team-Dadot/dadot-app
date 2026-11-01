@@ -51,8 +51,8 @@ class _AnswerViewScreenState extends ConsumerState<AnswerViewScreen> {
     final last = d?.attempts.lastOrNull;
     final remaining = d?.question.retryRemaining ?? last?.retryRemaining ?? 0;
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '답변 피드백'),
+      backgroundColor: AppColors.surface,
+      appBar: const AppNavBar(title: '결과 확인', color: AppColors.surface),
       body: detail.when(
         skipLoadingOnRefresh: true,
         loading: () => const LoadingView(),
@@ -74,13 +74,20 @@ class _AnswerViewScreenState extends ConsumerState<AnswerViewScreen> {
     final attempts = d.attempts;
     final selected = attempts.where((a) => a.answerId == _answerId).firstOrNull ?? attempts.lastOrNull;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
       children: [
-        if (selected == null) ...[
-          Semantics(header: true, child: Text(d.question.text, style: AppTypography.title4)),
-          const SizedBox(height: AppSpacing.gap),
-          const EmptyView(compact: true, title: '아직 제출한 답변이 없어요', description: '임시저장한 답변을 이어서 써 보세요.'),
-        ] else
+        if (selected == null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Semantics(header: true, child: Text(d.question.text, style: AppTypography.title4)),
+                const SizedBox(height: AppSpacing.gap),
+                const EmptyView(compact: true, title: '아직 제출한 답변이 없어요', description: '임시저장한 답변을 이어서 써 보세요.'),
+              ],
+            ),
+          )
+        else
           FeedbackContent(
             feedback: selected,
             questionText: d.question.text,

@@ -28,7 +28,7 @@ class MockBackend {
     _load();
   }
 
-  static const storageKey = 'mock.backend.v2';
+  static const storageKey = 'mock.backend.v3'; // v3: 퀴즈 주관식 제거 (예전 세트에 주관식 id 가 남아 있어 초기화)
 
   final LocalStore? _store;
   final Duration latency;
@@ -38,6 +38,9 @@ class MockBackend {
   AppUser? _user;
   bool _loggedIn = false;
   List<Preparation> _preps = [];
+
+  /// 준비 기업에서 뺀 기업 (6-2 준비했던 기업)
+  List<PastPreparation> _past = [];
   List<Experience> _experiences = [];
   NotificationSettings _notification = const NotificationSettings(enabled: true, hour: 9, minute: 0);
   String _day = '';
@@ -136,6 +139,26 @@ class MockBackend {
     );
   }
 
+  /// 이메일 가입. Mock 은 같은 이메일이면 그 계정으로 로그인한다.
+  AuthSession signUpEmail({required String email, required String password}) {
+    if (!AppPolicy.isValidEmail(email)) throw _invalid('올바르지 않은 이메일 형식입니다');
+    if (!AppPolicy.isValidPassword(password)) throw _invalid('영문,숫자,특수문자 조합 8-20자로 입력해 주세요');
+    final isNew = _user == null || _user!.email != email.trim();
+    if (isNew) {
+      _user = AppUser(id: 'mock-user', nickname: email.split('@').first, email: email.trim(), loginMethod: LoginMethod.email, onboardingCompleted: false);
+      _preps = [];
+      _past = [];
+    }
+    _loggedIn = true;
+    _persist();
+    return AuthSession(
+      accessToken: 'mock-access-${_now().millisecondsSinceEpoch}',
+      refreshToken: 'mock-refresh',
+      user: _user!,
+      isNewUser: isNew || !_user!.onboardingCompleted,
+    );
+  }
+
   AppUser me() => _requireUser();
 
   AppUser updateProfile({required String nickname, required int avatarIndex}) {
@@ -154,7 +177,7 @@ class MockBackend {
   void changePassword({required String code, required String newPassword}) {
     sendPasswordCode();
     if (!RegExp(r'^\d{6}$').hasMatch(code)) throw _invalid('본인 확인 코드 6자리를 확인해 주세요.');
-    if (!AppPolicy.isValidPassword(newPassword)) throw _invalid('영문·숫자를 포함해 8자 이상으로 써 주세요.');
+    if (!AppPolicy.isValidPassword(newPassword)) throw _invalid('영문,숫자,특수문자 조합 8-20자로 입력해 주세요');
   }
 
   void signOut() {
@@ -167,6 +190,7 @@ class MockBackend {
     _user = null;
     _loggedIn = false;
     _preps = [];
+    _past = [];
     _experiences = [];
     _sets.clear();
     _stats.clear();
@@ -210,6 +234,7 @@ class MockBackend {
     if (_preps.any((p) => p.companyId == item.companyId)) throw _invalid('이미 준비 중인 기업이에요.');
     if (_preps.length >= AppPolicy.maxCompanies) throw _invalid('준비 기업은 최대 ${AppPolicy.maxCompanies}개까지예요. 다른 기업을 빼고 추가해 주세요.');
     _preps = [..._preps, item];
+    _past = _past.where((p) => p.companyId != item.companyId).toList();
     _persist();
     return preparations();
   }
@@ -222,10 +247,25 @@ class MockBackend {
   }
 
   List<Preparation> removePreparation(String companyId) {
-    _requirePrep(companyId);
+    final removed = _requirePrep(companyId);
     _preps = _preps.where((p) => p.companyId != companyId).toList();
+    _past = [
+      PastPreparation(
+        companyId: removed.companyId,
+        companyName: removed.companyName,
+        industry: removed.industry,
+        quizCount: _stats[companyId]?.elementAtOrNull(1) ?? 0,
+        answerCount: _answers.values.where((a) => companyIdOf(a.questionId) == companyId).length,
+      ),
+      ..._past.where((p) => p.companyId != companyId),
+    ];
     _persist();
     return preparations();
+  }
+
+  List<PastPreparation> pastPreparations() {
+    _requireUser();
+    return List.unmodifiable(_past);
   }
 
   // ---------------------------------------------------------------- 내 경험
@@ -356,14 +396,12 @@ class MockBackend {
     final p = _requirePrep(companyId);
     final id = _setId(companyId);
     final state = _sets.putIfAbsent(id, () {
+      // 퀴즈는 모두 객관식. 날마다 문제 순서를 돌려 5문제를 고른다.
       final bank = MockData.quizBank(companyId);
-      final choice = bank.where((q) => q.kind == QuizKind.choice).toList();
-      final short = bank.where((q) => q.kind == QuizKind.short).toList();
-      List<String> pick(List<MockQuizSeed> list, int n) =>
-          [for (var i = 0; i < math.min(n, list.length); i++) list[(_dayIndex + i) % list.length].id];
+      final n = math.min(AppPolicy.quizQuestionCount, bank.length);
       return _SetState(
         companyId: companyId,
-        questionIds: [...pick(choice, AppPolicy.quizChoiceCount), ...pick(short, AppPolicy.quizShortCount)],
+        questionIds: [for (var i = 0; i < n; i++) bank[(_dayIndex + i) % bank.length].id],
         answers: [],
         accuracyBefore: _accuracy(companyId),
       );
@@ -387,26 +425,14 @@ class MockBackend {
     return s;
   }
 
-  static String _normalize(String s) => s.replaceAll(RegExp(r'\s'), '').toLowerCase();
-
-  QuizAnswerResult _grade(MockQuizSeed seed, String answer) {
-    final bool correct;
-    if (seed.kind == QuizKind.choice) {
-      correct = seed.correctChoiceId == answer;
-    } else {
-      final a = _normalize(answer);
-      correct = a.isNotEmpty && seed.keywords.any((k) => a.contains(_normalize(k)));
-    }
-    return QuizAnswerResult(
-      questionId: seed.id,
-      answer: answer,
-      correct: correct,
-      explanation: seed.explanation,
-      correctChoiceId: seed.kind == QuizKind.choice ? seed.correctChoiceId : null,
-      modelAnswer: seed.modelAnswer,
-      evidence: seed.evidence,
-    );
-  }
+  QuizAnswerResult _grade(MockQuizSeed seed, String answer) => QuizAnswerResult(
+        questionId: seed.id,
+        answer: answer,
+        correct: seed.correctChoiceId == answer,
+        explanation: seed.explanation,
+        correctChoiceId: seed.correctChoiceId,
+        evidence: seed.evidence,
+      );
 
   QuizAnswerResult answerQuiz({required String setId, required String questionId, required String answer}) {
     final s = _requireSet(setId);
@@ -454,18 +480,15 @@ class MockBackend {
             correct: a.correct,
             explanation: a.explanation,
             myAnswer: _answerLabel(_seed(a.questionId), a.answer),
-            correctAnswer: _seed(a.questionId).kind == QuizKind.choice
-                ? _answerLabel(_seed(a.questionId), _seed(a.questionId).correctChoiceId)
-                : _seed(a.questionId).modelAnswer,
+            correctAnswer: _answerLabel(_seed(a.questionId), _seed(a.questionId).correctChoiceId),
             evidence: a.evidence,
           ),
       ],
     );
   }
 
-  /// 결과 화면 "내 답 C. 늘었다". 객관식은 보기 글자 + 내용, 주관식은 입력한 글 그대로.
+  /// 결과 화면 "내 답 C. 늘었다" (보기 글자 + 내용)
   static String _answerLabel(MockQuizSeed seed, String answer) {
-    if (seed.kind != QuizKind.choice) return answer;
     const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
     final i = seed.quizChoices.indexWhere((c) => c.id == answer);
     if (i < 0) return answer;
@@ -673,6 +696,7 @@ class MockBackend {
       'user': _user?.toJson(),
       'loggedIn': _loggedIn,
       'preps': _preps.map((p) => p.toJson()).toList(),
+      'past': _past.map((p) => p.toJson()).toList(),
       'experiences': _experiences.map((e) => e.toJson()).toList(),
       'notification': _notification.toJson(),
       'day': _day,
@@ -698,6 +722,7 @@ class MockBackend {
       _user = u == null ? null : AppUser.fromJson(obj(u));
       _loggedIn = json['loggedIn'] as bool? ?? false;
       _preps = (json['preps'] as List<dynamic>).map((e) => Preparation.fromJson(obj(e))).toList();
+      _past = (json['past'] as List<dynamic>? ?? const []).map((e) => PastPreparation.fromJson(obj(e))).toList();
       _experiences = (json['experiences'] as List<dynamic>).map((e) => Experience.fromJson(obj(e))).toList();
       _notification = NotificationSettings.fromJson(obj(json['notification']));
       _day = json['day'] as String? ?? '';

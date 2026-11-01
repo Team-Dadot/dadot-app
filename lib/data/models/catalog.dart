@@ -56,6 +56,35 @@ class JobCatalog {
   Iterable<Job> get all => categories.expand((c) => c.jobs);
 }
 
+/// 예전에 준비했던 기업 (6-2 "준비했던 기업 · 퀴즈 30문제 · 면접 답변 4개 · 다시 추가하기")
+class PastPreparation {
+  const PastPreparation({required this.companyId, required this.companyName, this.industry, this.quizCount = 0, this.answerCount = 0});
+
+  factory PastPreparation.fromJson(Map<String, dynamic> json) => PastPreparation(
+        companyId: json['companyId'].toString(),
+        companyName: json['companyName'] as String,
+        industry: json['industry'] as String?,
+        quizCount: json['quizCount'] as int? ?? 0,
+        answerCount: json['answerCount'] as int? ?? 0,
+      );
+
+  final String companyId;
+  final String companyName;
+  final String? industry;
+  final int quizCount;
+  final int answerCount;
+
+  Company get company => Company(id: companyId, name: companyName, industry: industry);
+
+  Map<String, dynamic> toJson() => {
+        'companyId': companyId,
+        'companyName': companyName,
+        'industry': industry,
+        'quizCount': quizCount,
+        'answerCount': answerCount,
+      };
+}
+
 /// 준비 기업 한 곳의 지원 정보 (기업 + 직무 + 면접일)
 class Preparation {
   const Preparation({

@@ -16,16 +16,27 @@ class MyScreen extends ConsumerWidget {
   const MyScreen({super.key});
 
   Future<void> _signOut(BuildContext context, WidgetRef ref) async {
-    final ok = await showConfirmDialog(context, title: '로그아웃할까요?', message: '다시 로그인하면 기록을 그대로 볼 수 있어요.', confirmLabel: '로그아웃');
+    // 피그마 6-E7 로그아웃 확인
+    final ok = await showConfirmDialog(
+      context,
+      warning: true,
+      title: '로그아웃을 진행할까요?',
+      message: '재로그인을 통해 앱을 사용할 수 있어요',
+      cancelLabel: '나가기',
+      confirmLabel: '진행하기',
+    );
     if (ok) await ref.read(sessionProvider.notifier).signOut();
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    // 피그마 6-E6 회원 탈퇴 확인
     final ok = await showConfirmDialog(
       context,
-      title: '정말 탈퇴할까요?',
-      message: '준비 기업, 경험, 퀴즈·면접 기록이 모두 지워지고 되돌릴 수 없어요.',
-      confirmLabel: '탈퇴하기',
+      warning: true,
+      title: '탈퇴를 진행할까요?',
+      message: '계정 및 이용 기록은 모두 삭제되며,\n복구는 불가능해요',
+      cancelLabel: '나가기',
+      confirmLabel: '진행하기',
     );
     if (!ok) return;
     try {
@@ -47,7 +58,6 @@ class MyScreen extends ConsumerWidget {
     final preps = ref.watch(preparationsProvider).asData?.value;
     final experiences = ref.watch(experiencesProvider).asData?.value;
     final notification = ref.watch(notificationSettingsProvider).asData?.value;
-    final isEmailUser = user?.loginMethod == LoginMethod.email;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -124,7 +134,6 @@ class MyScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             MenuGroup(children: [
               MenuRow(title: '회원 정보 수정', onTap: () => context.push(Routes.myProfile)),
-              if (isEmailUser) MenuRow(title: '비밀번호 변경', onTap: () => context.push(Routes.myPassword)),
               MenuRow(title: '로그아웃', onTap: () => _signOut(context, ref)),
               MenuRow(title: '회원 탈퇴', onTap: () => _delete(context, ref)),
             ]),
@@ -161,7 +170,10 @@ class LoginBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(kakao ? 4 : AppRadius.pill),
         ),
         child: kakao
-            ? const Icon(Icons.chat_bubble_rounded, size: 10, color: Color(0xFF191919))
+            ? Padding(
+                padding: const EdgeInsets.all(3),
+                child: Image.asset('assets/images/icons/login_kakao.png', excludeFromSemantics: true),
+              )
             : Text(method.label, style: AppTypography.micro.copyWith(fontSize: 10, height: 1)),
       ),
     );

@@ -21,17 +21,10 @@ class QuizRetryScreen extends ConsumerStatefulWidget {
 
 class _QuizRetryScreenState extends ConsumerState<QuizRetryScreen> {
   String? _selected;
-  final _short = TextEditingController();
   QuizAnswerResult? _result;
   bool _submitting = false;
 
-  @override
-  void dispose() {
-    _short.dispose();
-    super.dispose();
-  }
-
-  String? _answer(QuizQuestion q) => q.kind == QuizKind.choice ? _selected : (_short.text.trim().isEmpty ? null : _short.text.trim());
+  String? _answer(QuizQuestion q) => _selected;
 
   Future<void> _submit(QuizQuestion q) async {
     final answer = _answer(q);
@@ -72,8 +65,6 @@ class _QuizRetryScreenState extends ConsumerState<QuizRetryScreen> {
             question: q,
             selectedChoiceId: _selected,
             onSelect: (id) => setState(() => _selected = id),
-            shortController: _short,
-            onShortChanged: (_) => setState(() {}),
             result: _result,
           ),
         ],

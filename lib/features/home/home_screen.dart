@@ -85,17 +85,21 @@ class _TodayCard extends StatelessWidget {
     final c = current;
     final p = c.preparation;
     final focus = c.focusMode;
-    final title = p.hasJob ? '${c.companyName} · ${p.jobName} 면접' : c.companyName;
-    final front = focus ? AppColors.cardDark : AppColors.point;
+    // 피그마 1074:12877: 첫 줄은 기업 이름, 둘째 줄은 "경영전략 면접 · 10월 23일 (금)"
+    final title = c.companyName;
+    final date = p.interviewDate == null ? null : formatMonthDayWeek(p.interviewDate!);
+    final subtitle = p.hasJob ? '${p.jobName} 면접 · ${date ?? '일정 미정'}' : (date ?? '면접 일정 미정');
+    // 피그마 763:15840 집중 모드: 앞판 가장 진한 색(#15171B), 뒤 탭은 평소처럼 연라임, 탭 글자 회색
+    final front = focus ? AppColors.ink : AppColors.point;
     final onFront = focus ? AppColors.white : AppColors.ink;
-    final tabText = focus ? AppColors.white : AppColors.onPoint;
+    final tabText = focus ? AppColors.tabActive : AppColors.pointText;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FolderCard(
           color: front,
-          backColor: focus ? AppColors.point : AppColors.folderBack,
+          backColor: AppColors.folderBack,
           tabWidth: 150,
           tabHeight: 44,
           curveWidth: 50,
@@ -116,9 +120,9 @@ class _TodayCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('기업 변경', style: AppTypography.body2Medium.copyWith(color: AppColors.onPoint)),
+                Text('기업 변경', style: AppTypography.body2Medium.copyWith(color: AppColors.pointText)),
                 const SizedBox(width: 6),
-                const Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.onPoint),
+                const Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.pointText),
               ],
             ),
           ),
@@ -139,9 +143,11 @@ class _TodayCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      p.interviewDate == null ? '면접 일정 미정' : formatMonthDayWeek(p.interviewDate!),
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTypography.body2Medium.copyWith(
-                        color: focus ? AppColors.white.withValues(alpha: 0.7) : AppColors.onPointSub,
+                        color: focus ? AppColors.white : AppColors.pointText,
                       ),
                     ),
                   ],
@@ -187,13 +193,19 @@ class _FocusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(color: AppColors.point, borderRadius: BorderRadius.circular(AppRadius.pill)),
+      // 피그마: 진한 바탕 + 라임 1px 테두리(모서리 10) + 라임 ⚡ · "집중" 12 SemiBold
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: AppColors.point),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.bolt_rounded, size: 12, color: AppColors.ink),
-          Text('집중', style: AppTypography.captionStrong.copyWith(color: AppColors.ink)),
+          const Icon(Icons.bolt_rounded, size: 12, color: AppColors.point),
+          const SizedBox(width: 2),
+          Text('집중', style: AppTypography.captionStrong.copyWith(color: AppColors.point)),
         ],
       ),
     );

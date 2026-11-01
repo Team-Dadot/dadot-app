@@ -71,8 +71,8 @@ class AppTypography {
   /// 20 SemiBold — 면접 질문, 팝업 제목, 복습 카드 질문
   static final TextStyle title4 = _s(20, semibold);
 
-  /// 18 Medium — 내비 바 제목
-  static final TextStyle navTitle = _s(18, medium, AppColors.textPrimary, 1.3);
+  /// 18 SemiBold — 내비 바 제목 (피그마 Title/Nav)
+  static final TextStyle navTitle = _s(18, semibold, AppColors.textStrong, 1.4).copyWith(letterSpacing: -0.54);
 
   /// 17 SemiBold — 섹션 제목
   static final TextStyle heading = _s(17, semibold);

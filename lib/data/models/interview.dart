@@ -81,11 +81,11 @@ class TodayInterview {
 
 /// 피드백 평가 항목. 완성본 와이어프레임은 4개 (응답성은 서버가 아직 보내도 읽을 수 있게 남겨 둠)
 enum CriterionKey {
-  responsiveness('RESPONSIVENESS', '질문에 대한 응답성'),
-  companyInfo('COMPANY_INFO', '기업 정보의 활용'),
-  specificity('SPECIFICITY', '내용의 구체성'),
-  logic('LOGIC', '논리와 답변 구조'),
-  clarity('CLARITY', '전달의 명료성');
+  responsiveness('RESPONSIVENESS', '응답성'),
+  companyInfo('COMPANY_INFO', '기업 이해도'),
+  specificity('SPECIFICITY', '구체성'),
+  logic('LOGIC', '논리와 구성'),
+  clarity('CLARITY', '명확성');
 
   const CriterionKey(this.wire, this.label);
   final String wire;

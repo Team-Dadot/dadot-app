@@ -9,8 +9,8 @@ import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
 import 'interview_widgets.dart';
 
-/// 4-1 답변 피드백: 점수 · 이번에 제출한 답변 · 4개 항목 평가 · 답변을 돌아보면 · 연결해볼 만한 내 경험
-/// → 다시 답변하기 (2/3) / 마무리하기
+/// 피그마 최종 "결과 확인" (1015:13833): 점수 게이지 · 요약 · 질문 · 면접 피드백 카드
+/// → 다음 질문으로 / 다시 답변하기 (2/3)
 class FeedbackScreen extends ConsumerWidget {
   const FeedbackScreen({super.key, required this.answerId});
 
@@ -22,24 +22,28 @@ class FeedbackScreen extends ConsumerWidget {
     final fb = f.asData?.value;
     final question = fb == null ? null : ref.watch(interviewQuestionProvider(fb.questionId)).asData?.value;
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '답변 피드백'),
+      backgroundColor: AppColors.surface,
+      appBar: const AppNavBar(title: '결과 확인', color: AppColors.surface),
       body: f.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(feedbackProvider(answerId))),
-        data: (f) => ListView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
-          children: [FeedbackContent(feedback: f, questionText: question?.text)],
-        ),
+        data: (f) => ListView(children: [FeedbackContent(feedback: f, questionText: question?.text)]),
       ),
       bottomNavigationBar: fb == null
           ? null
           : BottomCta(children: [
+              // 다음 질문: 오늘 아직 답하지 않은 질문으로 (다 답했으면 "모두 답했어요" 안내)
+              AppButton(
+                label: '다음 질문으로',
+                onPressed: question == null
+                    ? () => context.go(Routes.home)
+                    : () => context.pushReplacement(Routes.todayInterview(question.companyId)),
+              ),
               AppButton(
                 label: retryLabel(fb, prefix: '다시 답변하기'),
+                variant: AppButtonVariant.secondary,
                 onPressed: fb.retryRemaining > 0 ? () => context.pushReplacement(Routes.interviewAnswer(fb.questionId)) : null,
               ),
-              AppButton(label: '마무리하기', variant: AppButtonVariant.secondary, onPressed: () => context.go(Routes.home)),
             ]),
     );
   }

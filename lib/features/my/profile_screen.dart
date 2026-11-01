@@ -3,134 +3,141 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers.dart';
+import '../../core/router/app_router.dart';
+import '../../core/services/social_auth_service.dart';
 import '../../core/session/session_controller.dart';
 import '../../data/models/auth.dart';
 import '../../design_system/design_system.dart';
 import 'my_screen.dart' show LoginBadge;
 
-/// 6-11 회원정보 수정
-class ProfileScreen extends ConsumerStatefulWidget {
+/// 피그마 최종 6-11 회원정보 수정 "내 정보" (763:15378): 연결된 계정 한 줄 (이메일 + 로그인 배지 ›)
+/// 누르면 이메일 회원은 비밀번호 변경, 소셜 회원은 6-12 재인증 화면.
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  late final AppUser? _user = ref.read(sessionProvider).user;
-  late final _nickname = TextEditingController(text: _user?.nickname ?? '');
-  late final _email = TextEditingController(
-    text: [_user?.email ?? '', if (_user?.loginMethod != LoginMethod.email) '(${_user?.loginMethod.label ?? ''} 계정)'].where((s) => s.isNotEmpty).join(' '),
-  );
-  late final _method = TextEditingController(text: _user?.loginMethod.detailLabel ?? '');
-  late int _avatar = _user?.avatarIndex ?? 0;
-  bool _saving = false;
-
-  /// 기본 프로필 이미지 개수 (피그마: 5칸)
-  static const _avatarCount = 5;
-
-  @override
-  void dispose() {
-    _nickname.dispose();
-    _email.dispose();
-    _method.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    FocusScope.of(context).unfocus();
-    setState(() => _saving = true);
-    try {
-      final user = await ref.read(authRepositoryProvider).updateProfile(nickname: _nickname.text.trim(), avatarIndex: _avatar);
-      ref.read(sessionProvider.notifier).updateUser(user);
-      if (!mounted) return;
-      showToast(context, '프로필을 저장했어요.');
-      context.pop();
-    } catch (e) {
-      if (mounted) showErrorToast(context, e);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEmail = _user?.loginMethod == LoginMethod.email;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(sessionProvider.select((s) => s.user));
+    final isEmail = user?.loginMethod == LoginMethod.email;
+    final account = (user?.email ?? '').isNotEmpty ? user!.email! : user?.loginMethod.detailLabel ?? '';
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AppNavBar(title: '내 정보'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
         children: [
-          const PageTitle('나의 계정 정보'),
-          const SizedBox(height: AppSpacing.gap),
-          const FieldLabel('프로필 이미지'),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              for (var i = 0; i < _avatarCount; i++) ...[
-                if (i > 0) const SizedBox(width: AppSpacing.xs),
-                Semantics(
-                  button: true,
-                  selected: i == _avatar,
-                  label: '프로필 이미지 ${i + 1}',
-                  excludeSemantics: true,
-                  child: InkWell(
-                    onTap: () => setState(() => _avatar = i),
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.placeholder,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: i == _avatar ? AppColors.primary : AppColors.placeholder, width: i == _avatar ? 2 : 1),
-                      ),
-                      // TODO(디자인): 기본 프로필 이미지가 나오면 교체
-                      child: i == _avatar ? Text('선택', style: AppTypography.micro) : null,
-                    ),
-                  ),
-                ),
-              ],
-            ],
+          Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.xxs, bottom: AppSpacing.sm),
+            child: Text('연결된 계정', style: AppTypography.body2Medium.copyWith(color: AppColors.textCaption)),
           ),
-          const SizedBox(height: AppSpacing.md),
-          const FieldLabel('닉네임'),
-          const SizedBox(height: AppSpacing.xs),
-          AppTextField(controller: _nickname, hint: '닉네임', onChanged: (_) => setState(() {})),
-          const SizedBox(height: AppSpacing.md),
-          Text('연결된 계정', style: AppTypography.subheading),
-          const SizedBox(height: AppSpacing.sm),
-          // 피그마 6-11: 흰 카드에 이메일 + 로그인 배지
-          OutlinedBox(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    (_user?.email ?? '').isEmpty ? _method.text : _user!.email!,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body1Medium,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                if (_user != null) LoginBadge(method: _user!.loginMethod),
-                const Spacer(),
-                Text(_method.text, style: AppTypography.caption.copyWith(color: AppColors.textPlaceholder)),
-              ],
+          Semantics(
+            button: true,
+            label: '연결된 계정 $account, ${user?.loginMethod.label ?? ''}',
+            excludeSemantics: true,
+            child: OutlinedBox(
+              radius: AppRadius.button,
+              onTap: user == null
+                  ? null
+                  : () => isEmail ? context.push(Routes.myPassword) : Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReauthScreen())),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 18),
+              child: Row(
+                children: [
+                  Flexible(child: Text(account, overflow: TextOverflow.ellipsis, style: AppTypography.body1Medium.copyWith(color: AppColors.ink))),
+                  const SizedBox(width: AppSpacing.xs),
+                  if (user != null) LoginBadge(method: user.loginMethod),
+                  const Spacer(),
+                  const Chevron(),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            isEmail ? '로그인 이메일은 변경할 수 없어요.' : '카카오·Apple 로그인은 계정 정보를 해당 서비스에서 관리해요.',
-            style: AppTypography.caption,
           ),
         ],
       ),
-      bottomNavigationBar: BottomCta(children: [
-        AppButton(label: '정보 저장하기', loading: _saving, onPressed: _nickname.text.trim().isEmpty ? null : _save),
-      ]),
+    );
+  }
+}
+
+/// 피그마 6-12 비밀번호 변경 (대체) "수정하기" (970:4322): 개인정보 보호를 위한 인증 → 로그인한 소셜 계정으로 재인증
+class ReauthScreen extends ConsumerStatefulWidget {
+  const ReauthScreen({super.key});
+
+  @override
+  ConsumerState<ReauthScreen> createState() => _ReauthScreenState();
+}
+
+class _ReauthScreenState extends ConsumerState<ReauthScreen> {
+  bool _busy = false;
+
+  Future<void> _reauth(SocialProvider provider, String label) async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(socialAuthServiceProvider).signIn(provider);
+      if (!mounted) return;
+      showToast(context, '인증했어요. 계정 정보는 $label에서 바꿀 수 있어요.');
+      Navigator.of(context).pop();
+    } on SocialAuthCancelled {
+      // 닫음
+    } catch (e) {
+      if (mounted) showErrorToast(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final method = ref.watch(sessionProvider.select((s) => s.user?.loginMethod)) ?? LoginMethod.kakao;
+    final (SocialProvider provider, String label, IconData icon, Color iconBg) = switch (method) {
+      LoginMethod.apple => (SocialProvider.apple, 'Apple', Icons.apple, AppColors.ink),
+      LoginMethod.google => (SocialProvider.google, 'Google', Icons.g_mobiledata_rounded, AppColors.fillMuted),
+      _ => (SocialProvider.kakao, '카카오톡', Icons.chat_bubble_rounded, AppColors.kakao),
+    };
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: const AppNavBar(title: '수정하기'),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 56, AppSpacing.screenH, AppSpacing.xl),
+        children: [
+          const StatusMessage(
+            icon: StatusIcon.shield,
+            title: '개인정보 보호를 위한 인증이 필요해요',
+            description: '로그인 계정으로 재인증을 진행해주세요',
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          Semantics(
+            button: true,
+            label: '$label 계정으로 인증',
+            excludeSemantics: true,
+            child: OutlinedBox(
+              radius: AppRadius.button,
+              onTap: _busy ? null : () => _reauth(provider, label),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_busy)
+                    const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.primary))
+                  else ...[
+                    Container(
+                      width: 22,
+                      height: 22,
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+                      child: switch (method) {
+                        LoginMethod.apple => Image.asset('assets/images/icons/login_apple.png', excludeFromSemantics: true),
+                        LoginMethod.google => Icon(icon, size: 13, color: AppColors.ink),
+                        _ => Image.asset('assets/images/icons/login_kakao.png', excludeFromSemantics: true),
+                      },
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text('$label 계정으로 인증', style: AppTypography.body2Medium.copyWith(color: AppColors.ink)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

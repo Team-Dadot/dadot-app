@@ -7,7 +7,7 @@ import 'package:swipe/core/config/app_config.dart';
 import 'package:swipe/core/providers.dart';
 import 'package:swipe/core/storage/token_storage.dart';
 
-/// 앱이 Mock 모드로 뜨고 로그인 → 첫 설정 4단계 → 알림 → 완료 → 첫 퀴즈 → 홈까지 가는지 확인하는 스모크 테스트
+/// 앱이 Mock 모드로 뜨고 로그인 → 첫 설정 5단계 → 완료 → 첫 퀴즈 → 홈까지 가는지 확인하는 스모크 테스트
 void main() {
   testWidgets('로그인 → 첫 설정 → 홈', (tester) async {
     tester.view.physicalSize = const Size(390 * 3, 844 * 3);
@@ -37,52 +37,61 @@ void main() {
     await tester.pumpAndSettle();
 
     // 1-1: 테스트 환경(Android 로 취급)에서는 카카오 + 이메일
-    expect(find.text('기업의 이야기,\n나의 답변으로.'), findsOneWidget);
+    expect(find.text('공시 기반 퀴즈로 익히고\n내 경험을 담아 답해보세요'), findsOneWidget);
     expect(find.text('이메일로 시작하기'), findsOneWidget);
     await tester.tap(find.text('카카오로 시작하기'));
     await tester.pump(const Duration(milliseconds: 300)); // FakeSocialAuthService 지연
     await tester.pumpAndSettle();
 
-    // 1-2 준비 기업
+    // STEP 1 준비 기업: 검색창 → 기업 추가하기 화면에서 추가 → 돌아오기
     expect(find.text('어떤 기업을\n준비하고 있나요?'), findsOneWidget);
-    await tester.tap(find.text('기아'));
+    await tester.tap(find.text('기업 이름을 검색해보세요'));
     await tester.pumpAndSettle();
-    expect(find.text('1 / 5'), findsOneWidget);
+    expect(find.text('기업 추가하기'), findsOneWidget);
+    await tester.tap(find.text('기아').first);
+    await tester.pumpAndSettle();
+    expect(find.text('추가한 기업'), findsOneWidget);
+    await tester.tap(find.text('추가 완료'));
+    await tester.pumpAndSettle();
+    expect(find.text('내가 추가한 기업'), findsOneWidget);
+    expect(find.text('준비 중인 기업이 1개 추가되었어요'), findsOneWidget);
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
-    // 1-3 직무 → 1-4 시트
-    expect(find.text('기업별 지원 직무를\n알려주세요.'), findsOneWidget);
-    await tester.tap(find.text('선택 ›'));
+    // STEP 2 직무 → 지원 직무 시트
+    expect(find.text('기업별 지원 직무를\n알려주세요'), findsOneWidget);
+    await tester.tap(find.text('선택'));
     await tester.pumpAndSettle();
-    expect(find.text('기아 지원 직무'), findsOneWidget);
+    expect(find.text('지원 직무'), findsOneWidget);
     await tester.tap(find.text('마케팅').first);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('선택 완료'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
-    // 1-5 면접일 (건너뜀)
+    // STEP 3 면접일 (건너뜀)
     expect(find.text('면접 일정이 잡힌\n기업이 있나요?'), findsOneWidget);
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
-    // STEP 4 경험 → 건너뛰기
-    expect(find.text('면접에서 꺼낼\n내 경험을 알려주세요.'), findsOneWidget);
-    await tester.tap(find.text('건너뛰고 시작하기'));
+    // STEP 4 경험 → 일단 넘어갈게요
+    expect(find.text('면접에서 꺼낼\n경험을 알려주세요'), findsOneWidget);
+    await tester.tap(find.text('일단 넘어갈게요'));
     await tester.pumpAndSettle();
 
-    // 알림 → 나중에
-    expect(find.text('면접 준비에 필요할 때만\n알려드릴게요.'), findsOneWidget);
-    await tester.tap(find.text('나중에 할게요'));
+    // STEP 5 알림 → 일단 넘어갈게요
+    expect(find.text('오늘의 학습\n놓치지 않게 챙겨드려요'), findsOneWidget);
+    await tester.tap(find.text('일단 넘어갈게요'));
     await tester.pumpAndSettle();
 
     // 완료 → 오늘의 학습 시작하기 → 첫 퀴즈
     expect(find.text('준비가 끝났어요!'), findsOneWidget);
-    await tester.tap(find.text('오늘의 학습 시작하기  →'));
+    await tester.tap(find.text('오늘의 학습 시작하기'));
     await tester.pumpAndSettle();
     // 3-1 퀴즈 (피그마 최종: 제목 없는 내비 + "Q1." + 문제)
     expect(find.textContaining('Q1.'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
+    await tester.tap(find.byKey(const ValueKey('nav-back')));
     await tester.pumpAndSettle();
 
     // 홈 (라임 폴더 카드: 오늘의 학습 · 기업 퀴즈 0/5 · 면접 연습 0/3 + 학습 현황)

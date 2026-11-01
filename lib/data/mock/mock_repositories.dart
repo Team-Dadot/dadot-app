@@ -16,6 +16,9 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<AuthSession> signInWithSocial(SocialCredential credential) => _b.run(() => _b.signIn(credential));
   @override
+  Future<AuthSession> signUpWithEmail({required String email, required String password}) =>
+      _b.run(() => _b.signUpEmail(email: email, password: password));
+  @override
   Future<AppUser> fetchMe() => _b.run(_b.me);
   @override
   Future<AppUser> updateProfile({required String nickname, required int avatarIndex}) =>
@@ -55,6 +58,8 @@ class MockProfileRepository implements ProfileRepository {
   Future<List<Preparation>> updatePreparation(Preparation item) => _b.run(() => _b.updatePreparation(item));
   @override
   Future<List<Preparation>> removePreparation(String companyId) => _b.run(() => _b.removePreparation(companyId));
+  @override
+  Future<List<PastPreparation>> fetchPastPreparations() => _b.run(_b.pastPreparations);
   @override
   Future<List<Experience>> fetchExperiences() => _b.run(_b.experiences);
   @override

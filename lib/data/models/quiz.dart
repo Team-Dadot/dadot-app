@@ -1,16 +1,5 @@
-/// 퀴즈 모델. 채점은 서버가 한다 (정답을 앱에 미리 내려주지 않음).
+/// 퀴즈 모델. 채점은 서버가 한다 (정답을 앱에 미리 내려주지 않음). 퀴즈는 모두 객관식이다 (주관식 없음).
 library;
-
-enum QuizKind {
-  choice('CHOICE', '객관식'),
-  short('SHORT', '주관식');
-
-  const QuizKind(this.wire, this.label);
-  final String wire;
-  final String label;
-
-  static QuizKind fromWire(String? v) => QuizKind.values.firstWhere((e) => e.wire == v, orElse: () => QuizKind.choice);
-}
 
 /// 공시 근거 (3-4 시트, 4-2 답변에 활용할 정보)
 class Evidence {
@@ -64,32 +53,27 @@ class QuizQuestion {
   const QuizQuestion({
     required this.id,
     required this.order,
-    required this.kind,
     required this.tags,
     required this.prompt,
     required this.title,
     required this.choices,
-    this.placeholder,
     this.evidence,
   });
 
   factory QuizQuestion.fromJson(Map<String, dynamic> json) => QuizQuestion(
         id: json['id'].toString(),
         order: json['order'] as int? ?? 1,
-        kind: QuizKind.fromWire(json['kind'] as String?),
         tags: (json['tags'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList(),
         prompt: json['prompt'] as String,
         title: json['title'] as String? ?? json['prompt'] as String,
         choices: (json['choices'] as List<dynamic>? ?? const [])
             .map((e) => QuizChoice.fromJson((e as Map).cast<String, dynamic>()))
             .toList(),
-        placeholder: json['placeholder'] as String?,
         evidence: json['evidence'] == null ? null : Evidence.fromJson((json['evidence'] as Map).cast<String, dynamic>()),
       );
 
   final String id;
   final int order;
-  final QuizKind kind;
 
   /// 주제 태그 (실적, 사업 계획 …)
   final List<String> tags;
@@ -99,21 +83,16 @@ class QuizQuestion {
   final String title;
   final List<QuizChoice> choices;
 
-  /// 주관식 입력 예시
-  final String? placeholder;
-
   /// "공시 근거 먼저 보기" 로 미리 볼 수 있는 근거
   final Evidence? evidence;
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'order': order,
-        'kind': kind.wire,
         'tags': tags,
         'prompt': prompt,
         'title': title,
         'choices': choices.map((c) => c.toJson()).toList(),
-        'placeholder': placeholder,
         'evidence': evidence?.toJson(),
       };
 }
@@ -126,7 +105,6 @@ class QuizAnswerResult {
     required this.correct,
     required this.explanation,
     this.correctChoiceId,
-    this.modelAnswer,
     this.evidence,
   });
 
@@ -136,20 +114,16 @@ class QuizAnswerResult {
         correct: json['correct'] as bool,
         explanation: json['explanation'] as String,
         correctChoiceId: json['correctChoiceId']?.toString(),
-        modelAnswer: json['modelAnswer'] as String?,
         evidence: json['evidence'] == null ? null : Evidence.fromJson((json['evidence'] as Map).cast<String, dynamic>()),
       );
 
   final String questionId;
 
-  /// 객관식은 choiceId, 주관식은 입력한 글
+  /// 고른 보기 choiceId
   final String answer;
   final bool correct;
   final String explanation;
   final String? correctChoiceId;
-
-  /// 주관식 모범 답안
-  final String? modelAnswer;
   final Evidence? evidence;
 
   Map<String, dynamic> toJson() => {
@@ -158,7 +132,6 @@ class QuizAnswerResult {
         'correct': correct,
         'explanation': explanation,
         'correctChoiceId': correctChoiceId,
-        'modelAnswer': modelAnswer,
         'evidence': evidence?.toJson(),
       };
 }
@@ -223,10 +196,10 @@ class QuizResultItem {
   final bool correct;
   final String explanation;
 
-  /// "C. 늘었다" (객관식은 보기 글자까지, 주관식은 입력한 글)
+  /// "C. 늘었다" (보기 글자 + 내용)
   final String? myAnswer;
 
-  /// "C. 늘었다" (주관식은 예시 답)
+  /// "C. 늘었다"
   final String? correctAnswer;
   final Evidence? evidence;
 }

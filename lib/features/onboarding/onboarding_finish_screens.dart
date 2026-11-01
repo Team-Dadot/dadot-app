@@ -10,10 +10,9 @@ import '../../data/models/catalog.dart';
 import '../../data/models/settings.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
-import '../common/format.dart';
 import 'onboarding_common.dart';
 
-/// 1-2 첫 설정 · 알림: "면접 준비에 필요할 때만 알려드릴게요." → 알림 허용하기 / 나중에 할게요
+/// 피그마 최종 STEP 5 알림 (763:17600): "오늘의 학습 놓치지 않게 챙겨드려요" → 알림 허용하기 / 일단 넘어갈게요
 class OnboardingNotificationScreen extends ConsumerStatefulWidget {
   const OnboardingNotificationScreen({super.key});
 
@@ -52,52 +51,100 @@ class _OnboardingNotificationScreenState extends ConsumerState<OnboardingNotific
     final dated = preps.where((p) => p.interviewDate != null).toList()
       ..sort((a, b) => a.interviewDate!.compareTo(b.interviewDate!));
     final company = (dated.firstOrNull ?? preps.firstOrNull)?.companyName ?? '기아';
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '첫 설정'),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+    return OnboardingStepScaffold(
+      step: 5,
+      title: '오늘의 학습\n놓치지 않게 챙겨드려요',
+      bottom: [
+        AppButton(label: '알림 허용하기', loading: _busy, onPressed: _busy ? null : () => _set(allow: true)),
+        AppButton(label: '일단 넘어갈게요', variant: AppButtonVariant.secondary, onPressed: _busy ? null : () => _set(allow: false)),
+      ],
+      children: [
+        const _CheckLine('하루 한 번, 학습할 시간에만 보내요.'),
+        const SizedBox(height: AppSpacing.xs),
+        const _CheckLine('알림은 설정에서 언제든 변경할 수 있어요'),
+        const SizedBox(height: 56),
+        // 피그마는 그래픽 자리("그래픽 고민중") — 알림 미리보기 카드 두 장을 겹쳐 둔다
+        ExcludeSemantics(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Opacity(
+                  opacity: 0.5,
+                  child: _NotificationPreview(title: '오늘의 학습이 기다리고 있어요', body: '퀴즈 5문제와 면접 질문을 풀어 볼까요?'),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 28),
+                child: _NotificationPreview(
+                  title: '$company 면접이 ${AppPolicy.focusModeDays}일 남았어요',
+                  body: '오늘은 틀렸던 문제와 답변을 다듬어 볼까요?',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 라임 ✓ + 안내 한 줄
+class _CheckLine extends StatelessWidget {
+  const _CheckLine(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
         children: [
-          const PageTitle('면접 준비에 필요할 때만\n알려드릴게요.', description: '오늘의 학습, 면접 D-day가 가까워질 때\n하루 한 번까지만 보내요.'),
-          const SizedBox(height: AppSpacing.xl),
-          Text('알림', style: AppTypography.body2Strong),
-          const SizedBox(height: AppSpacing.xs),
-          InfoBox(
-            child: Row(
+          const CheckMark(checked: true, size: 18),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(child: Text(text, style: AppTypography.body2Medium.copyWith(color: AppColors.textSub))),
+        ],
+      );
+}
+
+/// 알림 미리보기 카드 (앱 아이콘 + 제목 + 내용)
+class _NotificationPreview extends StatelessWidget {
+  const _NotificationPreview({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedBox(
+      radius: AppRadius.button,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(color: AppColors.point, borderRadius: BorderRadius.circular(AppRadius.sm)),
+            child: Image.asset(AppHeader.logoAsset, fit: BoxFit.contain),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  color: AppColors.placeholder,
-                  alignment: Alignment.center,
-                  child: Text('앱', style: AppTypography.micro),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('$company 면접이 ${AppPolicy.focusModeDays}일 남았어요', style: AppTypography.body1Strong),
-                      const SizedBox(height: 2),
-                      Text('오늘은 틀렸던 문제와 답변을 다듬어 볼까요?', style: AppTypography.caption.copyWith(color: AppColors.textBody)),
-                    ],
-                  ),
-                ),
+                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body2Strong.copyWith(color: AppColors.ink)),
+                const SizedBox(height: 2),
+                Text(body, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textCaption)),
               ],
             ),
           ),
         ],
       ),
-      bottomNavigationBar: BottomCta(children: [
-        AppButton(label: '알림 허용하기', loading: _busy, onPressed: _busy ? null : () => _set(allow: true)),
-        AppButton(label: '나중에 할게요', variant: AppButtonVariant.secondary, onPressed: _busy ? null : () => _set(allow: false)),
-      ]),
     );
   }
 }
 
-/// 1-2 첫 설정 · 완료: "준비가 끝났어요!" + 내 준비 정보 요약 → 오늘의 학습 시작하기
+/// 피그마 최종 1-2 완료 (763:17615): 그래픽 + 오늘의 학습 시작하기 / 홈화면 둘러보기
 class OnboardingDoneScreen extends ConsumerStatefulWidget {
   const OnboardingDoneScreen({super.key});
 
@@ -108,7 +155,8 @@ class OnboardingDoneScreen extends ConsumerStatefulWidget {
 class _OnboardingDoneScreenState extends ConsumerState<OnboardingDoneScreen> {
   bool _starting = false;
 
-  Future<void> _start(List<Preparation> preps) async {
+  /// [startQuiz] 면 홈 위에 첫 기업의 오늘 퀴즈를 연다 (뒤로 가면 홈)
+  Future<void> _finish(List<Preparation> preps, {required bool startQuiz}) async {
     final router = GoRouter.of(context);
     setState(() => _starting = true);
     // 첫 설정이 끝나면 이 화면은 사라지므로(라우터가 홈으로 보냄) ref 는 완료 전에 쓴다
@@ -116,9 +164,8 @@ class _OnboardingDoneScreenState extends ConsumerState<OnboardingDoneScreen> {
     if (first != null) ref.read(selectedCompanyIdProvider.notifier).select(first.companyId);
     try {
       await ref.read(sessionProvider.notifier).completeOnboarding();
-      // 홈 위에 첫 기업의 오늘 퀴즈를 연다 (뒤로 가면 홈)
       router.go(Routes.home);
-      if (first != null) router.push(Routes.quiz(first.companyId));
+      if (startQuiz && first != null) router.push(Routes.quiz(first.companyId));
     } catch (e) {
       if (mounted) {
         showErrorToast(context, e);
@@ -130,84 +177,38 @@ class _OnboardingDoneScreenState extends ConsumerState<OnboardingDoneScreen> {
   @override
   Widget build(BuildContext context) {
     final preps = ref.watch(onboardingPrepsProvider).asData?.value ?? const <Preparation>[];
-    final experiences = ref.watch(experiencesProvider).asData?.value;
-    final notification = ref.watch(notificationSettingsProvider).asData?.value;
-    final now = DateTime.now();
-
-    final jobs = {for (final p in preps) if (p.hasJob) p.jobName!}.join(' · ');
-    final dates = [
-      for (final p in preps)
-        p.interviewDate == null
-            ? '${p.companyName} 미정'
-            : '${p.companyName} ${formatShort(p.interviewDate!)} (${formatDday(p.ddayFrom(now) ?? 0)})',
-    ].join(' · ');
-    final noti = notification == null
-        ? '-'
-        : notification.enabled
-            ? '켜짐 · ${notification.summary.split(' · ').first}'
-            : '꺼짐 · 마이에서 켤 수 있어요';
-
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '완료', showBack: false),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
-        children: [
-          const Center(child: LogoBox(size: AppSizes.logo, label: '완료')),
-          const SizedBox(height: AppSpacing.gap),
-          Text('준비가 끝났어요!', textAlign: TextAlign.center, style: AppTypography.title1),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '오늘의 학습으로 첫 퀴즈와\n면접 질문을 시작해 볼까요?',
-            textAlign: TextAlign.center,
-            style: AppTypography.body1.copyWith(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          const SectionTitle('내 준비 정보'),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedBox(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: AppSpacing.screen,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _SummaryRow(label: '준비 기업', value: preps.map((p) => p.companyName).join(' · ')),
-                _SummaryRow(label: '지원 직무', value: jobs.isEmpty ? '-' : jobs),
-                _SummaryRow(label: '면접일', value: dates.isEmpty ? '-' : dates),
-                _SummaryRow(
-                  label: '내 경험',
-                  value: experiences == null ? '-' : experiences.isEmpty ? '아직 없어요' : '${experiences.length}개 저장',
+                // 피그마는 그래픽 자리("그래픽 고민중") — 결과 화면 폴더 그림을 쓴다
+                Image.asset('assets/images/folder_result.png', width: 140, excludeFromSemantics: true),
+                const SizedBox(height: AppSpacing.lg),
+                Semantics(header: true, child: Text('준비가 끝났어요!', textAlign: TextAlign.center, style: AppTypography.title1.copyWith(color: AppColors.ink))),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '오늘의 학습으로 첫 퀴즈와\n면접 질문을 시작해 볼까요?',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.body1.copyWith(color: AppColors.textCaption),
                 ),
-                _SummaryRow(label: '학습 알림', value: noti, last: true),
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text('모든 정보는 마이에서 언제든 바꿀 수 있어요.', textAlign: TextAlign.center, style: AppTypography.caption),
-        ],
+        ),
       ),
       bottomNavigationBar: BottomCta(children: [
-        AppButton(label: '오늘의 학습 시작하기  →', loading: _starting, onPressed: _starting ? null : () => _start(preps)),
+        AppButton(label: '오늘의 학습 시작하기', loading: _starting, onPressed: _starting ? null : () => _finish(preps, startQuiz: true)),
+        AppButton(
+          label: '홈화면 둘러보기',
+          variant: AppButtonVariant.secondary,
+          onPressed: _starting ? null : () => _finish(preps, startQuiz: false),
+        ),
       ]),
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value, this.last = false});
-
-  final String label;
-  final String value;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: last ? 0 : AppSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 72, child: Text(label, style: AppTypography.caption)),
-          Expanded(child: Text(value, style: AppTypography.body2Medium)),
-        ],
-      ),
     );
   }
 }

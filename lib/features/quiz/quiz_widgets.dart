@@ -77,7 +77,7 @@ class ChoiceTile extends StatelessWidget {
   }
 }
 
-/// 문제 머리: 첫 줄 "Q1." (Zalando Sans) + 문제 26 Bold. 주관식이면 위에 작은 태그.
+/// 문제 머리: 첫 줄 "Q1." (Zalando Sans) + 문제 26 Bold
 class QuizPrompt extends StatelessWidget {
   const QuizPrompt({super.key, required this.question, this.number});
 
@@ -91,10 +91,6 @@ class QuizPrompt extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (question.kind != QuizKind.choice) ...[
-          TagChip(question.kind.label),
-          const SizedBox(height: AppSpacing.sm),
-        ],
         Semantics(
           header: true,
           label: number == null ? question.prompt : '$number번. ${question.prompt}',
@@ -117,24 +113,20 @@ class QuizPrompt extends StatelessWidget {
   }
 }
 
-/// 보기 목록 또는 주관식 입력 + 채점 후 해설
+/// 객관식 보기 목록 + 채점 후 해설 (퀴즈는 모두 객관식)
 class QuizAnswerArea extends StatelessWidget {
   const QuizAnswerArea({
     super.key,
     required this.question,
     required this.selectedChoiceId,
     required this.onSelect,
-    required this.shortController,
     required this.result,
-    this.onShortChanged,
   });
 
   final QuizQuestion question;
   final String? selectedChoiceId;
   final ValueChanged<String> onSelect;
-  final TextEditingController shortController;
   final QuizAnswerResult? result;
-  final ValueChanged<String>? onShortChanged;
 
   ChoiceState _state(QuizChoice c) {
     final r = result;
@@ -150,28 +142,14 @@ class QuizAnswerArea extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (question.kind == QuizKind.choice)
-          for (var i = 0; i < question.choices.length; i++) ...[
-            ChoiceTile(
-              index: i,
-              text: question.choices[i].text,
-              state: _state(question.choices[i]),
-              onTap: r == null ? () => onSelect(question.choices[i].id) : null,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ]
-        else ...[
-          AppTextField(
-            controller: shortController,
-            hint: question.placeholder ?? '답을 적어 주세요.',
-            minLines: 5,
-            maxLines: 8,
-            readOnly: r != null,
-            onChanged: onShortChanged,
-            textStyle: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium),
+        for (var i = 0; i < question.choices.length; i++) ...[
+          ChoiceTile(
+            index: i,
+            text: question.choices[i].text,
+            state: _state(question.choices[i]),
+            onTap: r == null ? () => onSelect(question.choices[i].id) : null,
           ),
           const SizedBox(height: AppSpacing.sm),
-          if (r == null) Text('핵심 키워드가 들어가면 정답으로 인정돼요.', style: AppTypography.caption),
         ],
         if (r != null) QuizExplanation(question: question, result: r),
       ],
@@ -192,9 +170,9 @@ class QuizExplanation extends StatelessWidget {
     final correctIndex = question.choices.indexWhere((c) => c.id == r.correctChoiceId);
     final headline = r.correct
         ? '정답이에요!'
-        : question.kind == QuizKind.choice && correctIndex >= 0
+        : correctIndex >= 0
             ? '아쉬워요. 정답은 ${_letters[correctIndex]}예요.'
-            : '아쉬워요. 이렇게 답할 수 있어요.';
+            : '아쉬워요. 다시 확인해 봐요.';
     final ev = r.evidence ?? question.evidence;
     return Semantics(
       liveRegion: true,
@@ -203,10 +181,6 @@ class QuizExplanation extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(headline, style: AppTypography.subheading),
-            if (!r.correct && question.kind == QuizKind.short && r.modelAnswer != null) ...[
-              const SizedBox(height: 6),
-              Text('예시 답: ${r.modelAnswer}', style: AppTypography.body2Strong),
-            ],
             const SizedBox(height: 6),
             Text(r.explanation, style: AppTypography.body2),
             if (ev != null) ...[

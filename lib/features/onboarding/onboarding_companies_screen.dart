@@ -10,7 +10,8 @@ import '../../design_system/design_system.dart';
 import '../common/pickers.dart';
 import 'onboarding_common.dart';
 
-/// 1-2 준비 기업 선택 (STEP 1/4)
+/// 피그마 최종 1-2 STEP 1 "어떤 기업을 준비하고 있나요?": 검색창을 누르면 "기업 추가하기" 화면,
+/// 고른 기업은 아래 카드로 (빼기). 5개를 넘기면 1-E3 안내 팝업.
 class OnboardingCompaniesScreen extends ConsumerStatefulWidget {
   const OnboardingCompaniesScreen({super.key});
 
@@ -21,20 +22,40 @@ class OnboardingCompaniesScreen extends ConsumerStatefulWidget {
 class _OnboardingCompaniesScreenState extends ConsumerState<OnboardingCompaniesScreen> {
   bool _saving = false;
 
-  void _toggle(Company c) {
+  static void _add(BuildContext context, WidgetRef ref, Company c) {
     final ctrl = ref.read(onboardingPrepsProvider.notifier);
-    final list = List.of(ctrl.current);
-    final i = list.indexWhere((p) => p.companyId == c.id);
-    if (i >= 0) {
-      list.removeAt(i);
-    } else {
-      if (list.length >= AppPolicy.maxCompanies) {
-        showToast(context, '준비 기업은 최대 ${AppPolicy.maxCompanies}개까지 고를 수 있어요.');
-        return;
-      }
-      list.add(Preparation.fromCompany(c));
+    final list = ctrl.current;
+    if (list.any((p) => p.companyId == c.id)) return;
+    if (list.length >= AppPolicy.maxCompanies) {
+      showNoticeDialog(
+        context,
+        title: '준비 기업 ${AppPolicy.maxCompanies}개를 모두 채웠어요',
+        message: '하나를 빼면 새 기업을 추가할 수 있어요',
+      );
+      return;
     }
-    ctrl.setLocal(list);
+    ctrl.setLocal([...list, Preparation.fromCompany(c)]);
+  }
+
+  static void _remove(WidgetRef ref, String companyId) {
+    final ctrl = ref.read(onboardingPrepsProvider.notifier);
+    ctrl.setLocal(ctrl.current.where((p) => p.companyId != companyId).toList());
+  }
+
+  Future<void> _openSearch() async {
+    final before = ref.read(onboardingPrepsProvider.notifier).current.length;
+    await CompanySearchScreen.open(
+      context,
+      watchAdded: (ref) => [
+        for (final p in ref.watch(onboardingPrepsProvider).asData?.value ?? const <Preparation>[]) (id: p.companyId, name: p.companyName),
+      ],
+      onAdd: _add,
+      onRemove: _remove,
+    );
+    if (!mounted) return;
+    // 피그마 1074:12476: 검색 화면에서 돌아오면 "준비 중인 기업이 2개 추가되었어요 · 확인"
+    final added = ref.read(onboardingPrepsProvider.notifier).current.length - before;
+    if (added > 0) showDoneToast(context, '준비 중인 기업이 $added개 추가되었어요');
   }
 
   Future<void> _next() async {
@@ -51,14 +72,20 @@ class _OnboardingCompaniesScreenState extends ConsumerState<OnboardingCompaniesS
 
   Future<void> _back() async {
     // 첫 단계에서 뒤로 = 로그아웃하고 시작 화면으로
-    final ok = await showConfirmDialog(context, title: '첫 설정을 그만둘까요?', message: '시작 화면으로 돌아가요. 고른 기업은 저장돼 있어요.', confirmLabel: '그만두기');
+    final ok = await showConfirmDialog(
+      context,
+      warning: true,
+      title: '첫 설정을 그만둘까요?',
+      message: '시작 화면으로 돌아가요',
+      cancelLabel: '진행하기',
+      confirmLabel: '나가기',
+    );
     if (ok && mounted) await ref.read(sessionProvider.notifier).signOut();
   }
 
   @override
   Widget build(BuildContext context) {
     return OnboardingLoadGate(builder: (preps) {
-      final selected = {for (final p in preps) p.companyId};
       return PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
@@ -67,42 +94,34 @@ class _OnboardingCompaniesScreenState extends ConsumerState<OnboardingCompaniesS
         child: OnboardingStepScaffold(
           step: 1,
           title: '어떤 기업을\n준비하고 있나요?',
-          description: '여러 기업을 한 번에 골라 주세요.',
-          onBack: _back,
           bottom: [
             AppButton(label: '다음', loading: _saving, onPressed: preps.isEmpty ? null : _next),
           ],
           children: [
-            CompanySearch(
-              header: _CountRow(count: preps.length),
-              itemBuilder: (c) => CompanyTile(
-                name: c.name,
-                subtitle: c.industry,
-                selected: selected.contains(c.id),
-                trailing: CheckMark(checked: selected.contains(c.id)),
-                onTap: () => _toggle(c),
+            SearchField(hint: '기업 이름을 검색해보세요', onTap: _openSearch),
+            if (preps.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xl),
+              Row(
+                children: [
+                  const Expanded(child: OnboardingLabel('내가 추가한 기업')),
+                  OnboardingLabel('${preps.length}/${AppPolicy.maxCompanies}'),
+                ],
               ),
-            ),
+              for (final p in preps) ...[
+                CompanyTile(
+                  name: p.companyName,
+                  trailing: TextLink(
+                    label: '삭제',
+                    style: AppTypography.body2Medium.copyWith(color: AppColors.textGuide),
+                    onTap: () => _remove(ref, p.companyId),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ],
           ],
         ),
       );
     });
-  }
-}
-
-/// "최대 5개까지  2 / 5"
-class _CountRow extends StatelessWidget {
-  const _CountRow({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: Text('최대 ${AppPolicy.maxCompanies}개까지', style: AppTypography.caption)),
-        Text('$count / ${AppPolicy.maxCompanies}', style: AppTypography.captionStrong),
-      ],
-    );
   }
 }

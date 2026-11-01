@@ -37,7 +37,8 @@ class AppButton extends StatelessWidget {
 
     final height = small ? AppSizes.buttonHeightSmall : AppSizes.buttonHeight;
     final (Color bg, Color fg, BorderSide? side) = switch (variant) {
-      AppButtonVariant.primary => (AppColors.primary, AppColors.onPrimary, null),
+      // 피그마 변수 bg/cta-primary = gray/900 (#15171B)
+      AppButtonVariant.primary => (AppColors.ink, AppColors.onPrimary, null),
       AppButtonVariant.secondary => (
           small ? AppColors.fillSecondary : AppColors.fillMuted,
           small ? AppColors.textStrong.withValues(alpha: 0.65) : AppColors.textSub,

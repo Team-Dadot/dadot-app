@@ -16,9 +16,9 @@ import '../common/data_providers.dart';
 import '../common/format.dart';
 import 'interview_widgets.dart';
 
-enum _Mode { writing, voiceReady, recording, voiceReview, analyzing }
+enum _Mode { writing, voiceReady, recording, voiceStopped, converting, voiceReview, analyzing }
 
-/// 피그마 4-3 답변 작성(텍스트) · 4-4 말로 답하기(녹음 전 → 녹음 중 → 텍스트 변환) · 4-5 답변 분석 중
+/// 피그마 최종 4-3 답변 작성 · 4-4 말로 답하기(녹음 전 → 녹음 중 → 녹음 완료 → 텍스트 변환 중 → 내 답변) · 4-5 답변 분석 중
 /// - 쓰는 중인 답변은 기기에 자동 임시 저장, "임시저장" 을 누르면 서버에도 저장 (복습 탭 "작성 중")
 /// - 말로 답하면 기기 STT 로 글자로 바꾼 뒤 직접 고쳐서 제출
 class AnswerScreen extends ConsumerStatefulWidget {
@@ -42,6 +42,12 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   bool _usedVoice = false;
   bool _savingDraft = false;
   bool _leaving = false;
+
+  /// 말로 답하기를 시작하기 전 글 (다시 녹음하면 여기로 되돌린다)
+  String _beforeVoice = '';
+
+  /// 멈췄다 이어 녹음한 시간 합
+  Duration _priorElapsed = Duration.zero;
 
   @override
   void initState() {
@@ -80,6 +86,8 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
 
   int get _length => _text.text.trim().characters.length;
 
+  bool get _canSubmit => _length >= AppPolicy.minAnswerLength;
+
   // ---------------------------------------------------------------- 말로 답하기
 
   Future<void> _startRecording({bool restart = false}) async {
@@ -87,15 +95,21 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     final speech = _speech ??= SpeechService()..addListener(_onSpeech);
     if (restart) {
       await speech.cancel();
-      // 다시 녹음: 방금 말로 바꾼 내용은 지우고 새로 녹음
-      if (_mode == _Mode.voiceReview) _text.clear();
+      // 다시 녹음: 말로 바꾼 내용은 지우고 처음부터
+      _text.text = _beforeVoice;
+      _priorElapsed = Duration.zero;
+    } else if (_mode == _Mode.voiceReady) {
+      _beforeVoice = _text.text;
+      _priorElapsed = Duration.zero;
+    } else if (_mode == _Mode.voiceStopped) {
+      _priorElapsed += speech.elapsed;
     }
     setState(() => _mode = _Mode.recording);
     await speech.start();
     if (!mounted) return;
     if (speech.status == SpeechStatus.permissionDenied) {
       setState(() => _mode = _Mode.voiceReady);
-      showToast(context, '마이크 권한이 필요해요. 휴대폰 설정 > 앱 > Dadot에서 마이크·음성 인식을 켜 주세요.');
+      await _askMicPermission();
     } else if (speech.status == SpeechStatus.unavailable) {
       setState(() => _mode = _Mode.writing);
       showToast(context, '이 기기에서는 음성 인식을 쓸 수 없어요. 텍스트로 작성해 주세요.');
@@ -108,16 +122,38 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     await speech.stop();
     if (!mounted) return;
     final spoken = speech.text.trim();
+    final hadVoice = _text.text.trim() != _beforeVoice.trim();
     setState(() {
-      // 말한 내용이 있으면 "내 답변" 확인·수정 단계로
-      _mode = spoken.isEmpty ? _Mode.voiceReady : _Mode.voiceReview;
+      // 말한 내용이 있으면 "녹음을 멈췄어요" → 다시 녹음하기 / 답변을 완료했어요
+      _mode = spoken.isEmpty && !hadVoice ? _Mode.voiceReady : _Mode.voiceStopped;
       if (spoken.isNotEmpty) {
         _usedVoice = true;
         final joined = [_text.text.trim(), spoken].where((s) => s.isNotEmpty).join('\n');
         _text.value = TextEditingValue(text: joined, selection: TextSelection.collapsed(offset: joined.length));
       }
     });
-    if (spoken.isEmpty) showToast(context, '말한 내용을 알아듣지 못했어요. 다시 녹음해 주세요.');
+    if (spoken.isEmpty && !hadVoice) showToast(context, '말한 내용을 알아듣지 못했어요. 다시 녹음해 주세요.');
+  }
+
+  /// "답변을 완료했어요" → 4-4 텍스트 변환 중 → 내 답변 확인·수정
+  Future<void> _finishVoice() async {
+    setState(() => _mode = _Mode.converting);
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (mounted && _mode == _Mode.converting) setState(() => _mode = _Mode.voiceReview);
+  }
+
+  /// 피그마 4-4 마이크 허용: "마이크 권한이 필요해요" → 취소 / 설정으로 이동
+  Future<void> _askMicPermission() async {
+    final go = await showConfirmDialog(
+      context,
+      title: '마이크 권한이 필요해요',
+      message: '답변 녹음을 위해\n마이크 권한을 활성화해 주세요.',
+      cancelLabel: '취소',
+      confirmLabel: '설정으로 이동',
+    );
+    if (!go || !mounted) return;
+    final opened = await ref.read(linkServiceProvider).openAppSettings();
+    if (!opened && mounted) showToast(context, '휴대폰 설정 > 앱 > Dadot에서 마이크·음성 인식을 켜 주세요.');
   }
 
   void _onSpeech() {
@@ -186,70 +222,82 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   }
 
   /// 4-E6 작성 중 나가기 확인 (피그마 프레임이 비어 있어 확인 팝업으로)
+  /// 피그마 1074:11423 "답변을 그만할까요? / 지금까지 작성한 내용은 임시 저장돼요" → 계속 진행하기 / 나가기
   Future<void> _confirmLeave() async {
     if (_mode == _Mode.recording) {
       await _stopRecording();
       return;
     }
-    if (_mode == _Mode.analyzing) return;
-    // 말로 답하기 화면에서 뒤로 → 답변 작성 화면 (질문 화면에서 바로 왔으면 그대로 나간다)
-    if ((_mode == _Mode.voiceReady || _mode == _Mode.voiceReview) && !(widget.startWithVoice && _text.text.trim().isEmpty)) {
-      setState(() => _mode = _Mode.writing);
-      return;
-    }
+    if (_mode == _Mode.analyzing || _mode == _Mode.converting) return;
     if (_text.text.trim().isEmpty) {
+      // 아직 쓴 게 없으면 묻지 않는다. 말로 답하기에서 뒤로 → 답변 작성 (질문 화면에서 바로 왔으면 나간다)
+      if (_mode != _Mode.writing && !widget.startWithVoice) {
+        setState(() => _mode = _Mode.writing);
+        return;
+      }
       _leaving = true;
       if (mounted) Navigator.of(context).pop();
       return;
     }
-    final save = await showConfirmDialog(
+    final leave = await showConfirmDialog(
       context,
-      title: '작성 중인 답변이 있어요',
-      message: '임시저장하고 나가면 복습 탭에서 이어 쓸 수 있어요.',
-      confirmLabel: '임시저장하고 나가기',
-      cancelLabel: '계속 쓰기',
+      warning: true,
+      title: '답변을 그만할까요?',
+      message: '지금까지 작성한 내용은 임시 저장돼요',
+      cancelLabel: '계속 진행하기',
+      confirmLabel: '나가기',
     );
-    if (save && mounted) await _saveDraft(leave: true);
+    if (leave && mounted) await _saveDraft(leave: true);
   }
 
   @override
   Widget build(BuildContext context) {
     final q = ref.watch(interviewQuestionProvider(widget.questionId));
-    final voice = _mode == _Mode.voiceReady || _mode == _Mode.recording || _mode == _Mode.voiceReview;
+    final voice = _mode == _Mode.voiceReady || _mode == _Mode.recording || _mode == _Mode.voiceStopped || _mode == _Mode.voiceReview;
     final title = voice ? '말로 답하기' : '답변 작성';
 
     Widget body;
     List<Widget>? bottom;
     if (_mode == _Mode.analyzing) {
       body = const ProcessingView(title: '답변을 분석하고 있어요', iconAsset: 'assets/images/icons/load_answer.png');
+    } else if (_mode == _Mode.converting) {
+      body = const ProcessingView(title: '답변을 텍스트로 변환 중이에요', iconAsset: 'assets/images/icons/load_answer.png');
     } else {
       final header = q.when(
         loading: () => const SizedBox(height: 80, child: LoadingView()),
         error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(interviewQuestionProvider(widget.questionId))),
         data: (q) => QuestionCard(question: q),
       );
-      if (_mode == _Mode.voiceReady || _mode == _Mode.recording) {
+      if (_mode == _Mode.voiceReady || _mode == _Mode.recording || _mode == _Mode.voiceStopped) {
         body = Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               header,
+              const SizedBox(height: 28),
+              const _VoiceTip(),
               Expanded(
                 child: Center(
                   child: _VoicePanel(
                     speech: _speech,
-                    recording: _mode == _Mode.recording,
+                    priorElapsed: _priorElapsed,
+                    state: switch (_mode) {
+                      _Mode.recording => _VoiceState.recording,
+                      _Mode.voiceStopped => _VoiceState.stopped,
+                      _ => _VoiceState.ready,
+                    },
                     onTap: () => _mode == _Mode.recording ? _stopRecording() : _startRecording(),
                   ),
                 ),
               ),
-              const SizedBox(height: 60),
             ],
           ),
         );
       } else {
         body = ListView(
+          // 아래로 쓸어내리면 키보드가 내려간다 (여러 줄 입력이라 키보드 '완료' 키가 없음)
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.xl),
           children: [
             header,
@@ -260,15 +308,20 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       }
       bottom = switch (_mode) {
         _Mode.voiceReady || _Mode.recording => null,
+        _Mode.voiceStopped => [
+            AppButton(label: '다시 녹음하기', variant: AppButtonVariant.secondary, onPressed: () => _startRecording(restart: true)),
+            AppButton(label: '답변을 완료했어요', onPressed: _finishVoice),
+          ],
         _Mode.voiceReview => [
             AppButton(label: '다시 녹음하기', variant: AppButtonVariant.secondary, onPressed: () => _startRecording(restart: true)),
-            AppButton(label: '답변 제출하기', onPressed: _length == 0 ? null : _submit),
+            AppButton(label: '답변 제출하기', onPressed: _canSubmit ? _submit : null),
           ],
+        // 답변 작성: 글자를 쓰기 시작하면 버튼이 보이고, 최소 글자 수를 넘기면 제출할 수 있다
         _ => _length == 0
             ? null
             : [
                 AppButton(label: '임시 저장', variant: AppButtonVariant.secondary, loading: _savingDraft, onPressed: _saveDraft),
-                AppButton(label: '제출하기', onPressed: _submit),
+                AppButton(label: '제출하기', onPressed: _canSubmit ? _submit : null),
               ],
       };
     }
@@ -280,21 +333,30 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: _mode == _Mode.analyzing ? null : AppNavBar(title: title, onBack: _confirmLeave),
-        body: _mode == _Mode.analyzing ? SafeArea(child: body) : body,
-        bottomNavigationBar: bottom == null ? null : BottomCta(children: bottom),
+        appBar: _mode == _Mode.analyzing || _mode == _Mode.converting ? null : AppNavBar(title: title, onBack: _confirmLeave),
+        // 버튼을 bottomNavigationBar 에 두면 iOS 키보드에 가려져서 쓰는 중에 제출할 수 없었다.
+        // 본문 아래에 붙여서 키보드가 올라오면 버튼도 키보드 위로 같이 올라오게 한다.
+        body: _mode == _Mode.analyzing || _mode == _Mode.converting
+            ? SafeArea(child: body)
+            : GestureDetector(
+                // 입력칸 밖을 누르면 키보드를 내린다
+                behavior: HitTestBehavior.translucent,
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: body),
+                    if (bottom != null) BottomCta(children: bottom),
+                  ],
+                ),
+              ),
       ),
     );
   }
 
   /// 4-4 텍스트 변환: "내 답변" + 흰 카드 (눌러서 고칠 수 있음)
   List<Widget> _voiceReviewPanel() => [
-        Row(
-          children: [
-            Expanded(child: Text('내 답변', style: AppTypography.body2Medium.copyWith(color: AppColors.textPlaceholder))),
-            Text('${formatClock(_speech?.elapsed ?? Duration.zero)} 녹음', style: AppTypography.caption),
-          ],
-        ),
+        Text('내 답변', style: AppTypography.body2Medium.copyWith(color: AppColors.textPlaceholder)),
         const SizedBox(height: AppSpacing.sm),
         AppTextField(
           controller: _text,
@@ -304,7 +366,9 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
           showLimitInCounter: false,
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
+        _LengthHint(length: _length),
+        const SizedBox(height: AppSpacing.xxs),
         Text('잘못 바뀐 글자는 눌러서 바로 고칠 수 있어요.', style: AppTypography.caption),
       ];
 
@@ -315,7 +379,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
           label: '말로 답하기. 실제 면접처럼 소리 내어 연습해요',
           excludeSemantics: true,
           child: Material(
-            color: AppColors.fillSecondary,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppRadius.lg),
             child: InkWell(
               onTap: () {
@@ -330,7 +394,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
                     Container(
                       width: 40,
                       height: 40,
-                      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(color: AppColors.cardDark, shape: BoxShape.circle),
                       child: const Icon(Icons.mic_rounded, size: 22, color: AppColors.white),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -360,21 +424,82 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
           showLimitInCounter: false,
           onChanged: (_) => setState(() {}),
         ),
+        if (_length > 0) ...[
+        const SizedBox(height: AppSpacing.xs),
+        _LengthHint(length: _length),
+        ],
       ];
 }
 
-/// 4-4 말로 답하기 · 녹음 전 / 녹음 중: 큰 원 버튼 + 안내
-class _VoicePanel extends StatelessWidget {
-  const _VoicePanel({required this.speech, required this.recording, required this.onTap});
+/// 입력칸 아래 "30자 이상 쓰면 제출할 수 있어요 (지금 12자)" — 넘기면 사라진다
+class _LengthHint extends StatelessWidget {
+  const _LengthHint({required this.length});
 
-  final SpeechService? speech;
-  final bool recording;
-  final VoidCallback onTap;
+  final int length;
 
   @override
   Widget build(BuildContext context) {
-    final elapsed = speech?.elapsed ?? Duration.zero;
+    if (length >= AppPolicy.minAnswerLength) return const SizedBox.shrink();
+    return Semantics(
+      liveRegion: true,
+      child: Text(
+        '${AppPolicy.minAnswerLength}자 이상 쓰면 제출할 수 있어요 (지금 $length자)',
+        style: AppTypography.caption.copyWith(color: AppColors.textCaption),
+      ),
+    );
+  }
+}
+
+/// 4-4 "답변은 최대 3분 정도를 추천해요 / 간결하고 핵심만 담아서 말하기" 흰 카드
+class _VoiceTip extends StatelessWidget {
+  const _VoiceTip();
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedBox(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(color: AppColors.cardDark, shape: BoxShape.circle),
+            child: const Icon(Icons.timer_outlined, size: 20, color: AppColors.white),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('답변은 최대 ${AppPolicy.voiceMaxDuration.inMinutes}분 정도를 추천해요', style: AppTypography.body2Strong.copyWith(color: AppColors.ink)),
+                const SizedBox(height: 2),
+                Text('간결하고 핵심만 담아서 말하기', style: AppTypography.caption.copyWith(color: AppColors.textCaption)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _VoiceState { ready, recording, stopped }
+
+/// 4-4 말로 답하기: 녹음 전(진한 원 + 마이크) / 녹음 중(라임 원 + 파형 · 시간) / 녹음 완료(진한 원 · 시간)
+class _VoicePanel extends StatelessWidget {
+  const _VoicePanel({required this.speech, required this.state, required this.onTap, this.priorElapsed = Duration.zero});
+
+  final SpeechService? speech;
+  final _VoiceState state;
+  final VoidCallback onTap;
+  final Duration priorElapsed;
+
+  @override
+  Widget build(BuildContext context) {
+    final recording = state == _VoiceState.recording;
+    final elapsed = priorElapsed + (speech?.elapsed ?? Duration.zero);
     final starting = recording && (speech == null || speech!.status == SpeechStatus.initializing);
+    final sub = AppTypography.body2.copyWith(color: AppColors.textCaption);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -385,31 +510,35 @@ class _VoicePanel extends StatelessWidget {
           child: GestureDetector(
             onTap: starting ? null : onTap,
             child: Container(
-              width: AppSizes.micButton,
-              height: AppSizes.micButton,
-              padding: const EdgeInsets.all(6),
+              width: 140,
+              height: 140,
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.surface,
-                border: Border.all(color: const Color(0xFFDADADA), width: 2),
+                border: Border.all(color: AppColors.fillMuted, width: 2),
               ),
               child: Container(
-                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: recording ? AppColors.point : AppColors.cardDark, shape: BoxShape.circle),
                 alignment: Alignment.center,
-                child: recording ? const _Waveform() : const Icon(Icons.mic_rounded, size: 44, color: AppColors.white),
+                child: recording ? const _Waveform() : const Icon(Icons.mic_rounded, size: 40, color: AppColors.white),
               ),
             ),
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        if (recording) ...[
-          Semantics(liveRegion: true, child: Text(formatClock(elapsed), style: AppTypography.title2.copyWith(fontWeight: AppTypography.semibold))),
+        if (state == _VoiceState.ready)
+          Text('버튼을 눌러\n답변을 시작하세요', textAlign: TextAlign.center, style: AppTypography.heading.copyWith(fontSize: 18, fontWeight: AppTypography.medium, color: AppColors.textStrong))
+        else ...[
+          Semantics(liveRegion: true, child: Text(formatClock(elapsed), style: AppTypography.number(22))),
           const SizedBox(height: AppSpacing.xs),
-          Text(starting ? '준비하고 있어요' : '녹음 중이에요', style: AppTypography.subheading),
+          Text(
+            recording ? (starting ? '준비하고 있어요' : '녹음 중이에요') : '녹음을 멈췄어요',
+            style: AppTypography.heading.copyWith(fontSize: 18, color: AppColors.ink),
+          ),
           const SizedBox(height: AppSpacing.xxs),
-          Text('다시 터치하면 녹음을 멈춰요', style: AppTypography.body2.copyWith(color: AppColors.textSecondary)),
-        ] else
-          Text('버튼을 눌러\n답변을 시작하세요', textAlign: TextAlign.center, style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium)),
+          Text(recording ? '다시 터치하면 녹음을 멈춰요' : '다시 터치하면 녹음을 시작해요', style: sub),
+        ],
       ],
     );
   }
@@ -448,7 +577,7 @@ class _WaveformState extends State<_Waveform> with SingleTickerProviderStateMixi
                 Container(
                   width: 3,
                   height: 10 + 26 * ([0.5, 0.9, 0.6, 1.0, 0.45][i] * (0.5 + 0.5 * (i.isEven ? _c.value : 1 - _c.value))),
-                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(2)),
                 ),
             ],
           ),

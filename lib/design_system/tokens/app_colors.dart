@@ -123,6 +123,43 @@ class AppColors {
   static const Color tabActive = Color(0xFFBCBEC2);
   static const Color tabInactive = Color(0xFF5C5D63);
 
+  // ---- 최종 개발 확인 화면 (763:14784) ----
+  /// 빈·오류 화면 아이콘 (회색 ⚠ · 🔍)
+  static const Color statusIcon = Color(0xFFC0C3CA);
+
+  /// 섹션 이름 ("면접 피드백" · "기업별 직무 고르기")
+  static const Color textCaption = Color(0xFF767A82);
+
+  /// 해설 본문 회색
+  static const Color textMuted = Color(0xFF727479);
+
+  /// "더보기" 같은 안내 글자
+  static const Color textGuide = Color(0xFF9A9DA4);
+
+  /// 피드백 화면 질문 칸 (연라임)
+  static const Color pointPale = Color(0xFFE9F4A8);
+
+  /// 맞힌 문제 아이콘 안쪽
+  static const Color pointPaler = Color(0xFFF9FFCF);
+
+  /// 라임 배지 글자 (보완필요)
+  static const Color pointDeep = Color(0xFF95AE00);
+
+  /// 평가 막대 바탕
+  static const Color barTrack = Color(0xFFEBF0F6);
+
+  /// 피드백 카드 테두리 (1px)
+  static const Color cardLine = Color(0xFFE3E5EE);
+
+  /// 맞힌 문제 줄 사이 선
+  static const Color rowLine = Color(0xFFEFF1F8);
+
+  /// 삭제하기 버튼 · 입력 오류
+  static const Color destructive = Color(0xFFFF5A5A);
+
+  /// 삭제 안내 띠 바탕
+  static const Color destructiveSoft = Color(0xFFFFE6E6);
+
   // ---- 외부 ----
   static const Color kakao = Color(0xFFFEE500);
 }

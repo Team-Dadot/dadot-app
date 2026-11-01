@@ -81,6 +81,15 @@ class SessionController extends Notifier<SessionState> {
     if (session.user.onboardingCompleted) unawaited(_registerPushToken());
   }
 
+  /// 이메일로 가입하고 바로 로그인 (피그마 이메일로 가입 1~3)
+  Future<void> signUpWithEmail({required String email, required String password}) async {
+    final session = await ref.read(authRepositoryProvider).signUpWithEmail(email: email, password: password);
+    await ref.read(tokenStorageProvider).save(accessToken: session.accessToken, refreshToken: session.refreshToken);
+    if (!ref.mounted) return;
+    _setUser(session.user);
+    if (session.user.onboardingCompleted) unawaited(_registerPushToken());
+  }
+
   /// 마이에서 사용자 정보가 바뀌었을 때
   void updateUser(AppUser user) {
     state = SessionState(status: state.status, user: user);

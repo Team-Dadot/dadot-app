@@ -25,6 +25,10 @@ class AppTextField extends StatelessWidget {
     this.showLimitInCounter = true,
     this.textStyle,
     this.semanticLabel,
+    this.errorText,
+    this.trailing,
+    this.focusNode,
+    this.onSubmitted,
   });
 
   final TextEditingController controller;
@@ -47,6 +51,14 @@ class AppTextField extends StatelessWidget {
   final TextStyle? textStyle;
   final String? semanticLabel;
 
+  /// 피그마 이메일 가입 2: 빨간 ! 표시 + 아래 빨간 안내 글자
+  final String? errorText;
+
+  /// 한 줄 입력창 오른쪽 (검색 🔍 · 지우기 ✕)
+  final Widget? trailing;
+  final FocusNode? focusNode;
+  final ValueChanged<String>? onSubmitted;
+
   static String _comma(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
 
   @override
@@ -55,6 +67,8 @@ class AppTextField extends StatelessWidget {
     final style = textStyle ?? (multiline ? AppTypography.body1.copyWith(color: AppColors.textStrong, height: 1.6) : AppTypography.body1);
     final field = TextField(
       controller: controller,
+      focusNode: focusNode,
+      onSubmitted: onSubmitted,
       readOnly: readOnly,
       autofocus: autofocus,
       minLines: minLines,
@@ -76,7 +90,11 @@ class AppTextField extends StatelessWidget {
       ),
     );
 
-    return Semantics(
+    final hasError = errorText != null && errorText!.isNotEmpty;
+    final Widget? side = hasError
+        ? const ExcludeSemantics(child: Icon(Icons.error_rounded, size: 18, color: AppColors.destructive))
+        : trailing;
+    final box = Semantics(
       label: semanticLabel,
       textField: true,
       child: Container(
@@ -88,7 +106,7 @@ class AppTextField extends StatelessWidget {
         ),
         alignment: multiline ? null : Alignment.centerLeft,
         child: maxLength == null
-            ? field
+            ? (side == null || multiline ? field : Row(children: [Expanded(child: field), const SizedBox(width: AppSpacing.xs), side]))
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -106,6 +124,100 @@ class AppTextField extends StatelessWidget {
                     },
                   ),
                 ],
+              ),
+      ),
+    );
+    if (!hasError) return box;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        box,
+        const SizedBox(height: 6),
+        Semantics(
+          liveRegion: true,
+          child: Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.xxs),
+            child: Text(errorText!, style: AppTypography.caption.copyWith(color: AppColors.destructive)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 검색창 (피그마 1-2 "기업 이름을 검색해보세요 🔍" · 6-2 "새로운 기업 추가하기"). 글자가 있으면 ✕ 로 지운다.
+class SearchField extends StatelessWidget {
+  const SearchField({
+    super.key,
+    this.controller,
+    required this.hint,
+    this.onChanged,
+    this.onTap,
+    this.autofocus = false,
+    this.focusNode,
+  });
+
+  /// [onTap] 으로 쓰면 없어도 된다
+  final TextEditingController? controller;
+  final String hint;
+  final ValueChanged<String>? onChanged;
+
+  /// 주면 입력 대신 눌러서 검색 화면으로 간다
+  final VoidCallback? onTap;
+  final bool autofocus;
+  final FocusNode? focusNode;
+
+  @override
+  Widget build(BuildContext context) {
+    if (onTap != null) {
+      return Semantics(
+        button: true,
+        label: hint,
+        excludeSemantics: true,
+        child: Material(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Container(
+              height: AppSizes.inputHeight,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Expanded(child: Text(hint, style: AppTypography.body1.copyWith(color: AppColors.textPlaceholder))),
+                  const Icon(Icons.search_rounded, size: 22, color: AppColors.textCaption),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    final controller = this.controller!;
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (_, value, _) => AppTextField(
+        controller: controller,
+        focusNode: focusNode,
+        hint: hint,
+        autofocus: autofocus,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        trailing: value.text.isEmpty
+            ? const ExcludeSemantics(child: Icon(Icons.search_rounded, size: 22, color: AppColors.textCaption))
+            : Semantics(
+                button: true,
+                label: '검색어 지우기',
+                child: InkResponse(
+                  radius: 18,
+                  onTap: () {
+                    controller.clear();
+                    onChanged?.call('');
+                  },
+                  child: const Icon(Icons.close_rounded, size: 22, color: AppColors.textStrong),
+                ),
               ),
       ),
     );

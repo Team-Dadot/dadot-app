@@ -23,10 +23,15 @@ void main() {
   });
 
   group('비밀번호', () {
-    test('영문·숫자 8자 이상', () {
-      expect(AppPolicy.isValidPassword('abcd1234'), isTrue);
-      expect(AppPolicy.isValidPassword('abcdefgh'), isFalse);
-      expect(AppPolicy.isValidPassword('ab12'), isFalse);
+    test('영문·숫자·특수문자 8~20자', () {
+      // 피그마 이메일 가입: 영문·숫자·특수문자 조합 8-20자
+      expect(AppPolicy.isValidPassword('abcd1234!'), isTrue);
+      expect(AppPolicy.isValidPassword('abcd1234'), isFalse);
+      expect(AppPolicy.isValidPassword('abcdefgh!'), isFalse);
+      expect(AppPolicy.isValidPassword('ab12!'), isFalse);
+      expect(AppPolicy.isValidPassword('abcd1234!abcd1234!abc'), isFalse);
+      expect(AppPolicy.isValidEmail('jimin@kakao.com'), isTrue);
+      expect(AppPolicy.isValidEmail('12351390@gmail'), isFalse);
     });
   });
 

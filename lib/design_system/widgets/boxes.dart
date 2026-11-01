@@ -472,7 +472,7 @@ class SquareToggle extends StatelessWidget {
           height: 31,
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: value ? AppColors.primary : AppColors.placeholder,
+            color: value ? AppColors.ink : AppColors.placeholder,
             borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,

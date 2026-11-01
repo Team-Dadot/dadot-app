@@ -15,6 +15,15 @@ class LinkService {
     }
   }
 
+  /// 휴대폰 설정 > 이 앱 화면 (마이크·알림 권한을 켜러 갈 때). iOS 는 app-settings: 로 열리고, 못 열면 false.
+  Future<bool> openAppSettings() async {
+    try {
+      return await launchUrl(Uri.parse('app-settings:'));
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// 문의 메일 (서버 문의 API 가 없을 때 대체)
   Future<bool> email(String to, {String? subject}) async {
     final uri = Uri(scheme: 'mailto', path: to, query: subject == null ? null : 'subject=${Uri.encodeComponent(subject)}');

@@ -8,7 +8,7 @@ import '../../design_system/design_system.dart';
 import '../common/pickers.dart';
 import 'onboarding_common.dart';
 
-/// 1-3 기업별 직무 (STEP 2/4) + 1-4 직무 선택 시트
+/// 피그마 최종 1-3 STEP 2 기업별 직무 + 6-3 직무 선택 시트
 class OnboardingJobsScreen extends ConsumerStatefulWidget {
   const OnboardingJobsScreen({super.key});
 
@@ -49,18 +49,17 @@ class _OnboardingJobsScreenState extends ConsumerState<OnboardingJobsScreen> {
       final ready = preps.isNotEmpty && preps.every((p) => p.hasJob);
       return OnboardingStepScaffold(
         step: 2,
-        title: '기업별 지원 직무를\n알려주세요.',
-        description: '같은 직무면 한 번에, 다르면 기업별로 바꿔요.',
+        title: '기업별 지원 직무를\n알려주세요',
         bottom: [AppButton(label: '다음', loading: _saving, onPressed: ready ? _next : null)],
         children: [
+          const OnboardingLabel('기업별 직무 고르기'),
           for (final p in preps) ...[
             CompanyTile(
               name: p.companyName,
-              subtitle: p.hasJob ? p.jobName : '직무를 골라 주세요',
               onTap: () => _change(p),
-              trailing: Text(p.hasJob ? '변경 ›' : '선택 ›', style: AppTypography.body2Medium),
+              trailing: TileValue(p.hasJob ? p.jobName! : '선택', filled: p.hasJob),
             ),
-            const SizedBox(height: AppSpacing.gap),
+            const SizedBox(height: AppSpacing.sm),
           ],
         ],
       );

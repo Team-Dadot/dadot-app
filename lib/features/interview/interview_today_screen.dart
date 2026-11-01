@@ -50,7 +50,8 @@ class _InterviewTodayScreenState extends ConsumerState<InterviewTodayScreen> {
   Widget build(BuildContext context) {
     final Widget body;
     if (_error != null) {
-      body = ErrorView(error: _error!, onRetry: _load);
+      // 피그마 4-E3 질문 생성 실패: 가운데 ⚠ + "질문을 불러오지 못했어요" + 아래 "질문 불러오기"
+      body = ErrorView(error: _error!, title: '질문을 불러오지 못했어요', description: '다시 시도해 주세요');
     } else if (_allDone) {
       body = EmptyView(
         title: '오늘 면접 질문을 모두 답했어요',
@@ -68,8 +69,9 @@ class _InterviewTodayScreenState extends ConsumerState<InterviewTodayScreen> {
     final loading = _error == null && !_allDone;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: loading ? null : const AppNavBar(title: '면접 질문'),
+      appBar: loading ? null : AppNavBar(title: _error != null ? '' : '면접 질문'),
       body: loading ? SafeArea(child: body) : body,
+      bottomNavigationBar: _error == null ? null : BottomCta(children: [AppButton(label: '질문 불러오기', onPressed: _load)]),
     );
   }
 }

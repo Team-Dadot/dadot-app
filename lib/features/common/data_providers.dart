@@ -26,6 +26,13 @@ final preparationsProvider = FutureProvider<List<Preparation>>((ref) {
   return ref.watch(profileRepositoryProvider).fetchPreparations();
 });
 
+/// 6-2 준비했던 기업. 준비 기업이 바뀌면 다시 불러온다.
+final pastPreparationsProvider = FutureProvider<List<PastPreparation>>((ref) {
+  ref.watch(currentUserIdProvider);
+  ref.watch(preparationsProvider);
+  return ref.watch(profileRepositoryProvider).fetchPastPreparations();
+});
+
 final experiencesProvider = FutureProvider<List<Experience>>((ref) {
   ref.watch(currentUserIdProvider);
   return ref.watch(profileRepositoryProvider).fetchExperiences();

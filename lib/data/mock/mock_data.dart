@@ -9,21 +9,16 @@ import '../models/quiz.dart';
 class MockQuizSeed {
   const MockQuizSeed({
     required this.id,
-    required this.kind,
     required this.tags,
     required this.prompt,
     required this.title,
     required this.explanation,
-    this.choices = const [],
-    this.correctIndex = 0,
-    this.keywords = const [],
-    this.modelAnswer,
-    this.placeholder,
+    required this.choices,
+    required this.correctIndex,
     this.evidence,
   });
 
   final String id;
-  final QuizKind kind;
   final List<String> tags;
   final String prompt;
   final String title;
@@ -32,11 +27,6 @@ class MockQuizSeed {
   /// 객관식 보기 (A, B, C, D 순서 그대로)
   final List<String> choices;
   final int correctIndex;
-
-  /// 주관식: 이 중 하나라도 들어가면 정답
-  final List<String> keywords;
-  final String? modelAnswer;
-  final String? placeholder;
   final Evidence? evidence;
 
   String choiceId(int i) => '$id-c$i';
@@ -47,12 +37,10 @@ class MockQuizSeed {
   QuizQuestion toQuestion(int order) => QuizQuestion(
         id: id,
         order: order,
-        kind: kind,
         tags: tags,
         prompt: prompt,
         title: title,
         choices: quizChoices,
-        placeholder: placeholder,
         evidence: evidence,
       );
 }
@@ -171,7 +159,6 @@ class MockData {
   static const kiaQuiz = <MockQuizSeed>[
     MockQuizSeed(
       id: 'kia-q1',
-      kind: QuizKind.choice,
       tags: ['실적'],
       prompt: '기아의 2025년 전기차 판매량은 전년 대비 어떻게 변했나요?',
       title: '전기차 판매량 변화',
@@ -182,7 +169,6 @@ class MockData {
     ),
     MockQuizSeed(
       id: 'kia-q2',
-      kind: QuizKind.choice,
       tags: ['위험 요인'],
       prompt: '기아의 주요 위험 요인은 무엇인가요?',
       title: '주요 위험 요인',
@@ -193,7 +179,6 @@ class MockData {
     ),
     MockQuizSeed(
       id: 'kia-q3',
-      kind: QuizKind.choice,
       tags: ['공시 읽기'],
       prompt: '공시일과 대상 기간은 어떻게 이해해야 할까요?',
       title: '공시일과 대상 기간',
@@ -204,7 +189,6 @@ class MockData {
     ),
     MockQuizSeed(
       id: 'kia-q4',
-      kind: QuizKind.choice,
       tags: ['사업 구조'],
       prompt: '사업보고서 기준, 기아의 핵심 사업 부문은?',
       title: '핵심 사업 부문',
@@ -214,26 +198,22 @@ class MockData {
       evidence: kiaReport,
     ),
     MockQuizSeed(
-      id: 'kia-s1',
-      kind: QuizKind.short,
+      id: 'kia-q5',
       tags: ['사업 계획'],
-      prompt: '기아가 공시에서 밝힌 향후 중점 사업 한 가지를 적어 주세요.',
+      prompt: '기아가 공시에서 밝힌 향후 중점 사업은?',
       title: '향후 중점 사업',
-      placeholder: '예: 목적 기반 모빌리티(PBV) 사업 확대',
-      keywords: ['PBV', '목적기반', '목적 기반', '모빌리티'],
-      modelAnswer: '목적 기반 모빌리티(PBV) 사업 확대',
+      choices: ['목적 기반 모빌리티(PBV) 사업 확대', '건설 사업 진출', '반도체 생산', '공시에 나와 있지 않다'],
+      correctIndex: 0,
       explanation: '사업보고서에서 목적 기반 모빌리티(PBV) 사업을 중점적으로 확대할 계획이라고 밝혔어요.',
       evidence: kiaReport,
     ),
     MockQuizSeed(
-      id: 'kia-s2',
-      kind: QuizKind.short,
+      id: 'kia-q6',
       tags: ['제품·서비스'],
-      prompt: '기아의 주요 제품·서비스를 한 가지 적어 주세요.',
+      prompt: '기아의 주요 제품·서비스는?',
       title: '주요 제품·서비스',
-      placeholder: '예: 전기차',
-      keywords: ['전기차', 'EV', '자동차', '완성차', 'SUV', '승용', 'PBV'],
-      modelAnswer: '완성차(전기차·SUV 등)',
+      choices: ['스마트폰', '완성차(전기차·SUV 등)', '항공 운송', '식품 유통'],
+      correctIndex: 1,
       explanation: '기아는 승용차·SUV·전기차 같은 완성차를 만들어 팔아요.',
       evidence: kiaReport,
     ),
@@ -244,8 +224,7 @@ class MockData {
     return [
       MockQuizSeed(
         id: '${c.id}-q1',
-        kind: QuizKind.choice,
-        tags: ['공시 읽기'],
+          tags: ['공시 읽기'],
         prompt: '[샘플] ${c.name}의 사업보고서를 볼 수 있는 공식 공시 사이트는?',
         title: '공시 사이트',
         choices: ['회사 블로그', 'DART 전자공시시스템', '취업 커뮤니티', '포털 지식검색'],
@@ -255,8 +234,7 @@ class MockData {
       ),
       MockQuizSeed(
         id: '${c.id}-q2',
-        kind: QuizKind.choice,
-        tags: ['실적'],
+          tags: ['실적'],
         prompt: '[샘플] 매출액에서 매출원가를 뺀 값은?',
         title: '매출총이익',
         choices: ['영업이익', '당기순이익', '매출총이익', '영업외수익'],
@@ -266,8 +244,7 @@ class MockData {
       ),
       MockQuizSeed(
         id: '${c.id}-q3',
-        kind: QuizKind.choice,
-        tags: ['공시 읽기'],
+          tags: ['공시 읽기'],
         prompt: '[샘플] 사업보고서에서 경영진이 직접 실적과 전망을 설명하는 항목은?',
         title: '경영진 의견 항목',
         choices: ['감사인의 감사의견', '이사의 경영진단 및 분석의견', '주주에 관한 사항', '임원의 보수'],
@@ -277,8 +254,7 @@ class MockData {
       ),
       MockQuizSeed(
         id: '${c.id}-q4',
-        kind: QuizKind.choice,
-        tags: ['실적'],
+          tags: ['실적'],
         prompt: '[샘플] 영업이익률을 구하는 식은?',
         title: '영업이익률',
         choices: ['영업이익 ÷ 매출액', '순이익 ÷ 자본', '매출액 ÷ 자산', '부채 ÷ 자본'],
@@ -287,26 +263,22 @@ class MockData {
         evidence: ev,
       ),
       MockQuizSeed(
-        id: '${c.id}-s1',
-        kind: QuizKind.short,
+        id: '${c.id}-q5',
         tags: ['사업 계획'],
-        prompt: '[샘플] ${c.name}의 주요 사업 부문 한 가지를 적어 주세요.',
-        title: '주요 사업 부문',
-        placeholder: '예: ${c.industry ?? '주요 사업'}',
-        keywords: [?c.industry?.split('·').first, '사업'],
-        modelAnswer: c.industry,
+        prompt: '[샘플] 회사의 부문별 매출과 주요 제품을 확인할 수 있는 사업보고서 항목은?',
+        title: '사업의 내용',
+        choices: ['사업의 내용', '임원의 보수', '주주총회 의사록', '감사인의 감사의견'],
+        correctIndex: 0,
         explanation: '사업보고서 “사업의 내용”에 부문별 매출과 주요 제품이 나와 있어요.',
         evidence: ev,
       ),
       MockQuizSeed(
-        id: '${c.id}-s2',
-        kind: QuizKind.short,
+        id: '${c.id}-q6',
         tags: ['공시 읽기'],
-        prompt: '[샘플] 상장사 공시를 볼 수 있는 금융감독원 사이트 이름을 적어 주세요.',
-        title: '공시 사이트 이름',
-        placeholder: '예: ○○○ 전자공시시스템',
-        keywords: ['DART', '다트', '전자공시'],
-        modelAnswer: 'DART 전자공시시스템',
+        prompt: '[샘플] 분기마다 실적을 알리는 정기 공시는?',
+        title: '분기보고서',
+        choices: ['분기보고서', '증권신고서', '주요사항보고서', '대량보유보고서'],
+        correctIndex: 0,
         explanation: '금융감독원 DART(dart.fss.or.kr)에서 상장사 공시를 볼 수 있어요.',
         evidence: ev,
       ),

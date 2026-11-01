@@ -142,8 +142,8 @@ SavedAnswer { "id", "answerId", "questionId", "companyId", "companyName", "type"
 앱 모델(`lib/data/models/*.dart`) 기준. 위 본문보다 이 절이 최신이다.
 
 - **퀴즈 결과** `GET /quiz/sets/{setId}/result` 의 `items[]` 에 두 필드 추가 (없어도 화면은 뜬다)
-  - `myAnswer`: 내 답 표시용 문자열. 객관식은 `"C. 늘었다"`, 주관식은 입력한 글
-  - `correctAnswer`: 정답 표시용 문자열. 객관식은 `"C. 늘었다"`, 주관식은 예시 답
+  - `myAnswer`: 내 답 표시용 문자열 `"C. 늘었다"` (퀴즈는 모두 객관식, 주관식 없음)
+  - `correctAnswer`: 정답 표시용 문자열 `"C. 늘었다"`
 - **퀴즈 풀이**: 문제마다 정답을 보여주지 않는다. 앱은 답을 제출하고 바로 다음 문제로 넘어가며, 정답·해설은 결과에서만 본다 (채점은 지금처럼 서버).
 - **공시 근거** `evidence` 에 `interpretation` (선택) 추가: "해석 · 전기차가 차지하는 판매 비중이 전년보다 커졌다는 뜻이에요."
 - **면접 피드백** `criteria[]`: 4개 항목 × 25점 = 100점

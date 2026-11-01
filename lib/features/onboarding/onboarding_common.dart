@@ -39,13 +39,13 @@ class ExperienceDraftsController extends Notifier<List<ExperienceDraft>> {
   void set(List<ExperienceDraft> items) => state = items;
 }
 
-/// 첫 설정 단계 화면 틀: "〈 첫 설정" + 단계 막대 + STEP n / 4 + 제목 + 설명 + 본문 + 하단 버튼
+/// 첫 설정 단계 화면 틀 (피그마 최종 1-2 ~ STEP 5): 라임 단계 막대 + "STEP n" + 제목 24 + 설명 + 본문 + 하단 버튼
 class OnboardingStepScaffold extends StatelessWidget {
   const OnboardingStepScaffold({
     super.key,
     required this.step,
     required this.title,
-    required this.description,
+    this.description,
     required this.children,
     required this.bottom,
     this.onBack,
@@ -53,33 +53,70 @@ class OnboardingStepScaffold extends StatelessWidget {
 
   final int step;
   final String title;
-  final String description;
+  final String? description;
   final List<Widget> children;
   final List<Widget> bottom;
   final VoidCallback? onBack;
 
-  static const total = 4;
+  /// 기업 · 직무 · 면접일 · 경험 · 알림
+  static const total = 5;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppNavBar(title: '첫 설정', onBack: onBack),
+      appBar: AppNavBar(title: '', onBack: onBack),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.xl),
         children: [
-          StepBar(current: step, total: total),
-          const SizedBox(height: AppSpacing.gap),
-          Text('STEP $step / $total', style: AppTypography.captionStrong.copyWith(color: AppColors.textSecondary)),
-          const SizedBox(height: AppSpacing.gap),
-          PageTitle(title, description: description),
-          const SizedBox(height: AppSpacing.gap),
+          StepBar(current: step, total: total, gap: 0),
+          const SizedBox(height: AppSpacing.xxl),
+          ExcludeSemantics(child: Text('STEP $step', style: AppTypography.number(18, weight: FontWeight.w700))),
+          const SizedBox(height: AppSpacing.xxs),
+          Semantics(header: true, child: Text(title, style: AppTypography.title1.copyWith(color: AppColors.ink))),
+          if (description != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(description!, style: AppTypography.body2.copyWith(color: AppColors.textCaption)),
+          ],
+          const SizedBox(height: AppSpacing.xl),
           ...children,
         ],
       ),
       bottomNavigationBar: BottomCta(children: bottom),
     );
   }
+}
+
+/// 단계 안 작은 이름 ("기업별 직무 고르기" · "추가한 내 경험")
+class OnboardingLabel extends StatelessWidget {
+  const OnboardingLabel(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+        child: Text(text, style: AppTypography.body2.copyWith(color: AppColors.textCaption)),
+      );
+}
+
+/// 기업 카드 오른쪽 "선택 ›" / "2026.10.29"
+class TileValue extends StatelessWidget {
+  const TileValue(this.text, {super.key, this.filled = false});
+
+  final String text;
+
+  /// 값이 들어가면 진한 글자, 화살표 없음
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(text, style: AppTypography.caption.copyWith(color: filled ? AppColors.ink : AppColors.textCaption)),
+          if (!filled) const Chevron(),
+        ],
+      );
 }
 
 /// 서버에서 준비 기업을 불러오는 동안·실패했을 때

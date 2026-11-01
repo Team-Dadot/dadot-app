@@ -30,6 +30,11 @@ class RemoteAuthRepository implements AuthRepository {
       AuthSession.fromJson(_obj(await _api.post(ApiPaths.authSocial, body: credential.toJson(), auth: false)));
 
   @override
+  Future<AuthSession> signUpWithEmail({required String email, required String password}) async => AuthSession.fromJson(
+        _obj(await _api.post(ApiPaths.authEmailSignup, body: {'email': email, 'password': password, 'agreeTerms': true, 'agreePrivacy': true}, auth: false)),
+      );
+
+  @override
   Future<AppUser> fetchMe() async => AppUser.fromJson(_obj(await _api.get(ApiPaths.me)));
 
   @override
@@ -93,6 +98,11 @@ class RemoteProfileRepository implements ProfileRepository {
   @override
   Future<List<Preparation>> removePreparation(String companyId) async =>
       _preps(await _api.delete(ApiPaths.mePreparation(companyId)));
+
+  // TODO(백엔드): 준비했던 기업 API 가 정해지면 경로·응답 키를 맞춘다 (docs/API_CONTRACT.md)
+  @override
+  Future<List<PastPreparation>> fetchPastPreparations() async =>
+      _items(await _api.get(ApiPaths.mePastPreparations)).map(PastPreparation.fromJson).toList();
 
   @override
   Future<List<Experience>> fetchExperiences() async =>

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/email_signup_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/home/home_screen.dart';
@@ -40,6 +41,7 @@ class Routes {
 
   static const splash = '/splash';
   static const login = '/login'; // 1-1
+  static const emailSignup = '/login/email'; // 이메일로 가입 1~3
 
   // 첫 설정
   static const onboardingCompanies = '/onboarding/companies'; // 1-2
@@ -90,7 +92,7 @@ final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 /// 로그인·첫 설정 상태에 따라 갈 수 있는 화면을 정한다.
 String? sessionRedirect(SessionState session, String location) {
   final atSplash = location == Routes.splash;
-  final atLogin = location == Routes.login;
+  final atLogin = location == Routes.login || location.startsWith('${Routes.login}/');
   final atOnboarding = location.startsWith('/onboarding');
 
   switch (session.status) {
@@ -123,7 +125,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) => sessionRedirect(session.value, state.matchedLocation),
     routes: [
       GoRoute(path: Routes.splash, pageBuilder: (_, s) => fade(s, const SplashScreen())),
-      GoRoute(path: Routes.login, pageBuilder: (_, s) => fade(s, const LoginScreen())),
+      GoRoute(
+        path: Routes.login,
+        pageBuilder: (_, s) => fade(s, const LoginScreen()),
+        routes: [GoRoute(path: 'email', builder: (_, _) => const EmailSignupScreen())],
+      ),
       GoRoute(path: Routes.onboardingCompanies, pageBuilder: (_, s) => fade(s, const OnboardingCompaniesScreen())),
       GoRoute(path: Routes.onboardingJobs, builder: (_, _) => const OnboardingJobsScreen()),
       GoRoute(path: Routes.onboardingDates, builder: (_, _) => const OnboardingDatesScreen()),

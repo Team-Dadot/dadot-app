@@ -5,6 +5,7 @@ class ApiPaths {
 
   // 인증
   static const authSocial = '/auth/social';
+  static const authEmailSignup = '/auth/email/signup';
   static const authRefresh = '/auth/refresh';
   static const authLogout = '/auth/logout';
 
@@ -15,6 +16,7 @@ class ApiPaths {
   static const mePassword = '/me/password';
   static const mePreparations = '/me/preparations';
   static String mePreparation(String companyId) => '/me/preparations/$companyId';
+  static const mePastPreparations = '/me/preparations/past';
   static const meExperiences = '/me/experiences';
   static const meExperiencesSplit = '/me/experiences/split';
   static String meExperience(String id) => '/me/experiences/$id';
