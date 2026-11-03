@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swipe/core/config/app_policy.dart';
 import 'package:swipe/core/error/app_exception.dart';
+import 'package:swipe/core/network/api_client.dart';
 import 'package:swipe/data/models/catalog.dart';
 import 'package:swipe/data/models/settings.dart';
 import 'package:swipe/features/common/format.dart';
@@ -45,6 +46,27 @@ void main() {
       expect(AppException.kindFromCode(null, 404), AppErrorKind.notFound);
       expect(AppException.kindFromCode(null, 422), AppErrorKind.validation);
       expect(AppException.kindFromCode(null, 503), AppErrorKind.server);
+      // 다닷 서버: 한도 소진 409, 트래픽 제한 429
+      expect(AppException.kindFromCode(null, 409), AppErrorKind.feedbackQuotaExceeded);
+      expect(AppException.kindFromCode('RATE_LIMIT_EXCEEDED', 429), AppErrorKind.server);
+      expect(AppException.kindFromCode('INVALID_INPUT', 400), AppErrorKind.validation);
+    });
+  });
+
+  group('응답 봉투', () {
+    test('성공이면 data 만', () {
+      expect(ApiClient.unwrap(200, {'success': true, 'data': {'id': 1}, 'error': null}), {'id': 1});
+      expect(ApiClient.unwrap(204, null), isNull);
+    });
+    test('실패면 error.code · message 로 AppException', () {
+      expect(
+        () => ApiClient.unwrap(200, {
+          'success': false,
+          'data': null,
+          'error': {'code': 'RESOURCE_NOT_FOUND', 'message': '없어요'},
+        }),
+        throwsA(isA<AppException>().having((e) => e.kind, 'kind', AppErrorKind.notFound).having((e) => e.userMessage, 'message', '없어요')),
+      );
     });
     test('서버 메시지가 있으면 그걸 보여준다', () {
       expect(const AppException(AppErrorKind.server, message: '점검 중').userMessage, '점검 중');

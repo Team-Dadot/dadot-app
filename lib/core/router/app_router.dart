@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/email_login_screen.dart';
 import '../../features/auth/email_signup_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/splash_screen.dart';
@@ -41,7 +42,8 @@ class Routes {
 
   static const splash = '/splash';
   static const login = '/login'; // 1-1
-  static const emailSignup = '/login/email'; // 이메일로 가입 1~3
+  static const emailLogin = '/login/email'; // 이메일 로그인
+  static const emailSignup = '/login/email/signup'; // 이메일로 가입 1~3
 
   // 첫 설정
   static const onboardingCompanies = '/onboarding/companies'; // 1-2
@@ -128,7 +130,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.login,
         pageBuilder: (_, s) => fade(s, const LoginScreen()),
-        routes: [GoRoute(path: 'email', builder: (_, _) => const EmailSignupScreen())],
+        routes: [
+          GoRoute(
+            path: 'email',
+            builder: (_, _) => const EmailLoginScreen(),
+            routes: [GoRoute(path: 'signup', builder: (_, _) => const EmailSignupScreen())],
+          ),
+        ],
       ),
       GoRoute(path: Routes.onboardingCompanies, pageBuilder: (_, s) => fade(s, const OnboardingCompaniesScreen())),
       GoRoute(path: Routes.onboardingJobs, builder: (_, _) => const OnboardingJobsScreen()),

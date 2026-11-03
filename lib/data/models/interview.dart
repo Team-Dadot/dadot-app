@@ -154,6 +154,8 @@ class AnswerFeedback {
     required this.improvement,
     required this.retryRemaining,
     this.relatedExperience,
+    this.summary,
+    this.overall,
   });
 
   factory AnswerFeedback.fromJson(Map<String, dynamic> json) => AnswerFeedback(
@@ -173,6 +175,8 @@ class AnswerFeedback {
         relatedExperience: json['relatedExperience'] == null
             ? null
             : RelatedExperience.fromJson((json['relatedExperience'] as Map).cast<String, dynamic>()),
+        summary: json['summary'] as String?,
+        overall: json['overall'] as String?,
       );
 
   final String answerId;
@@ -198,6 +202,12 @@ class AnswerFeedback {
   final int retryRemaining;
   final RelatedExperience? relatedExperience;
 
+  /// 서버 한 줄 피드백 (result.summaryFeedback, 30자). 있으면 상단 문구로 쓴다.
+  final String? summary;
+
+  /// 서버 총평 (result.overallFeedback, 300자)
+  final String? overall;
+
   Map<String, dynamic> toJson() => {
         'answerId': answerId,
         'questionId': questionId,
@@ -213,6 +223,8 @@ class AnswerFeedback {
         'improvement': improvement,
         'retryRemaining': retryRemaining,
         'relatedExperience': relatedExperience?.toJson(),
+        'summary': summary,
+        'overall': overall,
       };
 
   AnswerFeedback copyWith({int? retryRemaining}) => AnswerFeedback(
@@ -230,5 +242,7 @@ class AnswerFeedback {
         improvement: improvement,
         retryRemaining: retryRemaining ?? this.retryRemaining,
         relatedExperience: relatedExperience,
+        summary: summary,
+        overall: overall,
       );
 }

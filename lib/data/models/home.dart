@@ -28,6 +28,7 @@ class CompanyHome {
     required this.focusMode,
     required this.adBonusAvailable,
     this.dday,
+    this.interviewScorePercent,
   });
 
   factory CompanyHome.fromJson(Map<String, dynamic> json) => CompanyHome(
@@ -65,11 +66,15 @@ class CompanyHome {
   /// 면접까지 남은 날. 면접일이 없으면 null.
   final int? dday;
 
+  /// 서버 홈 지표: 질문별 최신 답변 평균 점수 비율 (interviewEvaluationSummary.averageScorePercent). 집계가 없으면 null.
+  final int? interviewScorePercent;
+
   String get companyId => preparation.companyId;
   String get companyName => preparation.companyName;
 
   int? get accuracy => quizSolved == 0 ? null : (quizCorrect * 100 / quizSolved).round();
-  int? get completionRate => interviewAnswered == 0 ? null : (interviewCompleted * 100 / interviewAnswered).round();
+  int? get completionRate =>
+      interviewScorePercent ?? (interviewAnswered == 0 ? null : (interviewCompleted * 100 / interviewAnswered).round());
 
   bool get allDone => quiz.isDone && interview.isDone;
 

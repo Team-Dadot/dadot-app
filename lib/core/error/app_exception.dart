@@ -12,6 +12,9 @@ enum AppErrorKind {
 
   /// 오늘 퀴즈·질문이 아직 준비되지 않음
   contentNotReady,
+
+  /// 다른 곳에서 먼저 바뀜 (409 VERSION_CONFLICT · IDEMPOTENCY_CONFLICT)
+  conflict,
   server,
   unknown,
 }
@@ -37,8 +40,9 @@ class AppException implements Exception {
       AppErrorKind.forbidden => '접근 권한이 없어요.',
       AppErrorKind.notFound => '요청한 정보를 찾을 수 없어요.',
       AppErrorKind.validation => '입력한 내용을 확인해 주세요.',
-      AppErrorKind.feedbackQuotaExceeded => '오늘 받을 수 있는 피드백을 모두 사용했어요. 내일 다시 받을 수 있어요.',
+      AppErrorKind.feedbackQuotaExceeded => '오늘 답변할 수 있는 횟수를 모두 사용했어요. 내일 다시 할 수 있어요.',
       AppErrorKind.contentNotReady => '오늘 내용을 준비 중이에요. 잠시 후 다시 확인해 주세요.',
+      AppErrorKind.conflict => '정보가 먼저 바뀌었어요. 새로 불러온 뒤 다시 시도해 주세요.',
       AppErrorKind.server => '일시적인 오류가 생겼어요. 잠시 후 다시 시도해 주세요.',
       AppErrorKind.unknown => '알 수 없는 오류가 생겼어요.',
     };
@@ -56,14 +60,31 @@ class AppException implements Exception {
       case 'CONTENT_NOT_READY':
         return AppErrorKind.contentNotReady;
       case 'VALIDATION_ERROR':
+      case 'INVALID_INPUT':
         return AppErrorKind.validation;
+      case 'UNAUTHENTICATED':
+        return AppErrorKind.unauthorized;
+      case 'FORBIDDEN':
+        return AppErrorKind.forbidden;
+      case 'RESOURCE_NOT_FOUND':
+        return AppErrorKind.notFound;
+      case 'VERSION_CONFLICT':
+      case 'IDEMPOTENCY_CONFLICT':
+      case 'IDEMPOTENCY_KEY_EXPIRED':
+        return AppErrorKind.conflict;
+      case 'SERVICE_UNAVAILABLE':
+      case 'INTERNAL_SERVER_ERROR':
+      case 'RATE_LIMIT_EXCEEDED':
+        return AppErrorKind.server;
     }
     return switch (status) {
       400 || 422 => AppErrorKind.validation,
       401 => AppErrorKind.unauthorized,
       403 => AppErrorKind.forbidden,
       404 => AppErrorKind.notFound,
-      429 => AppErrorKind.feedbackQuotaExceeded,
+      // 다닷 서버: 일일/질문 한도 소진은 409 (트래픽 제한 429 와 구분)
+      409 => AppErrorKind.feedbackQuotaExceeded,
+      429 => AppErrorKind.server,
       final s? when s >= 500 => AppErrorKind.server,
       _ => AppErrorKind.unknown,
     };

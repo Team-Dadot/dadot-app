@@ -27,6 +27,8 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // 카카오 로그인 리다이렉트 스킴 kakao{네이티브 앱 키} (android/gradle.properties)
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = (project.findProperty("KAKAO_NATIVE_APP_KEY") as String?) ?: ""
     }
 
     buildTypes {

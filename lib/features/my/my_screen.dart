@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_policy.dart';
 import '../../core/providers.dart';
 import '../../core/router/app_router.dart';
+import '../../core/services/social_auth_service.dart';
 import '../../core/session/session_controller.dart';
 import '../../data/mock/mock_backend.dart';
 import '../../data/models/auth.dart';
@@ -38,11 +39,41 @@ class MyScreen extends ConsumerWidget {
       cancelLabel: '나가기',
       confirmLabel: '진행하기',
     );
-    if (!ok) return;
+    if (!ok || !context.mounted) return;
+    // 서버가 탈퇴 요청 안에서 본인 확인: 이메일 회원은 비밀번호, 소셜 회원은 소셜 로그인 다시 한 번
+    String? password;
+    if (ref.read(sessionProvider).user?.loginMethod == LoginMethod.email) {
+      password = await showAppSheet<String>(
+        context,
+        title: '비밀번호 확인',
+        heightFactor: SheetHeights.view,
+        expand: true,
+        builder: (_) => const _PasswordConfirm(),
+      );
+      if (password == null) return;
+    }
     try {
-      await ref.read(sessionProvider.notifier).deleteAccount();
+      await ref.read(sessionProvider.notifier).deleteAccount(password: password);
+    } on SocialAuthCancelled {
+      // 재인증 창을 닫음
     } catch (e) {
       if (context.mounted) showErrorToast(context, e);
+    }
+  }
+
+  /// 문의는 서버 설정의 구글폼으로 연다 (Mock 은 앱 안 문의 화면)
+  Future<void> _openInquiry(BuildContext context, WidgetRef ref) async {
+    String? url;
+    try {
+      url = (await ref.read(serverAppConfigProvider.future)).inquiryFormUrl;
+    } catch (_) {}
+    if (!context.mounted) return;
+    // .invalid 는 예시용 주소 (서버 설정 전) → 앱 안 문의 화면
+    final host = Uri.tryParse(url ?? '')?.host ?? '';
+    if (url != null && host.isNotEmpty && !host.endsWith('.invalid')) {
+      await ref.read(linkServiceProvider).open(url);
+    } else {
+      await context.push(Routes.myInquiry);
     }
   }
 
@@ -64,7 +95,8 @@ class MyScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+          // 피그마 6-1: 좌우 20 (카드 너비 362), 상태 바 아래 32 에서 시작
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xxl, AppSpacing.screenH, AppSpacing.xl),
           children: [
             const _GroupLabel('내 계정', first: true),
             // 프로필 카드 (누르면 내 정보)
@@ -83,18 +115,18 @@ class MyScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(user?.nickname ?? '', style: AppTypography.subheading.copyWith(color: AppColors.textStrong)),
-                              const SizedBox(height: 2),
+                              Text(user?.nickname ?? '', style: AppTypography.rowTitle.copyWith(color: AppColors.ink)),
+                              const SizedBox(height: AppSpacing.xxs),
                               Row(
                                 children: [
                                   Flexible(
                                     child: Text(
                                       (user?.email ?? '').isNotEmpty ? user!.email! : '${user?.loginMethod.detailLabel ?? ''} 로그인',
                                       overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.caption,
+                                      style: AppTypography.caption.copyWith(color: AppColors.textGuide),
                                     ),
                                   ),
-                                  const SizedBox(width: AppSpacing.xxs),
+                                  const SizedBox(width: 7),
                                   if (user != null) LoginBadge(method: user.loginMethod),
                                 ],
                               ),
@@ -129,9 +161,9 @@ class MyScreen extends ConsumerWidget {
             ]),
             const _GroupLabel('고객 지원'),
             MenuGroup(children: [
-              MenuRow(title: '서비스 문의 및 오류제보', onTap: () => context.push(Routes.myInquiry)),
+              MenuRow(title: '서비스 문의 및 오류제보', onTap: () => _openInquiry(context, ref)),
             ]),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
             MenuGroup(children: [
               MenuRow(title: '회원 정보 수정', onTap: () => context.push(Routes.myProfile)),
               MenuRow(title: '로그아웃', onTap: () => _signOut(context, ref)),
@@ -161,8 +193,9 @@ class LoginBadge extends StatelessWidget {
       label: '${method.label} 계정',
       excludeSemantics: true,
       child: Container(
-        width: kakao ? 16 : null,
-        height: 16,
+        // 피그마: 14×14 노란 사각(모서리 4) 안 말풍선
+        width: kakao ? 14 : null,
+        height: kakao ? 14 : 16,
         padding: kakao ? null : const EdgeInsets.symmetric(horizontal: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -171,7 +204,7 @@ class LoginBadge extends StatelessWidget {
         ),
         child: kakao
             ? Padding(
-                padding: const EdgeInsets.all(3),
+                padding: const EdgeInsets.all(2.5),
                 child: Image.asset('assets/images/icons/login_kakao.png', excludeFromSemantics: true),
               )
             : Text(method.label, style: AppTypography.micro.copyWith(fontSize: 10, height: 1)),
@@ -180,7 +213,7 @@ class LoginBadge extends StatelessWidget {
   }
 }
 
-/// 마이 목록 묶음 이름 (학습 · 고객 지원 · 계정)
+/// 마이 목록 묶음 이름 (내 계정 · 학습 현황 · 고객 지원) — 피그마: 16 Medium #9A9DA4, 카드까지 10, 묶음 사이 32
 class _GroupLabel extends StatelessWidget {
   const _GroupLabel(this.text, {this.first = false});
 
@@ -190,8 +223,61 @@ class _GroupLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(top: first ? AppSpacing.sm : 28, bottom: AppSpacing.sm, left: AppSpacing.xxs),
-      child: Text(text, style: AppTypography.body2Medium.copyWith(color: AppColors.textTertiary)),
+      padding: EdgeInsets.only(top: first ? 0 : AppSpacing.xxl, bottom: 10),
+      child: Semantics(
+        header: true,
+        child: Text(text, style: AppTypography.rowTitle.copyWith(color: AppColors.textGuide)),
+      ),
+    );
+  }
+}
+
+/// 탈퇴 전 비밀번호 확인 (이메일 회원)
+class _PasswordConfirm extends StatefulWidget {
+  const _PasswordConfirm();
+
+  @override
+  State<_PasswordConfirm> createState() => _PasswordConfirmState();
+}
+
+class _PasswordConfirmState extends State<_PasswordConfirm> {
+  final _password = TextEditingController();
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.md),
+            children: [
+              Text('본인 확인을 위해 비밀번호를 입력해 주세요', style: AppTypography.body2Medium.copyWith(color: AppColors.textSub)),
+              const SizedBox(height: AppSpacing.md),
+              AppTextField(
+                controller: _password,
+                hint: '비밀번호',
+                obscureText: true,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                semanticLabel: '비밀번호',
+              ),
+            ],
+          ),
+        ),
+        BottomCta(color: AppColors.sheet, children: [
+          AppButton(
+            label: '탈퇴하기',
+            onPressed: _password.text.isEmpty ? null : () => Navigator.of(context).pop(_password.text),
+          ),
+        ]),
+      ],
     );
   }
 }

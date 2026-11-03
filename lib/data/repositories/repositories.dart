@@ -14,26 +14,47 @@ import '../models/records.dart';
 import '../models/settings.dart';
 
 abstract interface class AuthRepository {
-  /// 소셜 SDK 토큰을 우리 서비스 토큰으로 교환 (1-1)
-  Future<AuthSession> signInWithSocial(SocialCredential credential);
+  /// 앱 설정: 가입 약관 목록(acceptedTermsIds 로 보낼 id) · 문서 링크 · 문의 구글폼
+  Future<ServerAppConfig> fetchAppConfig();
 
-  /// 이메일로 가입 (피그마 이메일로 가입 1~3). 필수 약관 동의가 끝난 뒤 부른다.
-  Future<AuthSession> signUpWithEmail({required String email, required String password});
+  /// 소셜 로그인 준비. Apple 은 서버가 준 nonce 를 SDK 에 넘겨야 한다 (카카오는 null).
+  Future<String?> prepareSocial(SocialProvider provider);
+
+  /// 소셜 SDK 토큰을 우리 서비스 토큰으로 교환 (1-1).
+  /// 처음 온 사용자면 [SocialSignUpRequired] 를 던진다 → 약관 동의 후 [completeSocialSignup].
+  Future<AuthSession> signInWithSocial(SocialCredential credential);
+  Future<AuthSession> completeSocialSignup({required String registrationToken, required List<String> termIds});
+
+  /// 이메일 인증번호 보내기 → verificationId
+  Future<String> sendEmailCode({required String email, required EmailCodePurpose purpose});
+
+  /// 인증번호 확인 → verificationToken (가입 · 비밀번호 변경에 쓴다)
+  Future<String> verifyEmailCode({required String verificationId, required String code});
+
+  /// 이메일로 가입 (피그마 이메일로 가입 1~3). 인증·필수 약관 동의가 끝난 뒤 부른다.
+  Future<AuthSession> signUpWithEmail({
+    required String email,
+    required String password,
+    required String verificationToken,
+    required List<String> termIds,
+  });
+
+  Future<AuthSession> signInWithEmail({required String email, required String password});
 
   /// 저장된 토큰으로 내 정보 조회 (앱 시작 시)
   Future<AppUser> fetchMe();
 
-  /// 회원정보 수정 (6-11)
+  /// 회원정보 수정 (6-11). 서버는 닉네임만 바꾼다.
   Future<AppUser> updateProfile({required String nickname, required int avatarIndex});
 
-  /// 비밀번호 변경 (6-12). 이메일·비밀번호 회원만.
+  /// 비밀번호 변경 (6-12). 이메일·비밀번호 회원만. 가입한 이메일로 인증번호를 보내고, 받은 번호로 바꾼다.
   Future<void> sendPasswordCode();
   Future<void> changePassword({required String code, required String newPassword});
 
   Future<void> signOut();
 
-  /// 회원 탈퇴 (스토어 정책상 앱 안에서 가능해야 함)
-  Future<void> deleteAccount();
+  /// 회원 탈퇴 (스토어 정책상 앱 안에서 가능해야 함). 이메일 회원은 [password], 소셜 회원은 새로 받은 [credential] 로 본인 확인.
+  Future<void> deleteAccount({String? password, SocialCredential? credential});
 }
 
 abstract interface class CatalogRepository {

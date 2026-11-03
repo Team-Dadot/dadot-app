@@ -159,6 +159,17 @@ class MockBackend {
     );
   }
 
+  /// 이메일 로그인. Mock 은 가입한 이메일이면 비밀번호와 상관없이 들어간다.
+  AuthSession signInEmail({required String email, required String password}) {
+    final u = _user;
+    if (u == null || u.email != email.trim() || password.isEmpty) {
+      throw const AppException(AppErrorKind.unauthorized, statusCode: 401, message: '이메일 또는 비밀번호를 확인해 주세요.');
+    }
+    _loggedIn = true;
+    _persist();
+    return AuthSession(accessToken: 'mock-access-${_now().millisecondsSinceEpoch}', refreshToken: 'mock-refresh', user: u, isNewUser: !u.onboardingCompleted);
+  }
+
   AppUser me() => _requireUser();
 
   AppUser updateProfile({required String nickname, required int avatarIndex}) {

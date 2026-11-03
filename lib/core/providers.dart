@@ -14,6 +14,7 @@ import 'config/app_config.dart';
 import 'network/api_client.dart';
 import 'services/link_service.dart';
 import 'services/push_service.dart';
+import 'services/real_social_auth_service.dart';
 import 'services/social_auth_service.dart';
 import 'storage/local_store.dart';
 import 'storage/token_storage.dart';
@@ -55,7 +56,7 @@ bool _mock(Ref ref) => ref.watch(appConfigProvider).useMock;
 // ---------------------------------------------------------------- Repository
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) => _mock(ref)
-    ? MockAuthRepository(ref.watch(mockBackendProvider))
+    ? MockAuthRepository(ref.watch(mockBackendProvider), ref.watch(appConfigProvider))
     : RemoteAuthRepository(ref.watch(apiClientProvider)));
 
 final catalogRepositoryProvider = Provider<CatalogRepository>((ref) => _mock(ref)
@@ -88,8 +89,12 @@ final inquiryRepositoryProvider = Provider<InquiryRepository>((ref) => _mock(ref
 
 // ---------------------------------------------------------------- 외부 SDK
 
-/// TODO(출시 전): 카카오/Apple SDK 구현으로 교체
-final socialAuthServiceProvider = Provider<SocialAuthService>((ref) => const FakeSocialAuthService());
+/// Mock 모드는 가짜 로그인, 실제 서버 모드는 카카오 · Apple SDK
+final socialAuthServiceProvider = Provider<SocialAuthService>((ref) {
+  final config = ref.watch(appConfigProvider);
+  if (config.useMock) return const FakeSocialAuthService();
+  return RealSocialAuthService(kakaoReady: config.kakaoNativeAppKey.isNotEmpty);
+});
 
 /// TODO(출시 전): FCM 구현으로 교체
 final pushServiceProvider = Provider<PushService>((ref) => NoopPushService());

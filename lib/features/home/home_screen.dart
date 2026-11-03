@@ -310,7 +310,11 @@ class _Stats extends StatelessWidget {
               child: _StatCard(
                 label: '면접 완성률',
                 value: c.completionRate ?? 0,
-                detail: c.interviewAnswered == 0 ? '아직 답변한 질문이 없어요' : '${c.interviewAnswered}질문 중 ${c.interviewCompleted}개 완성',
+                detail: c.interviewAnswered == 0
+                    ? '아직 답변한 질문이 없어요'
+                    : c.interviewScorePercent != null
+                        ? '${c.interviewAnswered}질문 평균 점수'
+                        : '${c.interviewAnswered}질문 중 ${c.interviewCompleted}개 완성',
                 barColor: AppColors.point,
               ),
             ),

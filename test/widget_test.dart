@@ -29,6 +29,7 @@ void main() {
             termsUrl: 'https://example.com/terms',
             inquiryFormUrl: 'https://example.com/form',
             mockLatency: Duration.zero,
+            kakaoNativeAppKey: '',
           )),
         ],
         child: const SwipeApp(),

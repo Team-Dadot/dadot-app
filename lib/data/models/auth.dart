@@ -32,7 +32,7 @@ enum LoginMethod {
 
 /// 소셜 SDK 로그인 결과 (서버에 보내서 우리 토큰으로 바꾼다)
 class SocialCredential {
-  const SocialCredential({required this.provider, required this.token, this.authorizationCode});
+  const SocialCredential({required this.provider, required this.token, this.authorizationCode, this.nonce});
 
   final SocialProvider provider;
 
@@ -42,10 +42,14 @@ class SocialCredential {
   /// Apple 은 authorizationCode 도 함께 보낸다 (탈퇴 시 토큰 철회용)
   final String? authorizationCode;
 
-  Map<String, dynamic> toJson() => {
-        'provider': provider.wire,
-        'token': token,
-        if (authorizationCode != null) 'authorizationCode': authorizationCode,
+  /// Apple: 서버 인증 준비 API(POST /v1/auth/social/apple/challenges)에서 받은 nonce 원문
+  final String? nonce;
+
+  /// 다닷 서버 요청 본문. 카카오 {accessToken} / Apple {identityToken, authorizationCode, nonce}
+  Map<String, dynamic> toJson() => switch (provider) {
+        SocialProvider.apple => {'identityToken': token, 'authorizationCode': authorizationCode, 'nonce': nonce},
+        SocialProvider.kakao => {'accessToken': token},
+        SocialProvider.google => {'idToken': token},
       };
 }
 
@@ -110,4 +114,62 @@ class AuthSession {
   final String? refreshToken;
   final AppUser user;
   final bool isNewUser;
+}
+
+/// 가입 약관 (GET /v1/app-config → signupTerms). 가입 요청의 acceptedTermsIds 로 보낸다.
+class SignupTerm {
+  const SignupTerm({required this.id, required this.title, required this.required, this.url});
+
+  factory SignupTerm.fromJson(Map<String, dynamic> json) => SignupTerm(
+        id: json['termsId'].toString(),
+        title: json['title'] as String? ?? '',
+        required: json['required'] as bool? ?? true,
+        url: json['url'] as String?,
+      );
+
+  final String id;
+  final String title;
+  final bool required;
+  final String? url;
+}
+
+/// 소셜 로그인 결과가 SIGN_UP_REQUIRED 일 때. 약관 동의 후 [registrationToken] 으로 가입을 마친다 (10분 유효).
+class SocialSignUpRequired implements Exception {
+  const SocialSignUpRequired({required this.registrationToken, required this.provider});
+
+  final String registrationToken;
+  final SocialProvider provider;
+}
+
+/// 서버 앱 설정 (GET /v1/app-config): 가입 약관 · 문서 링크 · 문의 구글폼
+class ServerAppConfig {
+  const ServerAppConfig({required this.terms, this.termsUrl, this.privacyPolicyUrl, this.inquiryFormUrl, this.signupAvailable = true});
+
+  factory ServerAppConfig.fromJson(Map<String, dynamic> json) => ServerAppConfig(
+        terms: (json['signupTerms'] as List<dynamic>? ?? const [])
+            .map((e) => SignupTerm.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+        termsUrl: json['termsUrl'] as String?,
+        privacyPolicyUrl: json['privacyPolicyUrl'] as String?,
+        inquiryFormUrl: json['inquiryFormUrl'] as String?,
+        signupAvailable: json['signupAvailable'] as bool? ?? true,
+      );
+
+  final List<SignupTerm> terms;
+  final String? termsUrl;
+  final String? privacyPolicyUrl;
+
+  /// 문의는 구글폼으로 받는다. null 이면 앱 안 문의 화면 (Mock)
+  final String? inquiryFormUrl;
+  final bool signupAvailable;
+}
+
+/// 이메일 인증 목적 (POST /v1/auth/email-verifications)
+enum EmailCodePurpose {
+  signUp('SIGN_UP'),
+  passwordReset('PASSWORD_RESET'),
+  passwordChange('PASSWORD_CHANGE');
+
+  const EmailCodePurpose(this.wire);
+  final String wire;
 }

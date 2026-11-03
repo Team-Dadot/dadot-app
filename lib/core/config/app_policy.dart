@@ -28,18 +28,21 @@ class AppPolicy {
   static const int criterionPassScore = 20;
   static const int completeMetCount = 3;
 
+  /// 서버 판정: 총점 80 이상이면 준비 완료 (미만은 보완 필요)
+  static const int completeScore = 80;
+
   /// 면접 3일 전부터 집중 모드 (2-2)
   static const int focusModeDays = 3;
 
   /// 내 경험
   static const int maxExperiences = 100;
   static const int experienceMaxLength = 5000;
-  static const int experienceTitleMaxLength = 40;
+  static const int experienceTitleMaxLength = 50;
 
   /// 답변 (4-3)
   // TODO(결정 8): 최소 답변 글자수
   static const int minAnswerLength = 30;
-  static const int maxAnswerLength = 3000;
+  static const int maxAnswerLength = 2000;
 
   /// 말로 답하기 (4-4 "3:00 권장"). 3분이 지나면 자동으로 멈춘다.
   static const Duration voiceMaxDuration = Duration(minutes: 3);
@@ -73,7 +76,7 @@ class FeatureFlags {
   FeatureFlags._();
 
   /// 이메일 로그인 (피그마 "각 로그인별 화면 필요" — 아직 화면 없음)
-  static const bool emailLogin = false;
+  static const bool emailLogin = true;
 
   /// 광고 SDK 연결 전: 버튼을 누르면 광고 없이 바로 1개 더 열어 준다
   static const bool adsConnected = false;

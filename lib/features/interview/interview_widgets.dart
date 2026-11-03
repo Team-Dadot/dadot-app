@@ -32,6 +32,8 @@ class QuestionTitle extends StatelessWidget {
 
 /// 피드백 화면 한 줄 요약 (가장 낮은 항목 기준). 서버가 요약을 주면 그걸 쓴다.
 String feedbackHeadline(AnswerFeedback f) {
+  final summary = f.summary?.trim();
+  if (summary != null && summary.isNotEmpty) return summary;
   if (f.metCount >= AppPolicy.completeMetCount) return '완성된 답변이에요!';
   if (f.criteria.isEmpty) return '답변을 조금 더 다듬어 보세요.';
   final weakest = f.criteria.reduce((a, b) => (a.max == 0 ? 0 : a.score / a.max) <= (b.max == 0 ? 0 : b.score / b.max) ? a : b);

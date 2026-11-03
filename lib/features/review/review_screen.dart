@@ -398,7 +398,7 @@ class _InterviewRecordCard extends StatelessWidget {
       customSemanticsActions: {const CustomSemanticsAction(label: '삭제'): onDelete},
       child: ReviewFolderCard(
         date: r.lastAt == null ? '작성 중' : formatDotSpaced(r.lastAt!).replaceAll(RegExp(r'\.$'), ''),
-        scoreTag: r.score == null ? null : '${r.score}점',
+        // 복습 카드에는 점수를 보여주지 않는다 (상태 배지만)
         status: status,
         tone: tone,
         title: r.questionText,

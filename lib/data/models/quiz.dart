@@ -86,6 +86,9 @@ class QuizQuestion {
   /// "공시 근거 먼저 보기" 로 미리 볼 수 있는 근거
   final Evidence? evidence;
 
+  /// 서버에서 아직 받지 않은 문항 자리 (다닷 서버는 한 문항씩 준다 → 제출 뒤 세트를 다시 불러와 받는다)
+  bool get isPlaceholder => id.isEmpty && prompt.isEmpty;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'order': order,

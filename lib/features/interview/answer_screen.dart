@@ -253,6 +253,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   @override
   Widget build(BuildContext context) {
     final q = ref.watch(interviewQuestionProvider(widget.questionId));
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     final voice = _mode == _Mode.voiceReady || _mode == _Mode.recording || _mode == _Mode.voiceStopped || _mode == _Mode.voiceReview;
     final title = voice ? '말로 답하기' : '답변 작성';
 
@@ -334,8 +335,8 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: _mode == _Mode.analyzing || _mode == _Mode.converting ? null : AppNavBar(title: title, onBack: _confirmLeave),
-        // 버튼을 bottomNavigationBar 에 두면 iOS 키보드에 가려져서 쓰는 중에 제출할 수 없었다.
-        // 본문 아래에 붙여서 키보드가 올라오면 버튼도 키보드 위로 같이 올라오게 한다.
+        // 피그마 4-3 작성 완료 (763:19912): 임시 저장 / 제출하기 버튼은 키보드가 내려간 전체 화면일 때만 보인다.
+        // 글을 쓰는 동안(키보드가 올라와 있을 때)은 버튼을 숨기고, 입력칸 밖을 누르거나 쓸어내리면 키보드가 내려가며 버튼이 나온다.
         body: _mode == _Mode.analyzing || _mode == _Mode.converting
             ? SafeArea(child: body)
             : GestureDetector(
@@ -346,7 +347,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(child: body),
-                    if (bottom != null) BottomCta(children: bottom),
+                    if (bottom != null && !keyboardOpen) BottomCta(children: bottom),
                   ],
                 ),
               ),

@@ -7,12 +7,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/session/session_controller.dart';
+import '../../data/models/auth.dart';
 import '../../data/models/catalog.dart';
 import '../../data/models/home.dart';
 import '../../data/models/interview.dart';
 import '../../data/models/quiz.dart';
 import '../../data/models/records.dart';
 import '../../data/models/settings.dart';
+
+/// 서버 앱 설정 (가입 약관 · 문서 링크 · 문의 구글폼). 로그인 전에도 쓴다.
+final serverAppConfigProvider = FutureProvider<ServerAppConfig>((ref) => ref.watch(authRepositoryProvider).fetchAppConfig());
 
 /// 검색어별 기업 목록 (빈 문자열 = 추천)
 final companiesProvider = FutureProvider.autoDispose.family<List<Company>, String>(

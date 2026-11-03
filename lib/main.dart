@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/config/app_config.dart';
 import 'core/providers.dart';
 
 /// 실행:
@@ -14,6 +16,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final prefs = await SharedPreferences.getInstance();
+  final kakaoKey = AppConfig.fromEnvironment().kakaoNativeAppKey;
+  if (kakaoKey.isNotEmpty) KakaoSdk.init(nativeAppKey: kakaoKey);
 
   runApp(
     ProviderScope(

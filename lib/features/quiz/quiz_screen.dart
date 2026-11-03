@@ -76,6 +76,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         context.pushReplacement(Routes.quizResult(_set!.id));
         return;
       }
+      // 다닷 서버는 다음 문항을 제출한 뒤에 준다 → 세트를 다시 불러와 다음 문항을 받는다
+      if (_set!.questions[_index + 1].isPlaceholder) {
+        final next = await ref.read(quizRepositoryProvider).fetchTodaySet(widget.companyId);
+        if (!mounted) return;
+        if (next.isCompleted) {
+          context.pushReplacement(Routes.quizResult(next.id));
+          return;
+        }
+        setState(() {
+          _set = next;
+          _index = next.nextIndex;
+          _selected = null;
+        });
+        return;
+      }
       setState(() {
         _index += 1;
         _selected = null;

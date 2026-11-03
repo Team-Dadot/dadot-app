@@ -72,18 +72,40 @@ class SessionController extends Notifier<SessionState> {
   }
 
   /// 소셜 로그인 (1-1). 사용자가 창을 닫으면 SocialAuthCancelled 를 그대로 던진다.
+  /// 처음 온 사용자면 SocialSignUpRequired 를 던진다 → 화면이 약관 동의를 받고 [completeSocialSignup].
   Future<void> signIn(SocialProvider provider) async {
-    final credential = await ref.read(socialAuthServiceProvider).signIn(provider);
-    final session = await ref.read(authRepositoryProvider).signInWithSocial(credential);
-    await ref.read(tokenStorageProvider).save(accessToken: session.accessToken, refreshToken: session.refreshToken);
-    if (!ref.mounted) return;
-    _setUser(session.user);
-    if (session.user.onboardingCompleted) unawaited(_registerPushToken());
+    final repo = ref.read(authRepositoryProvider);
+    final nonce = await repo.prepareSocial(provider);
+    final credential = await ref.read(socialAuthServiceProvider).signIn(provider, nonce: nonce);
+    await _start(await repo.signInWithSocial(credential));
+  }
+
+  /// 소셜 신규 가입: 약관 동의 후 registrationToken 으로 가입을 마친다
+  Future<void> completeSocialSignup({required String registrationToken, required List<String> termIds}) async {
+    await _start(await ref.read(authRepositoryProvider).completeSocialSignup(registrationToken: registrationToken, termIds: termIds));
   }
 
   /// 이메일로 가입하고 바로 로그인 (피그마 이메일로 가입 1~3)
-  Future<void> signUpWithEmail({required String email, required String password}) async {
-    final session = await ref.read(authRepositoryProvider).signUpWithEmail(email: email, password: password);
+  Future<void> signUpWithEmail({
+    required String email,
+    required String password,
+    required String verificationToken,
+    required List<String> termIds,
+  }) async {
+    await _start(await ref.read(authRepositoryProvider).signUpWithEmail(
+          email: email,
+          password: password,
+          verificationToken: verificationToken,
+          termIds: termIds,
+        ));
+  }
+
+  /// 이메일 · 비밀번호 로그인
+  Future<void> signInWithEmail({required String email, required String password}) async {
+    await _start(await ref.read(authRepositoryProvider).signInWithEmail(email: email, password: password));
+  }
+
+  Future<void> _start(AuthSession session) async {
     await ref.read(tokenStorageProvider).save(accessToken: session.accessToken, refreshToken: session.refreshToken);
     if (!ref.mounted) return;
     _setUser(session.user);
@@ -112,9 +134,19 @@ class SessionController extends Notifier<SessionState> {
     await _clearLocal();
   }
 
-  /// 회원 탈퇴. 서버 삭제가 실패하면 예외를 던지고 로그인 상태를 유지한다.
-  Future<void> deleteAccount() async {
-    await ref.read(authRepositoryProvider).deleteAccount();
+  /// 회원 탈퇴. 서버가 탈퇴 요청 안에서 본인 확인을 한다:
+  /// 이메일 회원은 [password], 소셜 회원은 여기서 SDK 로 다시 로그인해 받은 자격증명을 보낸다.
+  /// 서버 삭제가 실패하면 예외를 던지고 로그인 상태를 유지한다.
+  Future<void> deleteAccount({String? password}) async {
+    final repo = ref.read(authRepositoryProvider);
+    SocialCredential? credential;
+    final method = state.user?.loginMethod;
+    if (password == null && method != null && method != LoginMethod.email) {
+      final provider = method == LoginMethod.apple ? SocialProvider.apple : SocialProvider.kakao;
+      final nonce = await repo.prepareSocial(provider);
+      credential = await ref.read(socialAuthServiceProvider).signIn(provider, nonce: nonce);
+    }
+    await repo.deleteAccount(password: password, credential: credential);
     await _clearLocal();
   }
 

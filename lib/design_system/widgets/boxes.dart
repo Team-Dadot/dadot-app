@@ -228,8 +228,9 @@ class IndexBox extends StatelessWidget {
   }
 }
 
-/// 흰 카드 안 목록 한 줄 (제목 + 설명 + 오른쪽 값 + ›). 피그마 홈 "기업 퀴즈 0/5 ›", 마이 메뉴.
-/// [MenuGroup] 안에 넣으면 줄 사이에 0.5px 선이 들어간다.
+/// 흰 카드 안 목록 한 줄 (제목 + 설명 + 오른쪽 값 + ›). 피그마 6-1 마이 메뉴 (763:16448):
+/// 제목 16 Medium #15171B · 설명 14 Medium #9A9DA4 (간격 4), 위아래 16 (설명 없으면 12).
+/// [MenuGroup] 안에 넣으면 줄 사이에 1px 선(#DCE0E7)이 들어간다.
 class MenuRow extends StatelessWidget {
   const MenuRow({super.key, required this.title, this.subtitle, this.value, required this.onTap, this.showChevron = true});
 
@@ -246,40 +247,37 @@ class MenuRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 32),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(title, style: AppTypography.rowTitle),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(subtitle!, style: AppTypography.caption),
-                    ],
+        padding: EdgeInsets.symmetric(vertical: subtitle == null ? AppSpacing.sm : AppSpacing.md),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title, style: AppTypography.rowTitle.copyWith(color: AppColors.ink)),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(subtitle!, style: AppTypography.body2Medium.copyWith(color: AppColors.textGuide, height: 1.4)),
                   ],
-                ),
+                ],
               ),
-              if (value != null) ...[
-                const SizedBox(width: AppSpacing.xs),
-                Text(value!, style: AppTypography.rowTitle.copyWith(color: AppColors.textStrong)),
-              ],
-              if (showChevron) ...[const SizedBox(width: AppSpacing.xs), const Chevron()],
+            ),
+            if (value != null) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Text(value!, style: AppTypography.rowTitle.copyWith(color: AppColors.textStrong)),
             ],
-          ),
+            if (showChevron) ...[const SizedBox(width: AppSpacing.xs), const Chevron()],
+          ],
         ),
       ),
     );
   }
 }
 
-/// 흰 카드(모서리 20) 안에 [MenuRow] 를 0.5px 선으로 나눠 담는다.
+/// 흰 카드(모서리 16, 좌우 20 · 위아래 8) 안에 [MenuRow] 를 1px 선으로 나눠 담는다. 너비는 화면 좌우 20 을 뺀 362.
 class MenuGroup extends StatelessWidget {
-  const MenuGroup({super.key, required this.children, this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm)});
+  const MenuGroup({super.key, required this.children, this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs)});
 
   final List<Widget> children;
   final EdgeInsetsGeometry padding;
@@ -289,12 +287,12 @@ class MenuGroup extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: padding,
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.button)),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const SizedBox(height: 0.5, width: double.infinity, child: ColoredBox(color: Color(0xFFDCDCDC))),
+            if (i > 0) const SizedBox(height: 1, width: double.infinity, child: ColoredBox(color: AppColors.fillMuted)),
             children[i],
           ],
         ],
@@ -303,15 +301,46 @@ class MenuGroup extends StatelessWidget {
   }
 }
 
-/// "›" 화살표 (20, 회색)
+/// "›" 화살표 — 피그마 4×8 선(굵기 2, #BCBFC5), 오른쪽에서 8 들어간 20 칸
 class Chevron extends StatelessWidget {
-  const Chevron({super.key, this.color = AppColors.placeholder});
+  const Chevron({super.key, this.color = AppColors.tabActive});
 
   final Color color;
 
   @override
-  Widget build(BuildContext context) =>
-      ExcludeSemantics(child: Icon(Icons.chevron_right_rounded, size: 22, color: color));
+  Widget build(BuildContext context) => ExcludeSemantics(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: Center(child: CustomPaint(size: const Size(4, 8), painter: _ChevronRightPainter(color))),
+        ),
+      );
+}
+
+class _ChevronRightPainter extends CustomPainter {
+  _ChevronRightPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, 0)
+        ..lineTo(size.width, size.height / 2)
+        ..lineTo(0, size.height),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ChevronRightPainter old) => old.color != color;
 }
 
 /// 기업 한 줄 — 흰 카드(모서리 20) 안 원 로고 44 + 이름 16 + 설명 12 + 오른쪽 (피그마 6-2 준비 기업 관리)

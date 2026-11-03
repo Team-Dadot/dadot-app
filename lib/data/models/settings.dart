@@ -1,19 +1,24 @@
 /// 학습 알림 (6-9)
 class NotificationSettings {
-  const NotificationSettings({required this.enabled, required this.hour, required this.minute});
+  const NotificationSettings({required this.enabled, required this.hour, required this.minute, this.version});
 
   factory NotificationSettings.fromJson(Map<String, dynamic> json) {
-    final time = (json['time'] as String? ?? '09:00').split(':');
+    // 다닷 서버: scheduledTime "HH:mm" 또는 "HH:mm:ss" / Mock: time
+    final time = ((json['scheduledTime'] ?? json['time']) as String? ?? '09:00').split(':');
     return NotificationSettings(
       enabled: json['enabled'] as bool? ?? true,
       hour: int.tryParse(time.first) ?? 9,
       minute: time.length > 1 ? int.tryParse(time[1]) ?? 0 : 0,
+      version: (json['version'] as num?)?.toInt(),
     );
   }
 
   final bool enabled;
   final int hour;
   final int minute;
+
+  /// 서버 설정 버전 (수정할 때 expectedVersion 으로 보낸다)
+  final int? version;
 
   /// "오전 9:00"
   String get timeLabel {
@@ -36,7 +41,7 @@ class NotificationSettings {
       };
 
   NotificationSettings copyWith({bool? enabled, int? hour, int? minute}) =>
-      NotificationSettings(enabled: enabled ?? this.enabled, hour: hour ?? this.hour, minute: minute ?? this.minute);
+      NotificationSettings(enabled: enabled ?? this.enabled, hour: hour ?? this.hour, minute: minute ?? this.minute, version: version);
 }
 
 enum InquiryType {

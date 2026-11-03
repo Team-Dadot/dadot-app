@@ -1,3 +1,5 @@
+import '../../core/config/app_config.dart';
+import '../../core/error/app_exception.dart';
 import '../models/auth.dart';
 import '../models/catalog.dart';
 import '../models/home.dart';
@@ -10,14 +12,46 @@ import 'mock_backend.dart';
 
 /// MockBackend 를 Repository 인터페이스로 감싼 것. 화면 입장에서는 Remote 와 똑같다.
 class MockAuthRepository implements AuthRepository {
-  MockAuthRepository(this._b);
+  MockAuthRepository(this._b, this._config);
   final MockBackend _b;
+  final AppConfig _config;
 
+  @override
+  Future<ServerAppConfig> fetchAppConfig() => _b.run(() => ServerAppConfig(
+        terms: [
+          SignupTerm(id: '1', title: '이용약관 동의', required: true, url: _config.termsUrl),
+          SignupTerm(id: '2', title: '개인정보 수집 및 이용 동의', required: true, url: _config.privacyPolicyUrl),
+        ],
+        termsUrl: _config.termsUrl,
+        privacyPolicyUrl: _config.privacyPolicyUrl,
+      ));
+  @override
+  Future<String?> prepareSocial(SocialProvider provider) async => provider == SocialProvider.apple ? 'mock-nonce' : null;
   @override
   Future<AuthSession> signInWithSocial(SocialCredential credential) => _b.run(() => _b.signIn(credential));
   @override
-  Future<AuthSession> signUpWithEmail({required String email, required String password}) =>
+  Future<AuthSession> completeSocialSignup({required String registrationToken, required List<String> termIds}) =>
+      _b.run(() => _b.signIn(const SocialCredential(provider: SocialProvider.kakao, token: 'mock')));
+  @override
+  Future<String> sendEmailCode({required String email, required EmailCodePurpose purpose}) => _b.run(() => 'mock-verification');
+  @override
+  Future<String> verifyEmailCode({required String verificationId, required String code}) => _b.run(() {
+        if (!RegExp(r'^\d{6}$').hasMatch(code.trim())) {
+          throw const AppException(AppErrorKind.validation, message: '인증번호 6자리를 확인해 주세요.');
+        }
+        return 'mock-verification-token';
+      });
+  @override
+  Future<AuthSession> signUpWithEmail({
+    required String email,
+    required String password,
+    required String verificationToken,
+    required List<String> termIds,
+  }) =>
       _b.run(() => _b.signUpEmail(email: email, password: password));
+  @override
+  Future<AuthSession> signInWithEmail({required String email, required String password}) =>
+      _b.run(() => _b.signInEmail(email: email, password: password));
   @override
   Future<AppUser> fetchMe() => _b.run(_b.me);
   @override
@@ -31,7 +65,7 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() => _b.run(_b.signOut);
   @override
-  Future<void> deleteAccount() => _b.run(_b.deleteAccount);
+  Future<void> deleteAccount({String? password, SocialCredential? credential}) => _b.run(_b.deleteAccount);
 }
 
 class MockCatalogRepository implements CatalogRepository {

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_policy.dart';
+import '../../core/error/app_exception.dart';
 import '../../core/router/app_router.dart';
 import '../../core/services/app_info.dart';
 import '../../core/services/social_auth_service.dart';
 import '../../core/session/session_controller.dart';
 import '../../data/models/auth.dart';
 import '../../design_system/design_system.dart';
+import 'terms_agreement.dart';
 
 /// 피그마 최종 1-1 시작 · 로그인 (763:17466) / 1-E1 로그인 실패 (763:17912)
 /// DADOT 로고 + 한 줄 소개, 아래 카카오(노랑) · Apple(검정) · 이메일(회색) 버튼.
@@ -25,6 +28,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   /// 1-E1: 로그인이 실패하면 로고 자리에 "일시적인 오류가 발생했어요"
   bool _failed = false;
 
+  /// 실패 이유 (서버·SDK 메시지). 원인을 알 수 있게 오류 화면 아래에 보여준다.
+  String? _reason;
+
   Future<void> _signIn(SocialProvider provider) async {
     if (_loading != null) return;
     setState(() {
@@ -36,10 +42,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // 이동은 라우터 redirect 가 처리 (신규 → 온보딩, 기존 → 홈)
     } on SocialAuthCancelled {
       // 사용자가 닫음 → 아무것도 안 함
-    } catch (_) {
-      if (mounted) setState(() => _failed = true);
+    } on SocialSignUpRequired catch (pending) {
+      // 처음 온 소셜 사용자: 약관 동의 후 가입 (registrationToken 10분 유효)
+      await _completeSignup(pending);
+    } catch (e, st) {
+      debugPrint('[LOGIN] ${provider.wire} 실패: $e\n$st');
+      if (mounted) {
+        setState(() {
+          _failed = true;
+          _reason = _describe(e);
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = null);
+    }
+  }
+
+  /// 사용자에게 보여줄 실패 이유. 서버 메시지가 있으면 그것, 카카오·Apple SDK 오류면 코드까지.
+  String _describe(Object e) {
+    if (e is AppException) {
+      final code = e.code == null ? '' : ' (${e.code}${e.statusCode == null ? '' : ' · ${e.statusCode}'})';
+      return '${e.userMessage}$code';
+    }
+    if (e is PlatformException) return '로그인 앱 오류: ${e.code} ${e.message ?? ''}'.trim();
+    final text = e.toString();
+    return text.length > 160 ? '${text.substring(0, 160)}…' : text;
+  }
+
+  Future<void> _completeSignup(SocialSignUpRequired pending) async {
+    if (!mounted) return;
+    final termIds = await showTermsSheet(context);
+    if (termIds == null || !mounted) return;
+    try {
+      await ref.read(sessionProvider.notifier).completeSocialSignup(registrationToken: pending.registrationToken, termIds: termIds);
+    } catch (e) {
+      if (mounted) showErrorToast(context, e);
     }
   }
 
@@ -56,7 +93,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Expanded(
               child: Center(
                 child: _failed
-                    ? const StatusMessage(title: '일시적인 오류가 발생했어요', description: '잠시 후 다시 시도해 주세요')
+                    ? StatusMessage(title: '일시적인 오류가 발생했어요', description: _reason ?? '잠시 후 다시 시도해 주세요')
                     : const _Intro(),
               ),
             ),
@@ -76,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   AppButton(
                     label: '이메일로 시작하기',
                     variant: AppButtonVariant.secondary,
-                    onPressed: _loading == null ? () => context.push(Routes.emailSignup) : null,
+                    onPressed: _loading == null ? () => context.push(Routes.emailLogin) : null,
                   ),
                 ],
               ),
