@@ -39,6 +39,13 @@ class AppPolicy {
   static const int experienceMaxLength = 5000;
   static const int experienceTitleMaxLength = 50;
 
+  /// 직접 입력 직무 이름 (서버: 1~50자)
+  static const int jobNameMaxLength = 50;
+
+  /// 직무 추가하기 "자주 찾는 직무" (피그마 1212:7788 그대로, 서버 목록과 상관없이 이 순서로 보여 준다).
+  /// 서버 직무 목록에 같은 이름이 있으면 그 직무로, 없으면 직접 입력처럼 이름으로 저장한다.
+  static const List<String> popularJobNames = ['영업', '마케팅', '인사', '재무·회계', '생산관리', '연구개발', '서버 개발', '앱 개발', '데이터 분석'];
+
   /// 답변 (4-3)
   // TODO(결정 8): 최소 답변 글자수
   static const int minAnswerLength = 30;
@@ -52,15 +59,17 @@ class AppPolicy {
 
   /// 비밀번호 (6-12 "영문·숫자 포함 8자 이상")
   static const int minPasswordLength = 8;
-  static const int maxPasswordLength = 20;
+  static const int maxPasswordLength = 64;
 
-  /// 피그마 이메일 가입: 영문·숫자·특수문자 조합 8-20자
+  /// 피그마 이메일 가입 (1164:6153 "영문, 숫자 포함 8자 이상") · 서버 규칙: 영문·숫자 포함 8~64자, 공백 없음
   static bool isValidPassword(String v) =>
       v.length >= minPasswordLength &&
       v.length <= maxPasswordLength &&
       RegExp('[A-Za-z]').hasMatch(v) &&
       RegExp(r'\d').hasMatch(v) &&
-      RegExp(r'[^A-Za-z0-9\s]').hasMatch(v);
+      !RegExp(r'\s').hasMatch(v);
+
+  static const String passwordRule = '영문, 숫자를 포함한 8자 이상으로 입력해 주세요';
 
   static bool isValidEmail(String v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim());
 

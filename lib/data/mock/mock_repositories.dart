@@ -1,4 +1,5 @@
 import '../../core/config/app_config.dart';
+import '../../core/config/app_policy.dart';
 import '../../core/error/app_exception.dart';
 import '../models/auth.dart';
 import '../models/catalog.dart';
@@ -19,8 +20,7 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<ServerAppConfig> fetchAppConfig() => _b.run(() => ServerAppConfig(
         terms: [
-          SignupTerm(id: '1', title: '이용약관 동의', required: true, url: _config.termsUrl),
-          SignupTerm(id: '2', title: '개인정보 수집 및 이용 동의', required: true, url: _config.privacyPolicyUrl),
+          SignupTerm(id: '1', title: '이용약관동의', required: true, url: _config.termsUrl),
         ],
         termsUrl: _config.termsUrl,
         privacyPolicyUrl: _config.privacyPolicyUrl,
@@ -49,6 +49,12 @@ class MockAuthRepository implements AuthRepository {
     required List<String> termIds,
   }) =>
       _b.run(() => _b.signUpEmail(email: email, password: password));
+  @override
+  Future<void> resetPassword({required String verificationToken, required String newPassword}) => _b.run(() {
+        if (!AppPolicy.isValidPassword(newPassword)) {
+          throw const AppException(AppErrorKind.validation, message: AppPolicy.passwordRule);
+        }
+      });
   @override
   Future<AuthSession> signInWithEmail({required String email, required String password}) =>
       _b.run(() => _b.signInEmail(email: email, password: password));
@@ -164,6 +170,8 @@ class MockInterviewRepository implements InterviewRepository {
     required AnswerInputType inputType,
   }) =>
       _slow(_b.run(() => _b.submitAnswer(questionId: questionId, content: content, inputType: inputType)));
+  @override
+  Future<void> retryEvaluation(String answerId) => _b.run(() {});
   @override
   Future<AnswerFeedback> fetchFeedback(String answerId) => _b.run(() => _b.feedback(answerId));
   @override

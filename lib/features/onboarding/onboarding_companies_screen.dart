@@ -93,6 +93,8 @@ class _OnboardingCompaniesScreenState extends ConsumerState<OnboardingCompaniesS
         },
         child: OnboardingStepScaffold(
           step: 1,
+          // 피그마 1-2 (763:17487): 첫 단계도 ‹ 뒤로가기. 앞 화면이 없으니 "첫 설정을 그만둘까요?" → 로그인 화면
+          onBack: _back,
           title: '어떤 기업을\n준비하고 있나요?',
           bottom: [
             AppButton(label: '다음', loading: _saving, onPressed: preps.isEmpty ? null : _next),

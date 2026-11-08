@@ -12,7 +12,7 @@ void main() {
     test('남은 날', () => expect(prep.ddayFrom(DateTime(2026, 10, 14, 23)), 10));
     test('표기', () {
       expect(formatDday(10), 'D-10');
-      expect(formatDday(0), 'D-Day');
+      expect(formatDday(0), 'D-day');
       expect(formatDday(-2), 'D+2');
     });
     test('면접일 없으면 null', () => expect(const Preparation(companyId: 'lg', companyName: 'LG전자').ddayFrom(DateTime.now()), isNull));
@@ -24,13 +24,13 @@ void main() {
   });
 
   group('비밀번호', () {
-    test('영문·숫자·특수문자 8~20자', () {
-      // 피그마 이메일 가입: 영문·숫자·특수문자 조합 8-20자
+    test('영문·숫자 포함 8~64자 (서버 규칙)', () {
       expect(AppPolicy.isValidPassword('abcd1234!'), isTrue);
-      expect(AppPolicy.isValidPassword('abcd1234'), isFalse);
+      expect(AppPolicy.isValidPassword('abcd1234'), isTrue);
       expect(AppPolicy.isValidPassword('abcdefgh!'), isFalse);
       expect(AppPolicy.isValidPassword('ab12!'), isFalse);
-      expect(AppPolicy.isValidPassword('abcd1234!abcd1234!abc'), isFalse);
+      expect(AppPolicy.isValidPassword('abcd 1234'), isFalse);
+      expect(AppPolicy.isValidPassword('a1${'b' * 63}'), isFalse);
       expect(AppPolicy.isValidEmail('jimin@kakao.com'), isTrue);
       expect(AppPolicy.isValidEmail('12351390@gmail'), isFalse);
     });

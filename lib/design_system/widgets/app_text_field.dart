@@ -29,6 +29,8 @@ class AppTextField extends StatelessWidget {
     this.trailing,
     this.focusNode,
     this.onSubmitted,
+    this.bordered = false,
+    this.clearable = false,
   });
 
   final TextEditingController controller;
@@ -59,10 +61,42 @@ class AppTextField extends StatelessWidget {
   final FocusNode? focusNode;
   final ValueChanged<String>? onSubmitted;
 
+  /// 피그마 이메일 로그인·가입 (1164:6116 · 1164:6203): 회색 1px 테두리 · 모서리 12 · 높이 52.
+  /// 틀리면 빨간 테두리 + 아래 빨간 안내 (오른쪽 ! 표시 없음)
+  final bool bordered;
+
+  /// 글자가 있으면 오른쪽에 회색 원 ✕ (16, #DCE0E7) — 누르면 지운다 (피그마 1164:6116 이메일 로그인)
+  final bool clearable;
+
   static String _comma(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
 
   @override
   Widget build(BuildContext context) {
+    if (!clearable || trailing != null || maxLines > 1 || readOnly) return _build(context, trailing);
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) => _build(
+        context,
+        value.text.isEmpty
+            ? null
+            : Semantics(
+                button: true,
+                label: '${semanticLabel ?? '입력'} 지우기',
+                excludeSemantics: true,
+                child: InkResponse(
+                  radius: 18,
+                  onTap: () {
+                    controller.clear();
+                    onChanged?.call('');
+                  },
+                  child: const SizedBox(width: 24, height: 24, child: Center(child: ClearCircleIcon())),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _build(BuildContext context, Widget? trailing) {
     final multiline = maxLines > 1;
     final style = textStyle ?? (multiline ? AppTypography.body1.copyWith(color: AppColors.textStrong, height: 1.6) : AppTypography.body1);
     final field = TextField(
@@ -91,18 +125,19 @@ class AppTextField extends StatelessWidget {
     );
 
     final hasError = errorText != null && errorText!.isNotEmpty;
-    final Widget? side = hasError
+    final Widget? side = hasError && !bordered
         ? const ExcludeSemantics(child: Icon(Icons.error_rounded, size: 18, color: AppColors.destructive))
         : trailing;
     final box = Semantics(
       label: semanticLabel,
       textField: true,
       child: Container(
-        constraints: BoxConstraints(minHeight: multiline ? 0 : AppSizes.inputHeight),
-        padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: multiline ? AppSpacing.lg : AppSpacing.sm),
+        constraints: BoxConstraints(minHeight: multiline ? 0 : (bordered ? 52 : AppSizes.inputHeight)),
+        padding: EdgeInsets.symmetric(horizontal: bordered ? 15 : AppSpacing.lg, vertical: multiline ? AppSpacing.lg : AppSpacing.sm),
         decoration: BoxDecoration(
           color: readOnly ? AppColors.surfaceMuted : AppColors.surface,
-          borderRadius: BorderRadius.circular(multiline ? AppRadius.lg : AppRadius.md),
+          borderRadius: BorderRadius.circular(bordered ? 12 : (multiline ? AppRadius.lg : AppRadius.md)),
+          border: bordered ? Border.all(color: hasError ? AppColors.destructive : const Color(0xFFE9EBED)) : null,
         ),
         alignment: multiline ? null : Alignment.centerLeft,
         child: maxLength == null
@@ -133,17 +168,45 @@ class AppTextField extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         box,
-        const SizedBox(height: 6),
+        SizedBox(height: bordered ? 4 : 6),
         Semantics(
           liveRegion: true,
           child: Padding(
-            padding: const EdgeInsets.only(left: AppSpacing.xxs),
+            padding: EdgeInsets.only(left: bordered ? 0 : AppSpacing.xxs),
             child: Text(errorText!, style: AppTypography.caption.copyWith(color: AppColors.destructive)),
           ),
         ),
       ],
     );
   }
+}
+
+/// 회색 원 안 흰 ✕ (16×16, 원 #DCE0E7 · 선 1.5)
+class ClearCircleIcon extends StatelessWidget {
+  const ClearCircleIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) => const CustomPaint(size: Size(16, 16), painter: _ClearCirclePainter());
+}
+
+class _ClearCirclePainter extends CustomPainter {
+  const _ClearCirclePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    canvas.drawCircle(c, size.width / 2, Paint()..color = const Color(0xFFDCE0E7));
+    final p = Paint()
+      ..color = AppColors.white
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    const h = 2.5;
+    canvas.drawLine(c.translate(-h, -h), c.translate(h, h), p);
+    canvas.drawLine(c.translate(h, -h), c.translate(-h, h), p);
+  }
+
+  @override
+  bool shouldRepaint(_ClearCirclePainter old) => false;
 }
 
 /// 검색창 (피그마 1-2 "기업 이름을 검색해보세요 🔍" · 6-2 "새로운 기업 추가하기"). 글자가 있으면 ✕ 로 지운다.

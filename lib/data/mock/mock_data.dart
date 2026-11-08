@@ -80,47 +80,44 @@ class MockData {
 
   // ---------------------------------------------------------------- 직무
 
+  /// 피그마 1212:7788 "직무 추가하기" 의 자주 찾는 직무 · 전체 직무 분류
   static const jobCatalog = JobCatalog(
     popular: [
       Job(id: 'sales', name: '영업'),
       Job(id: 'marketing', name: '마케팅'),
-      Job(id: 'strategy', name: '경영기획·전략'),
-      Job(id: 'hr', name: '인사·HR'),
+      Job(id: 'hr', name: '인사'),
       Job(id: 'finance', name: '재무·회계'),
-      Job(id: 'scm', name: '구매·SCM'),
+      Job(id: 'production', name: '생산관리'),
+      Job(id: 'rnd', name: '연구개발'),
+      Job(id: 'server', name: '서버 개발'),
+      Job(id: 'app', name: '앱 개발'),
+      Job(id: 'data', name: '데이터 분석'),
     ],
     categories: [
-      JobCategory(id: 'plan', name: '기획·전략', jobs: [
-        Job(id: 'strategy', name: '경영기획·전략'),
+      JobCategory(id: 'plan', name: '경영·기획', jobs: [
+        Job(id: 'strategy', name: '경영기획'),
         Job(id: 'service-plan', name: '서비스기획'),
-        Job(id: 'product-plan', name: '상품기획·MD'),
-        Job(id: 'new-biz', name: '신사업'),
-      ]),
-      JobCategory(id: 'mkt', name: '마케팅·홍보', jobs: [
-        Job(id: 'marketing', name: '마케팅'),
-        Job(id: 'brand', name: '브랜드마케팅'),
-        Job(id: 'digital-mkt', name: '디지털마케팅'),
-        Job(id: 'pr', name: '홍보·PR'),
-      ]),
-      JobCategory(id: 'sales-trade', name: '영업·무역', jobs: [
-        Job(id: 'b2b', name: 'B2B영업'),
-        Job(id: 'b2c', name: 'B2C영업'),
-        Job(id: 'overseas', name: '해외영업'),
-        Job(id: 'sales-mgmt', name: '영업관리'),
-        Job(id: 'trade', name: '무역'),
-        Job(id: 'sales', name: '영업'),
-      ]),
-      JobCategory(id: 'support', name: '경영지원', jobs: [
-        Job(id: 'hr', name: '인사·HR'),
         Job(id: 'finance', name: '재무·회계'),
         Job(id: 'scm', name: '구매·SCM'),
-        Job(id: 'legal', name: '법무'),
-        Job(id: 'ga', name: '총무'),
+        Job(id: 'hr', name: '인사'),
       ]),
-      JobCategory(id: 'tech', name: 'IT·개발', jobs: [
-        Job(id: 'dev', name: '개발'),
-        Job(id: 'data', name: '데이터'),
-        Job(id: 'design', name: '디자인'),
+      JobCategory(id: 'sales-mkt', name: '영업·마케팅', jobs: [
+        Job(id: 'sales', name: '영업'),
+        Job(id: 'overseas', name: '해외영업'),
+        Job(id: 'marketing', name: '마케팅'),
+        Job(id: 'brand', name: '브랜드마케팅'),
+        Job(id: 'pr', name: '홍보·PR'),
+      ]),
+      JobCategory(id: 'tech', name: '개발·디자인', jobs: [
+        Job(id: 'server', name: '서버 개발'),
+        Job(id: 'app', name: '앱 개발'),
+        Job(id: 'data', name: '데이터 분석'),
+        Job(id: 'design', name: 'UX·UI디자인'),
+      ]),
+      JobCategory(id: 'rnd-prod', name: '연구·생산', jobs: [
+        Job(id: 'rnd', name: '연구개발'),
+        Job(id: 'production', name: '생산관리'),
+        Job(id: 'quality', name: '품질관리'),
       ]),
     ],
   );
@@ -147,10 +144,10 @@ class MockData {
   );
 
   static Evidence genericReport(Company c) => Evidence(
-        title: '[샘플] ${c.name} 2025 사업보고서',
+        title: '${c.name} 2025 사업보고서',
         publishedAt: '2026.03.12',
         period: '2025.01.01 – 2025.12.31',
-        excerpt: '[샘플] ${c.name}의 사업보고서 “사업의 내용”과 “이사의 경영진단 및 분석의견”에서 주요 사업과 다음 해 계획을 확인할 수 있어요.',
+        excerpt: '${c.name}의 사업보고서 “사업의 내용”과 “이사의 경영진단 및 분석의견”에서 주요 사업과 다음 해 계획을 확인할 수 있어요.',
         url: _dartUrl,
       );
 
@@ -225,7 +222,7 @@ class MockData {
       MockQuizSeed(
         id: '${c.id}-q1',
           tags: ['공시 읽기'],
-        prompt: '[샘플] ${c.name}의 사업보고서를 볼 수 있는 공식 공시 사이트는?',
+        prompt: '${c.name}의 사업보고서를 볼 수 있는 공식 공시 사이트는?',
         title: '공시 사이트',
         choices: ['회사 블로그', 'DART 전자공시시스템', '취업 커뮤니티', '포털 지식검색'],
         correctIndex: 1,
@@ -235,7 +232,7 @@ class MockData {
       MockQuizSeed(
         id: '${c.id}-q2',
           tags: ['실적'],
-        prompt: '[샘플] 매출액에서 매출원가를 뺀 값은?',
+        prompt: '매출액에서 매출원가를 뺀 값은?',
         title: '매출총이익',
         choices: ['영업이익', '당기순이익', '매출총이익', '영업외수익'],
         correctIndex: 2,
@@ -245,7 +242,7 @@ class MockData {
       MockQuizSeed(
         id: '${c.id}-q3',
           tags: ['공시 읽기'],
-        prompt: '[샘플] 사업보고서에서 경영진이 직접 실적과 전망을 설명하는 항목은?',
+        prompt: '사업보고서에서 경영진이 직접 실적과 전망을 설명하는 항목은?',
         title: '경영진 의견 항목',
         choices: ['감사인의 감사의견', '이사의 경영진단 및 분석의견', '주주에 관한 사항', '임원의 보수'],
         correctIndex: 1,
@@ -255,7 +252,7 @@ class MockData {
       MockQuizSeed(
         id: '${c.id}-q4',
           tags: ['실적'],
-        prompt: '[샘플] 영업이익률을 구하는 식은?',
+        prompt: '영업이익률을 구하는 식은?',
         title: '영업이익률',
         choices: ['영업이익 ÷ 매출액', '순이익 ÷ 자본', '매출액 ÷ 자산', '부채 ÷ 자본'],
         correctIndex: 0,
@@ -265,7 +262,7 @@ class MockData {
       MockQuizSeed(
         id: '${c.id}-q5',
         tags: ['사업 계획'],
-        prompt: '[샘플] 회사의 부문별 매출과 주요 제품을 확인할 수 있는 사업보고서 항목은?',
+        prompt: '회사의 부문별 매출과 주요 제품을 확인할 수 있는 사업보고서 항목은?',
         title: '사업의 내용',
         choices: ['사업의 내용', '임원의 보수', '주주총회 의사록', '감사인의 감사의견'],
         correctIndex: 0,
@@ -275,7 +272,7 @@ class MockData {
       MockQuizSeed(
         id: '${c.id}-q6',
         tags: ['공시 읽기'],
-        prompt: '[샘플] 분기마다 실적을 알리는 정기 공시는?',
+        prompt: '분기마다 실적을 알리는 정기 공시는?',
         title: '분기보고서',
         choices: ['분기보고서', '증권신고서', '주요사항보고서', '대량보유보고서'],
         correctIndex: 0,
@@ -319,10 +316,10 @@ class MockData {
   static List<MockInterviewSeed> genericInterview(Company c) {
     final ev = [genericReport(c)];
     return [
-      MockInterviewSeed(id: '${c.id}-i1', text: '[샘플] ${c.name}에 지원한 이유를 {job} 직무와 연결해 말해 주세요.', evidence: ev, keywords: [c.name]),
-      MockInterviewSeed(id: '${c.id}-i2', text: '[샘플] ${c.name}의 주요 사업을 설명하고, {job}(으)로서 기여할 점을 말해 주세요.', evidence: ev, keywords: [c.name]),
-      MockInterviewSeed(id: '${c.id}-i3', text: '[샘플] 입사 후 3년 안에 ${c.name}에서 이루고 싶은 목표는 무엇인가요?', evidence: ev, keywords: [c.name]),
-      MockInterviewSeed(id: '${c.id}-i4', text: '[샘플] ${c.name}가 당신을 뽑아야 하는 이유는 무엇인가요?', evidence: ev, keywords: [c.name]),
+      MockInterviewSeed(id: '${c.id}-i1', text: '${c.name}에 지원한 이유를 {job} 직무와 연결해 말해 주세요.', evidence: ev, keywords: [c.name]),
+      MockInterviewSeed(id: '${c.id}-i2', text: '${c.name}의 주요 사업을 설명하고, {job}(으)로서 기여할 점을 말해 주세요.', evidence: ev, keywords: [c.name]),
+      MockInterviewSeed(id: '${c.id}-i3', text: '입사 후 3년 안에 ${c.name}에서 이루고 싶은 목표는 무엇인가요?', evidence: ev, keywords: [c.name]),
+      MockInterviewSeed(id: '${c.id}-i4', text: '${c.name}가 당신을 뽑아야 하는 이유는 무엇인가요?', evidence: ev, keywords: [c.name]),
     ];
   }
 

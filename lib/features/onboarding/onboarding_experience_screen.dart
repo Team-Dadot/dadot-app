@@ -16,10 +16,12 @@ class OnboardingExperienceScreen extends ConsumerStatefulWidget {
   const OnboardingExperienceScreen({super.key});
 
   @override
-  ConsumerState<OnboardingExperienceScreen> createState() => _OnboardingExperienceScreenState();
+  ConsumerState<OnboardingExperienceScreen> createState() =>
+      _OnboardingExperienceScreenState();
 }
 
-class _OnboardingExperienceScreenState extends ConsumerState<OnboardingExperienceScreen> {
+class _OnboardingExperienceScreenState
+    extends ConsumerState<OnboardingExperienceScreen> {
   bool _saving = false;
 
   Future<void> _add(int count) async {
@@ -51,17 +53,26 @@ class _OnboardingExperienceScreenState extends ConsumerState<OnboardingExperienc
         AppButton(
           label: '다음으로',
           loading: _saving,
-          onPressed: items.isEmpty || _saving ? null : () => context.push(Routes.onboardingNotification),
+          onPressed: items.isEmpty || _saving
+              ? null
+              : () => context.push(Routes.onboardingNotification),
         ),
         AppButton(
-          label: '일단 넘어갈게요',
+          label: '나중에 추가하기',
           variant: AppButtonVariant.secondary,
-          onPressed: _saving ? null : () => context.push(Routes.onboardingNotification),
+          onPressed: _saving
+              ? null
+              : () => context.push(Routes.onboardingNotification),
         ),
       ],
       children: [
         AddExperienceCard(onTap: _saving ? null : () => _add(items.length)),
-        if (list.hasError) ErrorView(error: list.error!, compact: true, onRetry: () => ref.invalidate(experiencesProvider)),
+        if (list.hasError)
+          ErrorView(
+            error: list.error!,
+            compact: true,
+            onRetry: () => ref.invalidate(experiencesProvider),
+          ),
         if (items.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           const OnboardingLabel('추가한 내 경험'),

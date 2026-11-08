@@ -24,8 +24,8 @@ String formatShortTime(DateTime d) {
   return '${formatShort(d)} $period $h12:${_two(d.minute)}';
 }
 
-/// D-10 / D-Day / D+2
-String formatDday(int dday) => dday == 0 ? 'D-Day' : dday > 0 ? 'D-$dday' : 'D+${-dday}';
+/// D-10 / D-day / D+2
+String formatDday(int dday) => dday == 0 ? 'D-day' : dday > 0 ? 'D-$dday' : 'D+${-dday}';
 
 /// 00:42
 String formatClock(Duration d) => '${_two(d.inMinutes)}:${_two(d.inSeconds % 60)}';

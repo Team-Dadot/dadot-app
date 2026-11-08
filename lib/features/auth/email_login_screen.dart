@@ -6,9 +6,10 @@ import '../../core/config/app_policy.dart';
 import '../../core/router/app_router.dart';
 import '../../core/session/session_controller.dart';
 import '../../design_system/design_system.dart';
+import 'password_reset_screen.dart';
 
-/// 이메일 · 비밀번호 로그인 (POST /v1/auth/login). 아래 "회원가입" 으로 이메일 가입 화면.
-/// 피그마에 전용 프레임이 없어 이메일 가입 화면과 같은 입력창·버튼으로 만들었다.
+/// 피그마 최종 "이메일로 로그인" (1164:6052 빈 칸 · 1164:6079 이메일 형식 오류 · 1164:6116 입력 완료)
+/// ‹ 이메일로 시작하기 / 이메일 · 비밀번호 → 로그인 → 비밀번호 찾기 · "아직 다닷 회원이 아니신가요? 회원가입"
 class EmailLoginScreen extends ConsumerStatefulWidget {
   const EmailLoginScreen({super.key});
 
@@ -19,25 +20,49 @@ class EmailLoginScreen extends ConsumerStatefulWidget {
 class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
+  bool _emailTouched = false;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailFocus.addListener(() {
+      if (!_emailFocus.hasFocus && mounted) {
+        setState(() => _emailTouched = true);
+      }
+    });
+  }
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
   }
 
-  bool get _valid => AppPolicy.isValidEmail(_email.text) && _password.text.isNotEmpty;
+  bool get _valid =>
+      AppPolicy.isValidEmail(_email.text) && _password.text.isNotEmpty;
+
+  /// 피그마 1164:6079: 이메일 칸을 벗어났는데 형식이 틀리면 빨간 테두리
+  String? get _emailError =>
+      _emailTouched &&
+          _email.text.isNotEmpty &&
+          !AppPolicy.isValidEmail(_email.text)
+      ? '이메일 형식이 올바르지 않아요'
+      : null;
 
   Future<void> _submit() async {
     if (!_valid || _saving) return;
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     try {
-      await ref.read(sessionProvider.notifier).signInWithEmail(email: _email.text.trim(), password: _password.text);
+      await ref
+          .read(sessionProvider.notifier)
+          .signInWithEmail(email: _email.text.trim(), password: _password.text);
       // 이동은 라우터 redirect 가 처리 (첫 설정 전 → 온보딩, 끝났으면 → 홈)
     } catch (e) {
       if (mounted) showErrorToast(context, e);
@@ -48,53 +73,113 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final small = AppTypography.caption.copyWith(
+      fontWeight: FontWeight.w400,
+      color: AppColors.textSub,
+    );
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '이메일로 로그인'),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
-        children: [
-          const FieldLabel('이메일'),
-          const SizedBox(height: AppSpacing.xs),
-          AppTextField(
-            controller: _email,
-            hint: '가입한 이메일',
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => _passwordFocus.requestFocus(),
-            semanticLabel: '이메일',
+      appBar: const AppNavBar(title: '이메일로 시작하기'),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            27,
+            AppSpacing.screenH,
+            AppSpacing.xl,
           ),
-          const SizedBox(height: AppSpacing.xl),
-          const FieldLabel('비밀번호'),
-          const SizedBox(height: AppSpacing.xs),
-          AppTextField(
-            controller: _password,
-            focusNode: _passwordFocus,
-            hint: '비밀번호',
-            obscureText: true,
-            textInputAction: TextInputAction.done,
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => _submit(),
-            semanticLabel: '비밀번호',
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomCta(children: [
-        AppButton(label: '로그인', loading: _saving, onPressed: _valid && !_saving ? _submit : null),
-        Center(
-          child: TextButton(
-            onPressed: _saving ? null : () => context.push(Routes.emailSignup),
-            child: Text.rich(
-              TextSpan(children: [
-                TextSpan(text: '아직 회원이 아니신가요? ', style: AppTypography.body2Medium.copyWith(color: AppColors.textCaption)),
-                TextSpan(text: '회원가입', style: AppTypography.body2Strong.copyWith(color: AppColors.ink)),
-              ]),
+          children: [
+            const AuthFieldLabel('이메일'),
+            AppTextField(
+              controller: _email,
+              focusNode: _emailFocus,
+              bordered: true,
+              clearable: true,
+              hint: '이메일을 입력해주세요',
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              errorText: _emailError,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _passwordFocus.requestFocus(),
+              semanticLabel: '이메일',
             ),
-          ),
+            const SizedBox(height: AppSpacing.lg),
+            const AuthFieldLabel('비밀번호'),
+            AppTextField(
+              controller: _password,
+              focusNode: _passwordFocus,
+              bordered: true,
+              clearable: true,
+              hint: '비밀번호를 입력해주세요',
+              obscureText: true,
+              textInputAction: TextInputAction.done,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _submit(),
+              semanticLabel: '비밀번호',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: '로그인',
+              loading: _saving,
+              onPressed: _valid && !_saving ? _submit : null,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Center(
+              child: InkWell(
+                onTap: _saving
+                    ? null
+                    : () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const PasswordResetScreen(),
+                        ),
+                      ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text('비밀번호 찾기', style: small),
+                ),
+              ),
+            ),
+            const SizedBox(height: 36),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('아직 다닷 회원이 아니신가요?', style: small),
+                const SizedBox(width: 10),
+                InkWell(
+                  onTap: _saving
+                      ? null
+                      : () => context.push(Routes.emailSignup),
+                  child: Text(
+                    '회원가입',
+                    style: small.copyWith(
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppColors.textSub,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ]),
+      ),
     );
   }
+}
+
+/// 입력칸 위 라벨 (피그마 14 Medium #55565A, 아래 4)
+class AuthFieldLabel extends StatelessWidget {
+  const AuthFieldLabel(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Text(
+      text,
+      style: AppTypography.body2Medium.copyWith(color: AppColors.textSub),
+    ),
+  );
 }

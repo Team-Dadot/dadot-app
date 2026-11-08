@@ -11,7 +11,7 @@ import '../common/pickers.dart';
 
 /// 피그마 최종 6-2 준비 기업 관리 (763:16543 · 763:16602) · 6-2 준비 기업 수정 (960:5340) · 6-3 기업 추가 시트 (960:4635)
 /// "새로운 기업 추가하기" 검색창 → 기업 추가하기 화면 → 직무·면접일 시트
-/// 준비 기업 카드: 빼기 · 정보 수정하기 / 준비했던 기업: 다시 추가하기
+/// 준비 기업 카드: 빼기 · 정보 수정하기 / 준비했던 기업: 추가
 class CompaniesScreen extends ConsumerWidget {
   const CompaniesScreen({super.key});
 
@@ -112,7 +112,7 @@ class CompaniesScreen extends ConsumerWidget {
                   name: p.companyName,
                   subtitle: '퀴즈 ${p.quizCount}문제 · 면접 답변 ${p.answerCount}개',
                   trailing: TextLink(
-                    label: '다시 추가하기',
+                    label: '추가',
                     style: AppTypography.body2Strong.copyWith(color: AppColors.ink),
                     onTap: () => _add(context, ref, p.company, list.length),
                   ),

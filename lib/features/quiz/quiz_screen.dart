@@ -42,7 +42,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   Future<void> _load() async {
     setState(() => _error = null);
     try {
-      final set = await ref.read(quizRepositoryProvider).fetchTodaySet(widget.companyId);
+      final set = await ref
+          .read(quizRepositoryProvider)
+          .fetchTodaySet(widget.companyId);
       if (!mounted) return;
       if (set.isCompleted) {
         context.pushReplacement(Routes.quizResult(set.id));
@@ -69,7 +71,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _submitting = true);
     try {
-      await ref.read(quizRepositoryProvider).submitAnswer(setId: _set!.id, questionId: _question.id, answer: answer);
+      await ref
+          .read(quizRepositoryProvider)
+          .submitAnswer(
+            setId: _set!.id,
+            questionId: _question.id,
+            answer: answer,
+          );
       invalidateProgress(ref);
       if (!mounted) return;
       if (_index + 1 >= _set!.questions.length) {
@@ -78,7 +86,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       }
       // 다닷 서버는 다음 문항을 제출한 뒤에 준다 → 세트를 다시 불러와 다음 문항을 받는다
       if (_set!.questions[_index + 1].isPlaceholder) {
-        final next = await ref.read(quizRepositoryProvider).fetchTodaySet(widget.companyId);
+        final next = await ref
+            .read(quizRepositoryProvider)
+            .fetchTodaySet(widget.companyId);
         if (!mounted) return;
         if (next.isCompleted) {
           context.pushReplacement(Routes.quizResult(next.id));
@@ -115,11 +125,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       final q = _question;
       final last = _index + 1 >= set.questions.length;
       body = ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          AppSpacing.sm,
+          AppSpacing.screenH,
+          AppSpacing.xl,
+        ),
         children: [
           Semantics(
-            label: '${set.companyName} 퀴즈 ${set.questions.length}문제 중 ${_index + 1}번째',
-            child: StepBar(current: _index + 1, total: set.questions.length, gap: 0),
+            label:
+                '${set.companyName} 퀴즈 ${set.questions.length}문제 중 ${_index + 1}번째',
+            child: StepBar(
+              current: _index + 1,
+              total: set.questions.length,
+              gap: 0,
+            ),
           ),
           const SizedBox(height: 36),
           QuizPrompt(question: q, number: _index + 1),
@@ -132,9 +152,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           ),
         ],
       );
-      bottom = BottomCta(color: AppColors.surface, children: [
-        AppButton(label: last ? '결과 보기' : '다음', loading: _submitting, onPressed: _answer == null ? null : _submitAndNext),
-      ]);
+      bottom = BottomCta(
+        color: AppColors.surface,
+        children: [
+          AppButton(
+            label: last ? '결과보기' : '다음',
+            loading: _submitting,
+            onPressed: _answer == null ? null : _submitAndNext,
+          ),
+        ],
+      );
     }
 
     // 한 문제라도 고르거나 풀었으면 나갈 때 확인
@@ -146,7 +173,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         final keepGoing = await showChoiceDialog(
           context,
           title: '퀴즈를 그만두시나요?',
-          message: '나가면 저장 되지 않아요',
+          message: '나가면 저장되지 않아요',
           cancelLabel: '나가기',
           confirmLabel: '진행하기',
           warning: true,

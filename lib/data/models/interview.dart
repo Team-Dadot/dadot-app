@@ -246,3 +246,11 @@ class AnswerFeedback {
         overall: overall,
       );
 }
+
+/// 답변 평가(AI)가 실패했을 때. 결과 화면이 "일시적인 오류가 발생했어요 · 다시 시도하기" 를 보여준다 (피그마 4-E4 1335:8179).
+class EvaluationFailed implements Exception {
+  const EvaluationFailed({required this.answerId, this.message});
+
+  final String answerId;
+  final String? message;
+}

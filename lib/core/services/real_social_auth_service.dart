@@ -13,10 +13,13 @@ import 'social_auth_service.dart';
 /// - 카카오: 카카오톡이 있으면 카카오톡으로, 없거나 실패하면 카카오계정(웹)으로 → accessToken 을 서버에 보낸다
 /// - Apple: 서버 nonce 원문의 SHA-256 을 SDK 에 넣고 → identityToken · authorizationCode · nonce 원문을 서버에 보낸다
 class RealSocialAuthService implements SocialAuthService {
-  const RealSocialAuthService({required this.kakaoReady});
+  const RealSocialAuthService({required this.kakaoReady, this.expectedKakaoAppId = 0});
 
   /// main.dart 에서 KakaoSdk.init 을 했는지 (네이티브 앱 키가 있는지)
   final bool kakaoReady;
+
+  /// 서버 KAKAO_APP_ID. 카카오 토큰이 다른 앱에서 나왔으면 서버에 보내기 전에 알려 준다.
+  final int expectedKakaoAppId;
 
   @override
   Future<SocialCredential> signIn(SocialProvider provider, {String? nonce}) => switch (provider) {
@@ -51,6 +54,16 @@ class RealSocialAuthService implements SocialAuthService {
     } on PlatformException catch (e) {
       if (e.code == 'CANCELED') throw const SocialAuthCancelled();
       rethrow;
+    }
+    if (expectedKakaoAppId > 0) {
+      final info = await UserApi.instance.accessTokenInfo();
+      if (info.appId != expectedKakaoAppId) {
+        throw AppException(
+          AppErrorKind.validation,
+          message: '카카오 앱이 서버와 달라요 (앱 ${info.appId} · 서버 $expectedKakaoAppId). 서버 카카오 앱의 네이티브 앱 키가 필요해요.',
+          code: 'KAKAO_APP_MISMATCH',
+        );
+      }
     }
     return SocialCredential(provider: SocialProvider.kakao, token: token.accessToken);
   }

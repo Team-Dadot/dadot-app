@@ -3,38 +3,47 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_policy.dart';
 import '../../core/providers.dart';
 import '../../data/models/catalog.dart';
 import '../../data/models/quiz.dart';
 import '../../design_system/design_system.dart';
 import 'data_providers.dart';
 
-// ---------------------------------------------------------------- 직무 선택 시트 (1-4 · 6-3)
+// ---------------------------------------------------------------- 직무 추가하기 (1-4 · 6-3)
 
-/// 피그마 6-3 "지원 직무" 시트: 자주 찾는 직무 칩 + 전체 직무(분류 ›) + 선택 완료.
-/// 고르면 Job 을 돌려준다 (직접 입력은 id 가 빈 문자열).
-Future<Job?> showJobPicker(BuildContext context, {required String companyName, String? selectedName}) {
-  return showBareSheet<Job>(
-    context,
-    expand: true,
-    builder: (_) => _JobPickerBody(selectedName: selectedName),
+/// 피그마 최종 "직무 추가하기" (1212:7788 · 1212:7994 · 1212:8111) 전체 화면:
+/// 직접 입력 칸 · 자주 찾는 직무 칩 · 전체 직무(분류를 누르면 펼쳐서 직무 태그) → "‘서비스기획’ 직무로 지원해요".
+/// 고르면 Job 을 돌려준다 (직접 입력은 id 가 빈 문자열). 뒤로 가면 null.
+Future<Job?> showJobPicker(
+  BuildContext context, {
+  required String companyName,
+  String? selectedName,
+}) {
+  return Navigator.of(context).push<Job>(
+    MaterialPageRoute(
+      builder: (_) => _JobPickerScreen(selectedName: selectedName),
+    ),
   );
 }
 
-class _JobPickerBody extends ConsumerStatefulWidget {
-  const _JobPickerBody({this.selectedName});
+class _JobPickerScreen extends ConsumerStatefulWidget {
+  const _JobPickerScreen({this.selectedName});
 
   final String? selectedName;
 
   @override
-  ConsumerState<_JobPickerBody> createState() => _JobPickerBodyState();
+  ConsumerState<_JobPickerScreen> createState() => _JobPickerScreenState();
 }
 
-class _JobPickerBodyState extends ConsumerState<_JobPickerBody> {
+class _JobPickerScreenState extends ConsumerState<_JobPickerScreen> {
   final _custom = TextEditingController();
-  late Job? _picked = widget.selectedName == null ? null : Job(id: '', name: widget.selectedName!);
-  JobCategory? _category;
-  bool _customOpen = false;
+  late Job? _picked = widget.selectedName == null
+      ? null
+      : Job(id: '', name: widget.selectedName!);
+
+  /// 펼친 분류 id
+  String? _open;
 
   @override
   void dispose() {
@@ -42,79 +51,326 @@ class _JobPickerBodyState extends ConsumerState<_JobPickerBody> {
     super.dispose();
   }
 
-  void _select(Job job) => setState(() => _picked = job);
+  String get _customName => _custom.text.trim();
 
-  Widget _chips(List<Job> jobs) => Wrap(
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
-        children: [
-          for (final j in jobs) SelectChip(label: j.name, selected: j.name == _picked?.name, onTap: () => _select(j)),
-        ],
-      );
+  /// 직접 입력한 글자가 있으면 그게 우선
+  Job? get _selection =>
+      _customName.isNotEmpty ? Job(id: '', name: _customName) : _picked;
+
+  void _select(Job job) {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _custom.clear();
+      _picked = job;
+    });
+  }
+
+  void _done(List<Job> all) {
+    final picked = _selection;
+    if (picked == null) return;
+    // 이름만 받은 직무(처음 값 · 직접 입력)는 목록에서 같은 이름을 찾아 id 를 붙인다
+    final known = all.where((j) => j.name == picked.name).firstOrNull;
+    Navigator.of(context)
+        .pop(picked.id.isEmpty && known != null ? known : picked);
+  }
 
   Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Text(text, style: AppTypography.body2Medium.copyWith(color: AppColors.textCaption)),
-      );
+    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+    child: Text(
+      text,
+      style: AppTypography.body1Medium.copyWith(
+        fontSize: 16,
+        color: AppColors.textGuide,
+      ),
+    ),
+  );
+
+  /// 피그마 목록 이름을 서버 직무와 이름으로 맞춘다 (공백·가운뎃점 차이는 무시)
+  static List<Job> _popularJobs(JobCatalog c) {
+    String key(String s) => s.replaceAll(RegExp(r'[\s·/]'), '');
+    final all = {for (final j in [...c.categories.expand((g) => g.jobs), ...c.popular]) key(j.name): j};
+    return [for (final n in AppPolicy.popularJobNames) Job(id: all[key(n)]?.id ?? '', name: n)];
+  }
 
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(jobCatalogProvider);
-    final cat = _category;
-    final customName = _custom.text.trim();
-    final picked = _customOpen && customName.isNotEmpty ? Job(id: '', name: customName) : _picked;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SheetHeader(
-          title: cat?.name ?? '지원 직무',
-          onBack: cat == null ? () => Navigator.of(context).pop() : () => setState(() => _category = null),
+    final selection = _selection;
+    final selectedName = _customName.isEmpty ? _picked?.name : null;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: const AppNavBar(title: '직무 추가하기'),
+      body: catalog.when(
+        loading: () => const LoadingView(),
+        error: (e, _) => ErrorView(
+          error: e,
+          onRetry: () => ref.invalidate(jobCatalogProvider),
         ),
-        Expanded(
-          child: catalog.when(
-            loading: () => const LoadingView(),
-            error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(jobCatalogProvider)),
-            data: (c) => ListView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.lg),
-              children: cat != null
-                  ? [_chips(cat.jobs)]
-                  : [
-                      _label('자주 찾는 직무'),
-                      _chips(c.popular),
-                      const SizedBox(height: AppSpacing.xl),
-                      _label('전체 직무'),
-                      MenuGroup(children: [
-                        for (final category in c.categories) MenuRow(title: category.name, onTap: () => setState(() => _category = category)),
-                        MenuRow(
-                          title: '찾는 직무가 없어요 · 직접 입력',
-                          showChevron: false,
-                          onTap: () => setState(() => _customOpen = !_customOpen),
+        data: (c) => GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.translucent,
+          child: ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.sm,
+              AppSpacing.screenH,
+              AppSpacing.xl,
+            ),
+            children: [
+              _label('직접 입력'),
+              _CustomJobField(
+                controller: _custom,
+                onChanged: () => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              _label('자주 찾는 직무'),
+              Wrap(
+                spacing: 13,
+                runSpacing: 10,
+                children: [
+                  for (final j in _popularJobs(c))
+                    _JobPill(
+                      label: j.name,
+                      selected: j.name == selectedName,
+                      outlined: false,
+                      onTap: () => _select(j),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              _label('전체 직무'),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < c.categories.length; i++)
+                      _CategoryRow(
+                        category: c.categories[i],
+                        open: _open == c.categories[i].id,
+                        last: i == c.categories.length - 1,
+                        selectedName: selectedName,
+                        onToggle: () => setState(
+                          () => _open = _open == c.categories[i].id
+                              ? null
+                              : c.categories[i].id,
                         ),
-                      ]),
-                      if (_customOpen) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        AppTextField(controller: _custom, hint: '직무 이름', autofocus: true, onChanged: (_) => setState(() {})),
-                      ],
-                    ],
+                        onSelect: _select,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: BottomCta(
+        children: [
+          AppButton(
+            label: selection == null
+                ? '직무를 선택해 주세요'
+                : '‘${selection.name}’ 직무로 지원해요',
+            onPressed: selection == null || catalog.asData == null
+                ? null
+                : () => _done(catalog.asData!.value.all.toList()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 직접 입력 칸: 흰 바탕 · 회색 테두리 · 모서리 16 · 오른쪽 ✕
+class _CustomJobField extends StatelessWidget {
+  const _CustomJobField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.only(left: 15, right: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE9EBED)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: (_) => onChanged(),
+              maxLength: AppPolicy.jobNameMaxLength,
+              textInputAction: TextInputAction.done,
+              style: AppTypography.body1Medium.copyWith(
+                fontSize: 16,
+                color: AppColors.textStrong,
+              ),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                counterText: '',
+                hintText: '직무를 입력하세요',
+                hintStyle: AppTypography.body1Medium.copyWith(
+                  fontSize: 16,
+                  color: AppColors.textGuide,
+                ),
+              ),
+            ),
+          ),
+          // 피그마 1212:7788: 비어 있어도 ✕ 를 보여 준다 (누르면 지우기)
+          IconButton(
+              tooltip: '지우기',
+              onPressed: () {
+                controller.clear();
+                onChanged();
+              },
+              icon: const Icon(
+                Icons.close_rounded,
+                size: 22,
+                color: AppColors.textSub,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 전체 직무 한 줄: "경영·기획 ⌄" — 누르면 펼쳐서 직무 태그 (펼친 줄 위 16 · 태그 아래 17)
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({
+    required this.category,
+    required this.open,
+    required this.last,
+    required this.selectedName,
+    required this.onToggle,
+    required this.onSelect,
+  });
+
+  final JobCategory category;
+  final bool open;
+  final bool last;
+  final String? selectedName;
+  final VoidCallback onToggle;
+  final ValueChanged<Job> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: last
+            ? null
+            : const Border(bottom: BorderSide(color: AppColors.fillMuted)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            button: true,
+            expanded: open,
+            child: InkWell(
+              onTap: onToggle,
+              child: SizedBox(
+                height: 56,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        category.name,
+                        style: AppTypography.body1Medium.copyWith(
+                          fontSize: 16,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    // 접힘 ⌄ · 펼침 ⌃
+                    AnimatedRotation(
+                      turns: open ? -0.25 : 0.25,
+                      duration: const Duration(milliseconds: 150),
+                      child: const Chevron(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (open)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 17),
+              child: Wrap(
+                spacing: 13,
+                runSpacing: 12,
+                children: [
+                  for (final j in category.jobs)
+                    _JobPill(
+                      label: j.name,
+                      selected: j.name == selectedName,
+                      outlined: true,
+                      onTap: () => onSelect(j),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 직무 칩. 자주 찾는 직무는 흰 알약, 전체 직무 태그는 회색 테두리. 고르면 진한 차콜 + 흰 글자.
+class _JobPill extends StatelessWidget {
+  const _JobPill({
+    required this.label,
+    required this.selected,
+    required this.outlined,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool outlined;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        // 글자 폭만큼만 (alignment 를 주면 Wrap 안에서 한 줄을 꽉 채워 버린다)
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.textStrong : AppColors.surface,
+            borderRadius: BorderRadius.circular(999),
+            border: outlined
+                ? Border.all(
+                    color: selected
+                        ? AppColors.textStrong
+                        : AppColors.fillMuted,
+                  )
+                : null,
+          ),
+          child: Text(
+            label,
+            style: AppTypography.body2Medium.copyWith(
+              color: selected ? AppColors.white : AppColors.textGuide,
             ),
           ),
         ),
-        BottomCta(
-          color: AppColors.sheet,
-          children: [
-            AppButton(
-              label: '선택 완료',
-              onPressed: picked == null
-                  ? null
-                  : () {
-                      // 처음에 이름만 받은 직무는 목록에서 id 를 다시 찾는다
-                      final known = catalog.asData?.value.all.where((j) => j.name == picked.name).firstOrNull;
-                      Navigator.of(context).pop(picked.id.isEmpty && known != null ? known : picked);
-                    },
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }
@@ -123,7 +379,11 @@ class _JobPickerBodyState extends ConsumerState<_JobPickerBody> {
 
 /// 피그마 942:3771 "‹ 2026.10 ›" 달력 시트 → 선택 완료. 닫으면 null.
 Future<DateTime?> pickInterviewDate(BuildContext context, {DateTime? initial}) {
-  return showBareSheet<DateTime>(context, color: AppColors.surface, builder: (_) => _CalendarSheet(initial: initial));
+  return showBareSheet<DateTime>(
+    context,
+    color: AppColors.surface,
+    builder: (_) => _CalendarSheet(initial: initial),
+  );
 }
 
 class _CalendarSheet extends StatefulWidget {
@@ -140,25 +400,43 @@ class _CalendarSheetState extends State<_CalendarSheet> {
     final n = DateTime.now();
     return DateTime(n.year, n.month, n.day);
   }();
-  late DateTime? _picked = widget.initial != null && !widget.initial!.isBefore(_today) ? widget.initial : null;
-  late DateTime _month = DateTime((_picked ?? _today).year, (_picked ?? _today).month);
+  late DateTime? _picked =
+      widget.initial != null && !widget.initial!.isBefore(_today)
+      ? widget.initial
+      : null;
+  late DateTime _month = DateTime(
+    (_picked ?? _today).year,
+    (_picked ?? _today).month,
+  );
 
   static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
   bool get _canPrev => _month.isAfter(DateTime(_today.year, _today.month));
   bool get _canNext => _month.isBefore(DateTime(_today.year + 2, 12));
 
-  void _shift(int months) => setState(() => _month = DateTime(_month.year, _month.month + months));
+  void _shift(int months) =>
+      setState(() => _month = DateTime(_month.year, _month.month + months));
 
   @override
   Widget build(BuildContext context) {
     // 월요일 시작 6주 칸
     final first = _month.subtract(Duration(days: _month.weekday - 1));
-    final days = [for (var i = 0; i < 42; i++) DateTime(first.year, first.month, first.day + i)];
-    final rows = days.last.subtract(const Duration(days: 6)).month != _month.month ? 5 : 6;
+    final days = [
+      for (var i = 0; i < 42; i++)
+        DateTime(first.year, first.month, first.day + i),
+    ];
+    final rows =
+        days.last.subtract(const Duration(days: 6)).month != _month.month
+        ? 5
+        : 6;
     final label = '${_month.year}.${_month.month.toString().padLeft(2, '0')}';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, 0),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.lg,
+        AppSpacing.screenH,
+        0,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -168,18 +446,30 @@ class _CalendarSheetState extends State<_CalendarSheet> {
               IconButton(
                 tooltip: '이전 달',
                 onPressed: _canPrev ? () => _shift(-1) : null,
-                icon: Icon(Icons.chevron_left_rounded, size: 28, color: _canPrev ? AppColors.ink : AppColors.statusIcon),
+                icon: Icon(
+                  Icons.chevron_left_rounded,
+                  size: 28,
+                  color: _canPrev ? AppColors.ink : AppColors.statusIcon,
+                ),
               ),
               Expanded(
                 child: Semantics(
                   header: true,
-                  child: Text(label, textAlign: TextAlign.center, style: AppTypography.number(20)),
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.number(20),
+                  ),
                 ),
               ),
               IconButton(
                 tooltip: '다음 달',
                 onPressed: _canNext ? () => _shift(1) : null,
-                icon: Icon(Icons.chevron_right_rounded, size: 28, color: _canNext ? AppColors.ink : AppColors.statusIcon),
+                icon: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 28,
+                  color: _canNext ? AppColors.ink : AppColors.statusIcon,
+                ),
               ),
             ],
           ),
@@ -187,7 +477,15 @@ class _CalendarSheetState extends State<_CalendarSheet> {
           Row(
             children: [
               for (final w in _weekdays)
-                Expanded(child: Text(w, textAlign: TextAlign.center, style: AppTypography.caption.copyWith(color: AppColors.textCaption))),
+                Expanded(
+                  child: Text(
+                    w,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textCaption,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -202,7 +500,12 @@ class _CalendarSheetState extends State<_CalendarSheet> {
           SafeArea(
             top: false,
             minimum: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: AppButton(label: '선택 완료', onPressed: _picked == null ? null : () => Navigator.of(context).pop(_picked)),
+            child: AppButton(
+              label: '선택 완료',
+              onPressed: _picked == null
+                  ? null
+                  : () => Navigator.of(context).pop(_picked),
+            ),
           ),
         ],
       ),
@@ -216,8 +519,8 @@ class _CalendarSheetState extends State<_CalendarSheet> {
     final color = selected
         ? AppColors.white
         : enabled
-            ? AppColors.ink
-            : AppColors.statusIcon;
+        ? AppColors.ink
+        : AppColors.statusIcon;
     return Semantics(
       button: enabled,
       selected: selected,
@@ -233,8 +536,19 @@ class _CalendarSheetState extends State<_CalendarSheet> {
               width: 40,
               height: 40,
               alignment: Alignment.center,
-              decoration: selected ? const BoxDecoration(color: AppColors.cardDark, shape: BoxShape.circle) : null,
-              child: Text('${d.day}', style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: color)),
+              decoration: selected
+                  ? const BoxDecoration(
+                      color: AppColors.cardDark,
+                      shape: BoxShape.circle,
+                    )
+                  : null,
+              child: Text(
+                '${d.day}',
+                style: AppTypography.subheading.copyWith(
+                  fontWeight: AppTypography.medium,
+                  color: color,
+                ),
+              ),
             ),
           ),
         ),
@@ -247,7 +561,12 @@ class _CalendarSheetState extends State<_CalendarSheet> {
 
 /// 근거 카드 (기아 2025 사업보고서 / 공시일 … / 발췌)
 class EvidenceCard extends StatelessWidget {
-  const EvidenceCard({super.key, required this.evidence, this.compactTitle = false, this.quoted = false});
+  const EvidenceCard({
+    super.key,
+    required this.evidence,
+    this.compactTitle = false,
+    this.quoted = false,
+  });
 
   final Evidence evidence;
 
@@ -269,19 +588,36 @@ class EvidenceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(evidence.title, style: compactTitle ? AppTypography.body1Strong : AppTypography.cardTitle),
+          Text(
+            evidence.title,
+            style: compactTitle
+                ? AppTypography.body1Strong
+                : AppTypography.cardTitle,
+          ),
           if (meta.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xs),
-            for (final m in meta) Text(m, style: AppTypography.caption.copyWith(color: AppColors.textPlaceholder)),
+            for (final m in meta)
+              Text(
+                m,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textPlaceholder,
+                ),
+              ),
           ],
           const SizedBox(height: AppSpacing.md),
           Text(
             quoted ? '“${evidence.excerpt}”' : evidence.excerpt,
-            style: AppTypography.body1.copyWith(color: AppColors.textStrong, height: 1.6),
+            style: AppTypography.body1.copyWith(
+              color: AppColors.textStrong,
+              height: 1.6,
+            ),
           ),
           if (evidence.interpretation != null) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text('해석 · ${evidence.interpretation}', style: AppTypography.caption.copyWith(color: AppColors.textSub)),
+            Text(
+              '해석 · ${evidence.interpretation}',
+              style: AppTypography.caption.copyWith(color: AppColors.textSub),
+            ),
           ],
         ],
       ),
@@ -290,11 +626,16 @@ class EvidenceCard extends StatelessWidget {
 }
 
 /// 공시 근거 시트 (3-4). [questionId] 가 있으면 "오류 제보하기" 를 보낸다.
-Future<void> showEvidenceSheet(BuildContext context, {required Evidence evidence, String? questionId}) {
+Future<void> showEvidenceSheet(
+  BuildContext context, {
+  required Evidence evidence,
+  String? questionId,
+}) {
   return showAppSheet<void>(
     context,
     title: '공시 근거',
-    builder: (_) => _EvidenceSheetBody(evidence: evidence, questionId: questionId),
+    builder: (_) =>
+        _EvidenceSheetBody(evidence: evidence, questionId: questionId),
   );
 }
 
@@ -316,7 +657,9 @@ class _EvidenceSheetBodyState extends ConsumerState<_EvidenceSheetBody> {
     if (id == null) return;
     setState(() => _reporting = true);
     try {
-      await ref.read(quizRepositoryProvider).reportQuestion(questionId: id, reason: '공시 근거 시트에서 오류 제보');
+      await ref
+          .read(quizRepositoryProvider)
+          .reportQuestion(questionId: id, reason: '공시 근거 시트에서 오류 제보');
       if (!mounted) return;
       Navigator.of(context).pop();
       showToast(context, '제보해 주셔서 고마워요. 확인 후 고칠게요.');
@@ -331,7 +674,12 @@ class _EvidenceSheetBodyState extends ConsumerState<_EvidenceSheetBody> {
   Widget build(BuildContext context) {
     final url = widget.evidence.url;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xxs, AppSpacing.screenH, AppSpacing.xl),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.xxs,
+        AppSpacing.screenH,
+        AppSpacing.xl,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -341,11 +689,17 @@ class _EvidenceSheetBodyState extends ConsumerState<_EvidenceSheetBody> {
             AppButton(
               label: 'DART 원문 보기 ↗',
               variant: AppButtonVariant.outline,
-              onPressed: () => unawaited(ref.read(linkServiceProvider).open(url)),
+              onPressed: () =>
+                  unawaited(ref.read(linkServiceProvider).open(url)),
             ),
           if (widget.questionId != null) ...[
             const SizedBox(height: AppSpacing.xs),
-            AppButton(label: '오류 제보하기', variant: AppButtonVariant.secondary, loading: _reporting, onPressed: _report),
+            AppButton(
+              label: '오류 제보하기',
+              variant: AppButtonVariant.secondary,
+              loading: _reporting,
+              onPressed: _report,
+            ),
           ],
         ],
       ),
@@ -362,10 +716,17 @@ typedef AddedCompany = ({String id, String name});
 /// - [onAdd] 를 주면 이 화면에 머물며 여러 곳을 추가하고, 아래 "추가 완료" 로 돌아간다 (첫 설정, 피그마 1074:12509).
 /// - [onAdd] 가 없으면 고른 기업을 돌려주며 닫힌다 (마이 → 직무·면접일 시트).
 class CompanySearchScreen extends ConsumerStatefulWidget {
-  const CompanySearchScreen({super.key, this.watchAdded, this.onAdd, this.onRemove, this.exclude = const {}});
+  const CompanySearchScreen({
+    super.key,
+    this.watchAdded,
+    this.onAdd,
+    this.onRemove,
+    this.exclude = const {},
+  });
 
   final List<AddedCompany> Function(WidgetRef ref)? watchAdded;
-  final void Function(BuildContext context, WidgetRef ref, Company company)? onAdd;
+  final void Function(BuildContext context, WidgetRef ref, Company company)?
+  onAdd;
   final void Function(WidgetRef ref, String companyId)? onRemove;
 
   /// 결과에서 뺄 기업 (이미 준비 중)
@@ -378,13 +739,21 @@ class CompanySearchScreen extends ConsumerStatefulWidget {
     void Function(WidgetRef ref, String companyId)? onRemove,
     Set<String> exclude = const {},
   }) {
-    return Navigator.of(context).push<Company>(MaterialPageRoute(
-      builder: (_) => CompanySearchScreen(watchAdded: watchAdded, onAdd: onAdd, onRemove: onRemove, exclude: exclude),
-    ));
+    return Navigator.of(context).push<Company>(
+      MaterialPageRoute(
+        builder: (_) => CompanySearchScreen(
+          watchAdded: watchAdded,
+          onAdd: onAdd,
+          onRemove: onRemove,
+          exclude: exclude,
+        ),
+      ),
+    );
   }
 
   @override
-  ConsumerState<CompanySearchScreen> createState() => _CompanySearchScreenState();
+  ConsumerState<CompanySearchScreen> createState() =>
+      _CompanySearchScreenState();
 }
 
 class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
@@ -420,77 +789,123 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
         children: [
           Expanded(
             child: ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
-        children: [
-          SearchField(controller: _search, hint: '기업 이름을 검색해보세요', autofocus: true, onChanged: _onQuery),
-          if (added.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text('추가한 기업', style: AppTypography.caption.copyWith(color: AppColors.textCaption)),
-            const SizedBox(height: AppSpacing.xs),
-            SizedBox(
-              height: 72,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: added.length,
-                separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-                itemBuilder: (_, i) => _AddedBubble(
-                  name: added[i].name,
-                  onRemove: widget.onRemove == null ? null : () => widget.onRemove!(ref, added[i].id),
-                ),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.sm,
+                AppSpacing.screenH,
+                AppSpacing.xl,
               ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          companies.when(
-            skipLoadingOnReload: true,
-            loading: () => const Padding(padding: EdgeInsets.all(AppSpacing.xl), child: LoadingView()),
-            error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(companiesProvider(_query))),
-            data: (list) {
-              final shown = list.where((c) => !widget.exclude.contains(c.id)).toList();
-              if (shown.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 120),
-                  child: _query.isEmpty
-                      ? const StatusMessage(title: '더 추가할 기업이 없어요', icon: StatusIcon.search)
-                      : StatusMessage(title: '‘$_query’ 검색 결과가 없어요', description: '기업명을 다시 확인해보세요', icon: StatusIcon.search),
-                );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < shown.length; i++) ...[
-                    if (i > 0) const SizedBox(height: AppSpacing.sm),
-                    () {
-                      final c = shown[i];
-                      final isAdded = addedIds.contains(c.id);
-                      return CompanyTile(
-                        name: c.name,
-                        subtitle: c.industry,
-                        onTap: isAdded
+              children: [
+                SearchField(
+                  controller: _search,
+                  hint: '기업 이름을 검색해보세요',
+                  autofocus: true,
+                  onChanged: _onQuery,
+                ),
+                if (added.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    '추가한 기업',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textCaption,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(
+                    height: 72,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: added.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(width: AppSpacing.md),
+                      itemBuilder: (_, i) => _AddedBubble(
+                        name: added[i].name,
+                        onRemove: widget.onRemove == null
                             ? null
-                            : () {
-                                if (widget.onAdd != null) {
-                                  widget.onAdd!(context, ref, c);
-                                } else {
-                                  Navigator.of(context).pop(c);
-                                }
-                              },
-                        trailing: Text(
-                          isAdded ? '추가됨' : '추가',
-                          style: AppTypography.caption.copyWith(color: isAdded ? AppColors.textStrong : AppColors.textCaption),
-                        ),
-                      );
-                    }(),
-                  ],
+                            : () => widget.onRemove!(ref, added[i].id),
+                      ),
+                    ),
+                  ),
                 ],
-              );
-            },
-          ),
-        ],
+                const SizedBox(height: AppSpacing.md),
+                companies.when(
+                  skipLoadingOnReload: true,
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(AppSpacing.xl),
+                    child: LoadingView(),
+                  ),
+                  error: (e, _) => ErrorView(
+                    error: e,
+                    compact: true,
+                    onRetry: () => ref.invalidate(companiesProvider(_query)),
+                  ),
+                  data: (list) {
+                    final shown = list
+                        .where((c) => !widget.exclude.contains(c.id))
+                        .toList();
+                    if (shown.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 120),
+                        child: _query.isEmpty
+                            ? const StatusMessage(
+                                title: '더 추가할 기업이 없어요',
+                                icon: StatusIcon.search,
+                              )
+                            : StatusMessage(
+                                title: '‘$_query’ 검색 결과가 없어요',
+                                description: '기업명을 다시 확인해보세요',
+                                icon: StatusIcon.search,
+                              ),
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < shown.length; i++) ...[
+                          if (i > 0) const SizedBox(height: AppSpacing.sm),
+                          () {
+                            final c = shown[i];
+                            final isAdded = addedIds.contains(c.id);
+                            return CompanyTile(
+                              name: c.name,
+                              subtitle: c.industry,
+                              onTap: isAdded
+                                  ? null
+                                  : () {
+                                      if (widget.onAdd != null) {
+                                        widget.onAdd!(context, ref, c);
+                                      } else {
+                                        Navigator.of(context).pop(c);
+                                      }
+                                    },
+                              trailing: Text(
+                                isAdded ? '추가됨' : '추가',
+                                style: AppTypography.caption.copyWith(
+                                  color: isAdded
+                                      ? AppColors.textStrong
+                                      : AppColors.textCaption,
+                                ),
+                              ),
+                            );
+                          }(),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
           ),
-          if (widget.onAdd != null) BottomCta(children: [AppButton(label: '추가 완료', onPressed: () => Navigator.of(context).pop())]),
+          if (widget.onAdd != null)
+            BottomCta(
+              children: [
+                AppButton(
+                  label: '추가 완료',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -527,8 +942,15 @@ class _AddedBubble extends StatelessWidget {
                       child: Container(
                         width: 18,
                         height: 18,
-                        decoration: const BoxDecoration(color: AppColors.fillMuted, shape: BoxShape.circle),
-                        child: const Icon(Icons.close_rounded, size: 12, color: AppColors.textSub),
+                        decoration: const BoxDecoration(
+                          color: AppColors.fillMuted,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 12,
+                          color: AppColors.textSub,
+                        ),
                       ),
                     ),
                   ),
@@ -536,7 +958,12 @@ class _AddedBubble extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.xxs),
-          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textStrong)),
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.caption.copyWith(color: AppColors.textStrong),
+          ),
         ],
       ),
     );

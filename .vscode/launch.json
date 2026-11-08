@@ -9,7 +9,17 @@
       "args": ["--dart-define=USE_MOCK=true"]
     },
     {
-      "name": "Dev API",
+      "name": "Dev API (api.dadot.store)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--dart-define=USE_MOCK=false",
+        "--dart-define=API_BASE_URL=https://api.dadot.store"
+      ]
+    },
+    {
+      "name": "Local API (내 Mac에서 서버 띄웠을 때)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",

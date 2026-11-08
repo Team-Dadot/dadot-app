@@ -41,6 +41,9 @@ abstract interface class AuthRepository {
 
   Future<AuthSession> signInWithEmail({required String email, required String password});
 
+  /// 비밀번호 찾기: PASSWORD_RESET 인증을 마친 verificationToken 으로 새 비밀번호 설정 (로그인 전)
+  Future<void> resetPassword({required String verificationToken, required String newPassword});
+
   /// 저장된 토큰으로 내 정보 조회 (앱 시작 시)
   Future<AppUser> fetchMe();
 
@@ -125,7 +128,11 @@ abstract interface class InterviewRepository {
     required AnswerInputType inputType,
   });
 
+  /// 평가가 실패했으면 [EvaluationFailed] 를 던진다.
   Future<AnswerFeedback> fetchFeedback(String answerId);
+
+  /// 실패한 평가 다시 요청 (제출 횟수는 줄지 않는다)
+  Future<void> retryEvaluation(String answerId);
 
   /// 임시저장 (4-3). 복습 탭에 "작성 중" 으로 보인다.
   Future<void> saveDraft({required String questionId, required String content});

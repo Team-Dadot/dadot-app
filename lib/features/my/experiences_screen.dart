@@ -55,11 +55,19 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
     }
     final draft = await showExperienceSheet(context);
     if (draft == null || !mounted) return;
-    await _run(() => ref.read(profileRepositoryProvider).addExperiences([draft]));
+    await _run(
+      () => ref.read(profileRepositoryProvider).addExperiences([draft]),
+    );
   }
 
   Future<void> _view(Experience e) async {
-    final action = await showAppSheet<String>(context, title: e.title, expand: true, heightFactor: SheetHeights.view, builder: (_) => _ExperienceView(experience: e));
+    final action = await showAppSheet<String>(
+      context,
+      title: e.title,
+      expand: true,
+      heightFactor: SheetHeights.view,
+      builder: (_) => _ExperienceView(experience: e),
+    );
     if (!mounted) return;
     if (action == 'edit') {
       final draft = await showExperienceSheet(
@@ -70,7 +78,11 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
       );
       if (draft == null || !mounted) return;
       await _run(() async {
-        await ref.read(profileRepositoryProvider).updateExperience(Experience(id: e.id, title: draft.title, content: draft.content));
+        await ref
+            .read(profileRepositoryProvider)
+            .updateExperience(
+              Experience(id: e.id, title: draft.title, content: draft.content),
+            );
       });
     } else if (action == 'delete') {
       await _delete([e]);
@@ -79,6 +91,16 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
 
   Future<void> _delete(List<Experience> items) async {
     if (items.isEmpty) return;
+    // 피그마 1164:6572 삭제 확인 팝업
+    final ok = await showConfirmDialog(
+      context,
+      warning: true,
+      title: '정말 삭제할까요?',
+      message: '이 작업은 되돌릴 수 없어요',
+      cancelLabel: '취소',
+      confirmLabel: '삭제',
+    );
+    if (!ok || !mounted) return;
     await _run(() async {
       final repo = ref.read(profileRepositoryProvider);
       for (final e in items) {
@@ -101,16 +123,23 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
     final items = _deleted;
     _undoTimer?.cancel();
     setState(() => _deleted = const []);
-    await _run(() => ref.read(profileRepositoryProvider).addExperiences([
-          for (final e in items) ExperienceDraft(title: e.title, content: e.content),
-        ]));
+    await _run(
+      () => ref.read(profileRepositoryProvider).addExperiences([
+        for (final e in items)
+          ExperienceDraft(title: e.title, content: e.content),
+      ]),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final list = ref.watch(experiencesProvider);
     final items = list.asData?.value ?? const <Experience>[];
-    final label = AppTypography.body2Medium.copyWith(color: AppColors.textCaption);
+    // 피그마: "내 경험" · "2/100" · "전체 선택" 16 Medium #767A82
+    final label = AppTypography.body1Medium.copyWith(
+      fontSize: 16,
+      color: AppColors.textCaption,
+    );
     final allSelected = items.isNotEmpty && _selected.length == items.length;
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -122,10 +151,13 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
               onPressed: _busy
                   ? null
                   : () => setState(() {
-                        _editing = !_editing;
-                        _selected.clear();
-                      }),
-              style: TextButton.styleFrom(foregroundColor: AppColors.textCaption, textStyle: AppTypography.body2Medium),
+                      _editing = !_editing;
+                      _selected.clear();
+                    }),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textCaption,
+                textStyle: AppTypography.body2Medium,
+              ),
               child: Text(_editing ? '취소' : '편집'),
             ),
         ],
@@ -133,12 +165,20 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
       body: list.when(
         skipLoadingOnReload: true,
         loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(experiencesProvider)),
+        error: (e, _) => ErrorView(
+          error: e,
+          onRetry: () => ref.invalidate(experiencesProvider),
+        ),
         data: (items) => ListView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.md,
+            AppSpacing.screenH,
+            AppSpacing.xl,
+          ),
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.xxs, bottom: AppSpacing.sm),
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: _editing
                   ? Row(
                       children: [
@@ -158,26 +198,31 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                CheckMark(checked: allSelected, size: 18),
-                                const SizedBox(width: AppSpacing.xs),
+                                CheckMark(checked: allSelected),
+                                const SizedBox(width: 10),
                                 Text('전체 선택', style: label),
                               ],
                             ),
                           ),
                         ),
-                        const Spacer(),
-                        Text('${_selected.length}개 선택', style: label),
                       ],
                     )
                   : Row(
                       children: [
-                        Expanded(child: Text('저장한 경험', style: label)),
-                        Text('${items.length}/${AppPolicy.maxExperiences}', style: label),
+                        Expanded(child: Text('내 경험', style: label)),
+                        Text(
+                          '${items.length}/${AppPolicy.maxExperiences}',
+                          style: label,
+                        ),
                       ],
                     ),
             ),
             if (items.isEmpty)
-              const EmptyView(card: true, title: '저장한 경험이 없어요', description: '경험을 추가하면 내 경험에 맞춘 질문을 받아요.'),
+              const EmptyView(
+                card: true,
+                title: '저장한 경험이 없어요',
+                description: '경험을 추가하면 내 경험에 맞춘 질문을 받아요.',
+              ),
             for (final e in items) ...[
               _ExperienceCard(
                 experience: e,
@@ -187,7 +232,11 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
                     ? null
                     : () {
                         if (_editing) {
-                          setState(() => _selected.contains(e.id) ? _selected.remove(e.id) : _selected.add(e.id));
+                          setState(
+                            () => _selected.contains(e.id)
+                                ? _selected.remove(e.id)
+                                : _selected.add(e.id),
+                          );
                         } else {
                           _view(e);
                         }
@@ -195,27 +244,45 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
-            if (_deleted.isNotEmpty) _UndoBanner(count: _deleted.length, onUndo: _undo),
+            if (_deleted.isNotEmpty)
+              _UndoBanner(count: _deleted.length, onUndo: _undo),
           ],
         ),
       ),
-      bottomNavigationBar: BottomCta(children: [
-        if (_editing)
-          _DeleteButton(
-            count: _selected.length,
-            loading: _busy,
-            onPressed: _selected.isEmpty || _busy ? null : () => _delete(items.where((e) => _selected.contains(e.id)).toList()),
-          )
-        else
-          AppButton(label: '경험 추가하기', loading: _busy, onPressed: _busy || list.isLoading ? null : () => _add(items.length)),
-      ]),
+      bottomNavigationBar: BottomCta(
+        children: [
+          if (_editing)
+            _DeleteButton(
+              count: _selected.length,
+              loading: _busy,
+              onPressed: _selected.isEmpty || _busy
+                  ? null
+                  : () => _delete(
+                      items.where((e) => _selected.contains(e.id)).toList(),
+                    ),
+            )
+          else
+            AppButton(
+              label: '경험 추가하기',
+              loading: _busy,
+              onPressed: _busy || list.isLoading
+                  ? null
+                  : () => _add(items.length),
+            ),
+        ],
+      ),
     );
   }
 }
 
 /// 경험 카드: 제목 + ⌄ / 한 줄 미리보기. 편집 중이면 앞에 체크, 고르면 진한 테두리.
 class _ExperienceCard extends StatelessWidget {
-  const _ExperienceCard({required this.experience, required this.editing, required this.selected, required this.onTap});
+  const _ExperienceCard({
+    required this.experience,
+    required this.editing,
+    required this.selected,
+    required this.onTap,
+  });
 
   final Experience experience;
   final bool editing;
@@ -231,24 +298,37 @@ class _ExperienceCard extends StatelessWidget {
       child: OutlinedBox(
         radius: AppRadius.button,
         onTap: onTap,
+        // 피그마 1164:6538: 편집 중 고른 카드는 1px 진한 테두리 (체크 표시는 없음)
         borderColor: editing && selected ? AppColors.ink : null,
         padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (editing) ...[CheckMark(checked: selected), const SizedBox(width: AppSpacing.sm)],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(e.title, style: AppTypography.cardTitle.copyWith(color: AppColors.ink))),
-                      if (!editing) const ExcludeSemantics(child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.statusIcon)),
-                    ],
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    e.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.cardTitle.copyWith(
+                      fontSize: 18,
+                      color: AppColors.textStrong,
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(e.content, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body2.copyWith(color: AppColors.textCaption)),
-                ],
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                const Chevron(),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              e.content,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body1.copyWith(
+                fontSize: 16,
+                color: AppColors.textCaption,
               ),
             ),
           ],
@@ -271,13 +351,27 @@ class _ExperienceView extends StatelessWidget {
       children: [
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.md),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.xs,
+              AppSpacing.screenH,
+              AppSpacing.md,
+            ),
             child: Container(
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
               child: Scrollbar(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Text(experience.content, style: AppTypography.body1.copyWith(color: AppColors.textStrong, height: 1.6)),
+                  child: Text(
+                    experience.content,
+                    style: AppTypography.body1.copyWith(
+                      color: AppColors.textStrong,
+                      height: 1.6,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -286,8 +380,15 @@ class _ExperienceView extends StatelessWidget {
         BottomCta(
           color: AppColors.sheet,
           children: [
-            AppButton(label: '이 경험 수정하기', onPressed: () => Navigator.of(context).pop('edit')),
-            AppButton(label: '삭제하기', variant: AppButtonVariant.secondary, onPressed: () => Navigator.of(context).pop('delete')),
+            AppButton(
+              label: '이 경험 수정하기',
+              onPressed: () => Navigator.of(context).pop('edit'),
+            ),
+            AppButton(
+              label: '삭제하기',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.of(context).pop('delete'),
+            ),
           ],
         ),
       ],
@@ -297,7 +398,11 @@ class _ExperienceView extends StatelessWidget {
 
 /// 빨간 삭제하기 버튼 (편집 중)
 class _DeleteButton extends StatelessWidget {
-  const _DeleteButton({required this.count, required this.loading, required this.onPressed});
+  const _DeleteButton({
+    required this.count,
+    required this.loading,
+    required this.onPressed,
+  });
 
   final int count;
   final bool loading;
@@ -308,7 +413,7 @@ class _DeleteButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onPressed != null,
-      label: '선택한 경험 $count개 삭제하기',
+      label: '$count개 경험 삭제하기',
       excludeSemantics: true,
       child: TextButton(
         onPressed: onPressed,
@@ -319,12 +424,21 @@ class _DeleteButton extends StatelessWidget {
           disabledBackgroundColor: AppColors.destructive.withValues(alpha: 0.4),
           disabledForegroundColor: AppColors.white,
           textStyle: AppTypography.button,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.button),
+          ),
           splashFactory: NoSplash.splashFactory,
         ),
         child: loading
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.white))
-            : const Text('삭제하기'),
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: AppColors.white,
+                ),
+              )
+            : Text('$count개 경험 삭제하기'),
       ),
     );
   }
@@ -342,18 +456,43 @@ class _UndoBanner extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        decoration: BoxDecoration(color: AppColors.destructiveSoft, borderRadius: BorderRadius.circular(AppRadius.dialogButton)),
+        // 피그마 1164:6478: 분홍 띠 r12 · 13 Regular
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFE3E3),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Row(
           children: [
-            const ExcludeSemantics(child: Icon(Icons.error_rounded, size: 16, color: AppColors.destructive)),
+            const ExcludeSemantics(
+              child: Icon(
+                Icons.error_rounded,
+                size: 16,
+                color: AppColors.destructive,
+              ),
+            ),
             const SizedBox(width: AppSpacing.xs),
-            Expanded(child: Text('$count개의 경험을 삭제했어요', style: AppTypography.caption.copyWith(color: AppColors.destructive))),
+            Expanded(
+              child: Text(
+                '$count개의 경험을 삭제했어요.',
+                style: AppTypography.caption.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.destructive,
+                ),
+              ),
+            ),
             InkWell(
               onTap: onUndo,
               child: Text(
                 '되돌리기',
-                style: AppTypography.captionStrong.copyWith(color: AppColors.ink, decoration: TextDecoration.underline),
+                style: AppTypography.caption.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textCaption,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.textCaption,
+                ),
               ),
             ),
           ],

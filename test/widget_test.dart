@@ -37,6 +37,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // 처음 실행: 스플래시(최소 1.5초) → 튜토리얼 3장 → 로그인
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('복잡한 기업 분석을 한 번에'), findsWidgets);
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('시작하기'));
+    await tester.pumpAndSettle();
+
     // 1-1: 테스트 환경(Android 로 취급)에서는 카카오 + 이메일
     expect(find.text('공시 기반 퀴즈로 익히고\n내 경험을 담아 답해보세요'), findsOneWidget);
     expect(find.text('이메일로 시작하기'), findsOneWidget);
@@ -59,14 +70,14 @@ void main() {
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
-    // STEP 2 직무 → 지원 직무 시트
+    // STEP 2 직무 → 직무 추가하기 화면 (피그마 1212:7788)
     expect(find.text('기업별 지원 직무를\n알려주세요'), findsOneWidget);
     await tester.tap(find.text('선택'));
     await tester.pumpAndSettle();
-    expect(find.text('지원 직무'), findsOneWidget);
+    expect(find.text('직무 추가하기'), findsOneWidget);
     await tester.tap(find.text('마케팅').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('선택 완료'));
+    await tester.tap(find.text('‘마케팅’ 직무로 지원해요'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
@@ -76,9 +87,9 @@ void main() {
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
-    // STEP 4 경험 → 일단 넘어갈게요
+    // STEP 4 경험 → 나중에 추가하기
     expect(find.text('면접에서 꺼낼\n경험을 알려주세요'), findsOneWidget);
-    await tester.tap(find.text('일단 넘어갈게요'));
+    await tester.tap(find.text('나중에 추가하기'));
     await tester.pumpAndSettle();
 
     // STEP 5 알림 → 일단 넘어갈게요

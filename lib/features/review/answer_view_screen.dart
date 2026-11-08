@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,7 +9,6 @@ import '../../data/models/interview.dart';
 import '../../data/models/records.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
-import '../interview/feedback_screen.dart';
 import '../interview/interview_widgets.dart';
 
 /// 5-2 면접 복습 → 답변 피드백 (지난 시도 다시 보기 · 다시 답하기)
@@ -50,40 +50,97 @@ class _AnswerViewScreenState extends ConsumerState<AnswerViewScreen> {
     final d = detail.asData?.value;
     final last = d?.attempts.lastOrNull;
     final remaining = d?.question.retryRemaining ?? last?.retryRemaining ?? 0;
+    final selected =
+        d?.attempts.where((a) => a.answerId == _answerId).firstOrNull ?? last;
+    final cta = d == null
+        ? null
+        : BottomCta(
+            children: [
+              if (last == null)
+                AppButton(
+                  label: '이어서 답변하기',
+                  onPressed: () =>
+                      context.push(Routes.interviewAnswer(widget.questionId)),
+                )
+              else
+                RetryAnswerButton(
+                  prefix: '다시 답변하기',
+                  remaining: remaining,
+                  onRetry: () =>
+                      context.push(Routes.interviewAnswer(widget.questionId)),
+                ),
+            ],
+          );
+    // 피그마 1337: 지난 답변이 있으면 면접 피드백과 같은 진한 히어로 + 카드
+    if (d != null && selected != null) {
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: RefreshIndicator(
+            onRefresh: () =>
+                ref.refresh(interviewRecordProvider(widget.questionId).future),
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                FeedbackHero(
+                  feedback: selected,
+                  onBack: () => Navigator.of(context).maybePop(),
+                ),
+                _body(d),
+              ],
+            ),
+          ),
+          bottomNavigationBar: cta,
+        ),
+      );
+    }
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: const AppNavBar(title: '결과 확인', color: AppColors.surface),
+      backgroundColor: AppColors.background,
+      appBar: const AppNavBar(title: '면접 피드백'),
       body: detail.when(
         skipLoadingOnRefresh: true,
         loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(interviewRecordProvider(widget.questionId))),
-        data: _body,
+        error: (e, _) => ErrorView(
+          error: e,
+          onRetry: () =>
+              ref.invalidate(interviewRecordProvider(widget.questionId)),
+        ),
+        data: (d) => ListView(children: [_body(d)]),
       ),
-      bottomNavigationBar: d == null
-          ? null
-          : BottomCta(children: [
-              AppButton(
-                label: last == null ? '이어서 답변하기  →' : retryLabel(last.copyWith(retryRemaining: remaining), prefix: '다시 답하기'),
-                onPressed: last == null || remaining > 0 ? () => context.push(Routes.interviewAnswer(widget.questionId)) : null,
-              ),
-            ]),
+      bottomNavigationBar: cta,
     );
   }
 
   Widget _body(InterviewRecordDetail d) {
     final attempts = d.attempts;
-    final selected = attempts.where((a) => a.answerId == _answerId).firstOrNull ?? attempts.lastOrNull;
-    return ListView(
+    final selected =
+        attempts.where((a) => a.answerId == _answerId).firstOrNull ??
+        attempts.lastOrNull;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (selected == null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.xl),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.sm,
+              AppSpacing.screenH,
+              AppSpacing.xl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Semantics(header: true, child: Text(d.question.text, style: AppTypography.title4)),
+                Semantics(
+                  header: true,
+                  child: Text(d.question.text, style: AppTypography.title4),
+                ),
                 const SizedBox(height: AppSpacing.gap),
-                const EmptyView(compact: true, title: '아직 제출한 답변이 없어요', description: '임시저장한 답변을 이어서 써 보세요.'),
+                const EmptyView(
+                  compact: true,
+                  title: '아직 제출한 답변이 없어요',
+                  description: '임시저장한 답변을 이어서 써 보세요.',
+                ),
               ],
             ),
           )

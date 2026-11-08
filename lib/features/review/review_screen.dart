@@ -40,7 +40,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     final home = ref.watch(homeProvider);
     final selectedId = ref.watch(selectedCompanyIdProvider);
     final summary = home.asData?.value;
-    final current = summary == null ? null : resolveSelected(summary, selectedId);
+    final current = summary == null
+        ? null
+        : resolveSelected(summary, selectedId);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -50,17 +52,25 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
             ? null
             : CompanyChip(
                 label: current.companyName,
-                onTap: () => showCompanySwitchSheet(context, home: summary!, selectedId: current.companyId),
+                onTap: () => showCompanySwitchSheet(
+                  context,
+                  home: summary!,
+                  selectedId: current.companyId,
+                ),
               ),
       ),
       body: home.when(
         skipLoadingOnRefresh: true,
         skipLoadingOnReload: true,
         loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(homeProvider)),
+        error: (e, _) =>
+            ErrorView(error: e, onRetry: () => ref.invalidate(homeProvider)),
         data: (_) {
           if (current == null) {
-            return const EmptyView(title: '준비 중인 기업이 없어요', description: '마이 > 준비 기업 관리에서 기업을 추가해 주세요.');
+            return const EmptyView(
+              title: '준비 중인 기업이 없어요',
+              description: '마이 > 준비 기업 관리에서 기업을 추가해 주세요.',
+            );
           }
           final companyId = current.companyId;
           return RefreshIndicator(
@@ -70,13 +80,22 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               ref.invalidate(interviewRecordsProvider(companyId));
             },
             child: ListView(
-              padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xl),
+              padding: const EdgeInsets.only(
+                top: AppSpacing.sm,
+                bottom: AppSpacing.xl,
+              ),
               children: [
-                SegmentedTabs(labels: const ['퀴즈', '면접'], index: _tab, onChanged: (i) => setState(() => _tab = i)),
+                SegmentedTabs(
+                  labels: const ['퀴즈', '면접'],
+                  index: _tab,
+                  onChanged: (i) => setState(() => _tab = i),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Padding(
                   padding: AppSpacing.screen,
-                  child: _tab == 0 ? _QuizReview(companyId: companyId) : _InterviewReview(companyId: companyId),
+                  child: _tab == 0
+                      ? _QuizReview(companyId: companyId)
+                      : _InterviewReview(companyId: companyId),
                 ),
               ],
             ),
@@ -106,11 +125,21 @@ class _QuizReviewState extends ConsumerState<_QuizReview> {
     final items = ref.watch(quizReviewProvider(widget.companyId));
     return items.when(
       skipLoadingOnRefresh: true,
-      loading: () => const Padding(padding: EdgeInsets.all(AppSpacing.xxl), child: LoadingView()),
-      error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(quizReviewProvider(widget.companyId))),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.xxl),
+        child: LoadingView(),
+      ),
+      error: (e, _) => ErrorView(
+        error: e,
+        compact: true,
+        onRetry: () => ref.invalidate(quizReviewProvider(widget.companyId)),
+      ),
       data: (all) {
         if (all.isEmpty) {
-          return const _ReviewEmpty(title: '아직 푼 퀴즈가 없어요.', description: '퀴즈를 풀고 기업 정보를 익혀보세요!');
+          return const _ReviewEmpty(
+            title: '아직 푼 퀴즈가 없어요.',
+            description: '퀴즈를 풀고 기업 정보를 익혀보세요!',
+          );
         }
         final wrong = all.where((i) => i.wrong).toList();
         final shown = _wrongOnly ? wrong : all;
@@ -119,14 +148,26 @@ class _QuizReviewState extends ConsumerState<_QuizReview> {
           children: [
             Row(
               children: [
-                SelectChip(label: '전체', selected: !_wrongOnly, onTap: () => setState(() => _wrongOnly = false)),
+                SelectChip(
+                  label: '전체',
+                  selected: !_wrongOnly,
+                  onTap: () => setState(() => _wrongOnly = false),
+                ),
                 const SizedBox(width: AppSpacing.xs),
-                SelectChip(label: '오답', selected: _wrongOnly, onTap: () => setState(() => _wrongOnly = true)),
+                SelectChip(
+                  label: '오답',
+                  selected: _wrongOnly,
+                  onTap: () => setState(() => _wrongOnly = true),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.xxl),
             if (shown.isEmpty)
-              const EmptyView(compact: true, title: '다시 풀 오답이 없어요', description: '틀린 문제가 생기면 여기에 모아 둘게요.')
+              const EmptyView(
+                compact: true,
+                title: '다시 풀 오답이 없어요',
+                description: '틀린 문제가 생기면 여기에 모아 둘게요.',
+              )
             else
               for (final item in shown) ...[
                 _QuizReviewCard(item: item),
@@ -144,31 +185,105 @@ class _QuizReviewCard extends StatelessWidget {
 
   final QuizReviewItem item;
 
-  /// "해설 보기": 해설 + 공시 근거
+  /// 피그마 1337:10053 "문제 해설" 시트: 문제 · 흰 카드(정답 : ○○ / 해설 | 공시 근거 / 인용 / 공시일 | 보고서) · 공시 근거 보기
   void _showExplanation(BuildContext context) {
     final ev = item.evidence ?? item.question.evidence;
+    final body = AppTypography.body1.copyWith(
+      fontSize: 16,
+      height: 1.6,
+      color: const Color(0xFF727479),
+    );
+    final head = AppTypography.body1.copyWith(
+      fontSize: 16,
+      height: 1.6,
+      color: AppColors.textStrong,
+    );
+    final meta = AppTypography.caption.copyWith(
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+      color: AppColors.textGuide,
+    );
+    final correct = item.correctText;
     showAppSheet<void>(
       context,
-      title: '해설',
-      builder: (_) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xxs, AppSpacing.screenH, AppSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(item.question.prompt, style: AppTypography.subheading),
-            const SizedBox(height: AppSpacing.sm),
-            InfoBox(child: Text(item.explanation, style: AppTypography.body1.copyWith(color: AppColors.textStrong, height: 1.6))),
-            if (ev != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              AppButton(
-                label: '공시 근거 보기',
-                variant: AppButtonVariant.secondary,
-                small: true,
-                onPressed: () => showEvidenceSheet(context, evidence: ev, questionId: item.question.id),
+      title: '문제 해설',
+      expand: true,
+      builder: (sheetContext) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.xxs,
+                AppSpacing.screenH,
+                AppSpacing.lg,
               ),
-            ],
-          ],
-        ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    item.question.prompt,
+                    style: AppTypography.title4.copyWith(
+                      color: AppColors.ink,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (correct != null) Text('정답 : $correct', style: head),
+                        if (correct != null)
+                          const SizedBox(height: AppSpacing.xs),
+                        Text(item.explanation, style: body),
+                        if (ev != null) ...[
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppSpacing.md,
+                            ),
+                            child: LineDivider(),
+                          ),
+                          Text('공시 근거', style: head),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(ev.excerpt, style: body),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            [
+                              if (ev.publishedAt != null) ev.publishedAt!,
+                              ev.title,
+                            ].join('  |  '),
+                            style: meta,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (ev != null)
+            BottomCta(
+              color: AppColors.sheet,
+              children: [
+                AppButton(
+                  label: '공시 근거 보기',
+                  onPressed: () => showEvidenceSheet(
+                    context,
+                    evidence: ev,
+                    questionId: item.question.id,
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -224,53 +339,106 @@ class ReviewFolderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (Color bg, Color fg, IconData icon) = switch (tone) {
-      ReviewTone.warn => (AppColors.accentSoft, AppColors.accent, Icons.warning_rounded),
-      ReviewTone.draft => (AppColors.pointSoft, AppColors.pointText, Icons.edit_rounded),
-      ReviewTone.done => (AppColors.infoSoft, AppColors.info, Icons.description_rounded),
+      ReviewTone.warn => (
+        AppColors.accentSoft,
+        AppColors.accent,
+        Icons.warning_rounded,
+      ),
+      ReviewTone.draft => (
+        AppColors.pointSoft,
+        AppColors.pointText,
+        Icons.edit_rounded,
+      ),
+      ReviewTone.done => (
+        AppColors.infoSoft,
+        AppColors.info,
+        Icons.description_rounded,
+      ),
     };
     return GestureDetector(
       onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Text(date, style: AppTypography.caption.copyWith(color: AppColors.textStrong.withValues(alpha: 0.6))),
+                Text(
+                  date,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textStrong,
+                    fontWeight: AppTypography.medium,
+                  ),
+                ),
                 if (scoreTag != null) ...[
                   const SizedBox(width: AppSpacing.xs),
-                  Text(scoreTag!, style: AppTypography.captionStrong.copyWith(color: fg)),
+                  Text(
+                    scoreTag!,
+                    style: AppTypography.captionStrong.copyWith(color: fg),
+                  ),
                 ],
                 const Spacer(),
                 Container(
                   height: 20,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                  decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(icon, size: 12, color: fg),
                       const SizedBox(width: 2),
-                      Text(status, style: AppTypography.captionStrong.copyWith(color: fg, height: 1.2)),
+                      Text(
+                        status,
+                        style: AppTypography.captionStrong.copyWith(
+                          color: fg,
+                          height: 1.2,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(title, style: AppTypography.subheading.copyWith(color: AppColors.textStrong, height: 1.45)),
+            Text(
+              title,
+              style: AppTypography.subheading.copyWith(
+                color: AppColors.textStrong,
+                height: 1.45,
+              ),
+            ),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
+                // 피그마 1337:10014: 회색 버튼 #E9EBED · 글자 #303137 (42, 모서리 10)
                 if (secondaryLabel != null)
                   Expanded(
-                    child: AppButton(label: secondaryLabel!, small: true, variant: AppButtonVariant.secondary, onPressed: onSecondary),
+                    child: _CardGreyButton(
+                      label: secondaryLabel!,
+                      onPressed: onSecondary,
+                    ),
                   ),
-                if (secondaryLabel != null && primaryLabel != null) const SizedBox(width: AppSpacing.sm),
+                if (secondaryLabel != null && primaryLabel != null)
+                  const SizedBox(width: AppSpacing.sm),
                 if (primaryLabel != null)
-                  Expanded(child: AppButton(label: primaryLabel!, small: true, variant: AppButtonVariant.point, onPressed: onPrimary)),
+                  Expanded(
+                    child: AppButton(
+                      label: primaryLabel!,
+                      small: true,
+                      variant: AppButtonVariant.point,
+                      onPressed: onPrimary,
+                    ),
+                  ),
               ],
             ),
           ],
@@ -321,7 +489,9 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
     );
     if (!ok || !mounted) return;
     try {
-      await ref.read(recordsRepositoryProvider).deleteInterviewRecord(r.questionId);
+      await ref
+          .read(recordsRepositoryProvider)
+          .deleteInterviewRecord(r.questionId);
       invalidateProgress(ref);
       if (mounted) showToast(context, '삭제했어요.');
     } catch (e) {
@@ -334,17 +504,31 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
     final records = ref.watch(interviewRecordsProvider(widget.companyId));
     return records.when(
       skipLoadingOnRefresh: true,
-      loading: () => const Padding(padding: EdgeInsets.all(AppSpacing.xxl), child: LoadingView()),
-      error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(interviewRecordsProvider(widget.companyId))),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.xxl),
+        child: LoadingView(),
+      ),
+      error: (e, _) => ErrorView(
+        error: e,
+        compact: true,
+        onRetry: () =>
+            ref.invalidate(interviewRecordsProvider(widget.companyId)),
+      ),
       data: (all) {
         if (all.isEmpty) {
-          return const _ReviewEmpty(title: '아직 대답한 질문이 없어요.', description: '질문에 답변하고 피드백을 받아보세요!');
+          return const _ReviewEmpty(
+            title: '아직 답변한 질문이 없어요',
+            description: '면접 질문에 답변하고 복습해보세요!',
+          );
         }
         final shown = switch (_filter) {
           _InterviewFilter.all => all,
-          _InterviewFilter.needsWork => all.where((r) => r.status == AnswerStatus.needsWork).toList(),
-          _InterviewFilter.draft => all.where((r) => r.status == AnswerStatus.draft).toList(),
-          _InterviewFilter.complete => all.where((r) => r.status == AnswerStatus.complete).toList(),
+          _InterviewFilter.needsWork =>
+            all.where((r) => r.status == AnswerStatus.needsWork).toList(),
+          _InterviewFilter.draft =>
+            all.where((r) => r.status == AnswerStatus.draft).toList(),
+          _InterviewFilter.complete =>
+            all.where((r) => r.status == AnswerStatus.complete).toList(),
         };
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -357,14 +541,22 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
                   (_InterviewFilter.draft, '작성중'),
                   (_InterviewFilter.complete, '완성 답변'),
                 ]) ...[
-                  SelectChip(label: label, selected: _filter == f, onTap: () => setState(() => _filter = f)),
+                  SelectChip(
+                    label: label,
+                    selected: _filter == f,
+                    onTap: () => setState(() => _filter = f),
+                  ),
                   const SizedBox(width: AppSpacing.xs),
                 ],
               ],
             ),
             const SizedBox(height: AppSpacing.xxl),
             if (shown.isEmpty)
-              const EmptyView(compact: true, title: '해당하는 답변이 없어요')
+              const EmptyView(
+                compact: true,
+                title: '해당하는 답변이 없어요',
+                description: '답변을 쌓아 내용을 확인해 보세요!',
+              )
             else
               for (final r in shown) ...[
                 _InterviewRecordCard(record: r, onDelete: () => _delete(r)),
@@ -395,16 +587,22 @@ class _InterviewRecordCard extends StatelessWidget {
       AnswerStatus.complete => ('완성 답변', ReviewTone.done),
     };
     return Semantics(
-      customSemanticsActions: {const CustomSemanticsAction(label: '삭제'): onDelete},
+      customSemanticsActions: {
+        const CustomSemanticsAction(label: '삭제'): onDelete,
+      },
       child: ReviewFolderCard(
-        date: r.lastAt == null ? '작성 중' : formatDotSpaced(r.lastAt!).replaceAll(RegExp(r'\.$'), ''),
+        date: r.lastAt == null
+            ? '작성 중'
+            : formatDotSpaced(r.lastAt!).replaceAll(RegExp(r'\.$'), ''),
         // 복습 카드에는 점수를 보여주지 않는다 (상태 배지만)
         status: status,
         tone: tone,
         title: r.questionText,
         // 피그마: 보완 필요 = 평가 보기 + 다시 답변하기 / 작성 중 = 이어서 답변하기 / 완성 답변 = 평가 보기
         secondaryLabel: draft ? null : '평가 보기',
-        onSecondary: draft ? null : () => context.push(Routes.answerView(r.questionId)),
+        onSecondary: draft
+            ? null
+            : () => context.push(Routes.answerView(r.questionId)),
         primaryLabel: switch (r.status) {
           AnswerStatus.draft => '이어서 답변하기',
           AnswerStatus.needsWork => '다시 답변하기',
@@ -412,6 +610,40 @@ class _InterviewRecordCard extends StatelessWidget {
         },
         onPrimary: () => context.push(Routes.interviewAnswer(r.questionId)),
         onLongPress: onDelete,
+      ),
+    );
+  }
+}
+
+class _CardGreyButton extends StatelessWidget {
+  const _CardGreyButton({required this.label, this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(10);
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: const Color(0xFFE9EBED),
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: radius,
+          child: SizedBox(
+            height: 42,
+            child: Center(
+              child: Text(
+                label,
+                style: AppTypography.subheading.copyWith(color: AppColors.textStrong),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

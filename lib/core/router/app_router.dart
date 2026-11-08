@@ -6,6 +6,7 @@ import '../../features/auth/email_login_screen.dart';
 import '../../features/auth/email_signup_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/splash_screen.dart';
+import '../../features/auth/tutorial_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/interview/answer_screen.dart';
 import '../../features/interview/feedback_screen.dart';
@@ -41,6 +42,7 @@ class Routes {
   Routes._();
 
   static const splash = '/splash';
+  static const tutorial = '/tutorial'; // 첫 실행 튜토리얼 3장 (로그인 전)
   static const login = '/login'; // 1-1
   static const emailLogin = '/login/email'; // 이메일 로그인
   static const emailSignup = '/login/email/signup'; // 이메일로 가입 1~3
@@ -92,8 +94,12 @@ class Routes {
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 /// 로그인·첫 설정 상태에 따라 갈 수 있는 화면을 정한다.
-String? sessionRedirect(SessionState session, String location) {
+/// 처음 설치하고 로그인 전이면 스플래시 → 튜토리얼 3장 → 로그인 (튜토리얼은 한 번만).
+String? sessionRedirect(SessionState session, String location, {bool tutorialSeen = true, bool splashElapsed = true}) {
   final atSplash = location == Routes.splash;
+  final atTutorial = location == Routes.tutorial;
+  // 앱을 막 켰으면 로그인 확인이 끝났어도 스플래시를 잠깐 보여 준다
+  if (!splashElapsed && atSplash) return null;
   final atLogin = location == Routes.login || location.startsWith('${Routes.login}/');
   final atOnboarding = location.startsWith('/onboarding');
 
@@ -101,12 +107,13 @@ String? sessionRedirect(SessionState session, String location) {
     case SessionStatus.unknown:
       return atSplash ? null : Routes.splash;
     case SessionStatus.unauthenticated:
+      if (!tutorialSeen) return atTutorial ? null : Routes.tutorial;
       return atLogin ? null : Routes.login;
     case SessionStatus.onboarding:
       // 첫 설정 화면들이 서버에 저장된 값을 불러와 이어서 진행한다
       return atOnboarding ? null : Routes.onboardingCompanies;
     case SessionStatus.ready:
-      if (atSplash || atLogin || atOnboarding) return Routes.home;
+      if (atSplash || atTutorial || atLogin || atOnboarding) return Routes.home;
       return null;
   }
 }
@@ -115,6 +122,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   final session = ValueNotifier<SessionState>(ref.read(sessionProvider));
   ref.listen<SessionState>(sessionProvider, (_, next) => session.value = next);
   ref.onDispose(session.dispose);
+  final tutorial = ValueNotifier<bool>(ref.read(tutorialSeenProvider));
+  ref.listen<bool>(tutorialSeenProvider, (_, next) => tutorial.value = next);
+  ref.onDispose(tutorial.dispose);
+  final splashElapsed = ValueNotifier<bool>(ref.read(splashElapsedProvider));
+  ref.listen<bool>(splashElapsedProvider, (_, next) => splashElapsed.value = next);
+  ref.onDispose(splashElapsed.dispose);
 
   Page<void> fade(GoRouterState state, Widget child) => NoTransitionPage<void>(key: state.pageKey, child: child);
   GoRoute top(String path, Widget Function(GoRouterState s) build) =>
@@ -123,10 +136,16 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: Routes.splash,
-    refreshListenable: session,
-    redirect: (context, state) => sessionRedirect(session.value, state.matchedLocation),
+    refreshListenable: Listenable.merge([session, tutorial, splashElapsed]),
+    redirect: (context, state) => sessionRedirect(
+      session.value,
+      state.matchedLocation,
+      tutorialSeen: tutorial.value,
+      splashElapsed: splashElapsed.value,
+    ),
     routes: [
       GoRoute(path: Routes.splash, pageBuilder: (_, s) => fade(s, const SplashScreen())),
+      GoRoute(path: Routes.tutorial, pageBuilder: (_, s) => fade(s, const TutorialScreen())),
       GoRoute(
         path: Routes.login,
         pageBuilder: (_, s) => fade(s, const LoginScreen()),

@@ -379,6 +379,16 @@ class RemoteAuthRepository implements AuthRepository {
     return _session(data);
   }
 
+  @override
+  Future<void> resetPassword({required String verificationToken, required String newPassword}) async {
+    await _api.post(
+      ApiPaths.passwordReset,
+      body: {'verificationToken': verificationToken, 'newPassword': newPassword},
+      auth: false,
+      idempotencyKey: _idem(),
+    );
+  }
+
   /// 로그인 응답에는 사용자 정보가 없다 → 받은 토큰으로 내 정보를 바로 조회
   Future<AuthSession> _session(Map<String, dynamic> data) async {
     final token = _str(data, ['accessToken']);
@@ -1091,10 +1101,7 @@ class RemoteInterviewRepository implements InterviewRepository {
         final status = (_str(v, ['status', 'evaluationStatus']) ?? _str(_map(v['task']), ['status']) ?? '').toUpperCase();
         final result = _map(v['result']);
         if (_isFailed(status)) {
-          throw AppException(
-            AppErrorKind.server,
-            message: _str(_map(v['error']), ['message']) ?? '답변을 평가하지 못했어요. 잠시 후 복습 탭에서 다시 확인해 주세요.',
-          );
+          throw EvaluationFailed(answerId: attemptId, message: _str(_map(v['error']), ['message']));
         }
         if (result != null && _int(result, ['scorePercent', 'totalScore', 'score']) != null) return v;
         if (status.isNotEmpty && !_isRunning(status) && result != null) return v;
@@ -1102,6 +1109,12 @@ class RemoteInterviewRepository implements InterviewRepository {
       await Future<void>.delayed(_poll);
     }
     throw const AppException(AppErrorKind.timeout, message: '평가가 늦어지고 있어요. 잠시 후 복습 탭에서 결과를 확인해 주세요.');
+  }
+
+  /// POST /interview-attempts/{id}/evaluation-tasks (202) → 다시 평가. 결과는 fetchFeedback 이 기다린다.
+  @override
+  Future<void> retryEvaluation(String answerId) async {
+    await _api.post(ApiPaths.attemptEvaluationTasks(answerId), idempotencyKey: _idem());
   }
 
   @override
@@ -1172,6 +1185,7 @@ class RemoteRecordsRepository implements RecordsRepository {
         explanation: _str(d, ['explanation']) ?? '',
         solvedAt: _date(j['lastAnsweredAt']) ?? _date(d['submittedAt']) ?? DateTime.now(),
         evidence: _firstEvidence(d['evidence']),
+        correctChoiceId: _str(d, ['correctOptionId']),
       );
     }));
   }

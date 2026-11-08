@@ -43,7 +43,9 @@ class _PasswordScreenState extends ConsumerState<PasswordScreen> {
 
   String? get _problem {
     if (_code.text.trim().length != 6) return '본인 확인 코드 6자리를 입력해 주세요.';
-    if (!AppPolicy.isValidPassword(_password.text)) return '새 비밀번호는 영문·숫자·특수문자 조합 8-20자예요.';
+    if (!AppPolicy.isValidPassword(_password.text)) {
+      return '새 비밀번호는 영문, 숫자를 포함한 8자 이상이에요.';
+    }
     if (_password.text != _confirm.text) return '새 비밀번호가 서로 달라요.';
     return null;
   }
@@ -57,7 +59,9 @@ class _PasswordScreenState extends ConsumerState<PasswordScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     try {
-      await ref.read(authRepositoryProvider).changePassword(code: _code.text.trim(), newPassword: _password.text);
+      await ref
+          .read(authRepositoryProvider)
+          .changePassword(code: _code.text.trim(), newPassword: _password.text);
       if (!mounted) return;
       showToast(context, '비밀번호를 바꿨어요.');
       context.pop();
@@ -70,14 +74,25 @@ class _PasswordScreenState extends ConsumerState<PasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filled = _code.text.isNotEmpty && _password.text.isNotEmpty && _confirm.text.isNotEmpty;
+    final filled =
+        _code.text.isNotEmpty &&
+        _password.text.isNotEmpty &&
+        _confirm.text.isNotEmpty;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AppNavBar(title: '비밀번호 변경'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          AppSpacing.md,
+          AppSpacing.screenH,
+          AppSpacing.xl,
+        ),
         children: [
-          const PageTitle('비밀번호를\n관리해요.', description: '가입한 이메일로 본인 확인 코드를 보내드려요.'),
+          const PageTitle(
+            '비밀번호를\n관리해요.',
+            description: '가입한 이메일로 본인 확인 코드를 보내드려요.',
+          ),
           const SizedBox(height: AppSpacing.gap),
           const FieldLabel('본인 확인 코드'),
           const SizedBox(height: AppSpacing.xs),
@@ -109,16 +124,32 @@ class _PasswordScreenState extends ConsumerState<PasswordScreen> {
           const SizedBox(height: AppSpacing.md),
           const FieldLabel('새 비밀번호'),
           const SizedBox(height: AppSpacing.xs),
-          AppTextField(controller: _password, hint: '영문·숫자·특수문자 조합 8-20자', obscureText: true, onChanged: (_) => setState(() {})),
+          AppTextField(
+            controller: _password,
+            hint: '영문, 숫자 포함 8자 이상',
+            obscureText: true,
+            onChanged: (_) => setState(() {}),
+          ),
           const SizedBox(height: AppSpacing.md),
           const FieldLabel('새 비밀번호 확인'),
           const SizedBox(height: AppSpacing.xs),
-          AppTextField(controller: _confirm, hint: '한 번 더 입력해 주세요', obscureText: true, onChanged: (_) => setState(() {})),
+          AppTextField(
+            controller: _confirm,
+            hint: '한 번 더 입력해 주세요',
+            obscureText: true,
+            onChanged: (_) => setState(() {}),
+          ),
         ],
       ),
-      bottomNavigationBar: BottomCta(children: [
-        AppButton(label: '본인 확인 후 비밀번호 변경', loading: _saving, onPressed: filled ? _save : null),
-      ]),
+      bottomNavigationBar: BottomCta(
+        children: [
+          AppButton(
+            label: '본인 확인 후 비밀번호 변경',
+            loading: _saving,
+            onPressed: filled ? _save : null,
+          ),
+        ],
+      ),
     );
   }
 }

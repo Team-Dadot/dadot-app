@@ -142,7 +142,7 @@ class MockBackend {
   /// 이메일 가입. Mock 은 같은 이메일이면 그 계정으로 로그인한다.
   AuthSession signUpEmail({required String email, required String password}) {
     if (!AppPolicy.isValidEmail(email)) throw _invalid('올바르지 않은 이메일 형식입니다');
-    if (!AppPolicy.isValidPassword(password)) throw _invalid('영문,숫자,특수문자 조합 8-20자로 입력해 주세요');
+    if (!AppPolicy.isValidPassword(password)) throw _invalid(AppPolicy.passwordRule);
     final isNew = _user == null || _user!.email != email.trim();
     if (isNew) {
       _user = AppUser(id: 'mock-user', nickname: email.split('@').first, email: email.trim(), loginMethod: LoginMethod.email, onboardingCompleted: false);
@@ -188,7 +188,7 @@ class MockBackend {
   void changePassword({required String code, required String newPassword}) {
     sendPasswordCode();
     if (!RegExp(r'^\d{6}$').hasMatch(code)) throw _invalid('본인 확인 코드 6자리를 확인해 주세요.');
-    if (!AppPolicy.isValidPassword(newPassword)) throw _invalid('영문,숫자,특수문자 조합 8-20자로 입력해 주세요');
+    if (!AppPolicy.isValidPassword(newPassword)) throw _invalid(AppPolicy.passwordRule);
   }
 
   void signOut() {
@@ -468,6 +468,7 @@ class MockBackend {
       explanation: seed.explanation,
       solvedAt: _now(),
       evidence: seed.evidence,
+      correctChoiceId: result.correctChoiceId,
     );
     _persist();
     return result;

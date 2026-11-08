@@ -16,6 +16,7 @@ class LocalStore {
   static const _lastCompanyKey = 'home.lastCompanyId';
   static const _askedPushKey = 'push.askedPermission';
   static const _onboardingStepKey = 'onboarding.lastStep';
+  static const _tutorialSeenKey = 'tutorial.seen';
 
   // ---- 답변 임시 저장 ----
   String? readDraft(String questionId) => _prefs.getString('$_draftPrefix$questionId');
@@ -33,6 +34,10 @@ class LocalStore {
   // ---- 홈 기본 기업 ----
   String? get lastCompanyId => _prefs.getString(_lastCompanyKey);
   Future<void> setLastCompanyId(String id) => _prefs.setString(_lastCompanyKey, id);
+
+  // ---- 첫 실행 튜토리얼 (한 번 보면 다시 안 보여 준다) ----
+  bool get tutorialSeen => _prefs.getBool(_tutorialSeenKey) ?? false;
+  Future<void> markTutorialSeen() => _prefs.setBool(_tutorialSeenKey, true);
 
   // ---- 알림 권한 요청 여부 ----
   bool get hasAskedPushPermission => _prefs.getBool(_askedPushKey) ?? false;

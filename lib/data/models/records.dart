@@ -11,6 +11,7 @@ class QuizReviewItem {
     required this.explanation,
     required this.solvedAt,
     this.evidence,
+    this.correctChoiceId,
   });
 
   factory QuizReviewItem.fromJson(Map<String, dynamic> json) => QuizReviewItem(
@@ -21,11 +22,18 @@ class QuizReviewItem {
         explanation: json['explanation'] as String,
         solvedAt: DateTime.parse(json['solvedAt'] as String),
         evidence: json['evidence'] == null ? null : Evidence.fromJson((json['evidence'] as Map).cast<String, dynamic>()),
+        correctChoiceId: json['correctChoiceId']?.toString(),
       );
 
   final String id;
   final String companyId;
   final QuizQuestion question;
+
+  /// 정답 보기 id (해설 시트 "정답 : 늘었다")
+  final String? correctChoiceId;
+
+  /// 정답 보기 글자
+  String? get correctText => question.choices.where((c) => c.id == correctChoiceId).firstOrNull?.text;
   final bool wrong;
   final String explanation;
   final DateTime solvedAt;
@@ -39,6 +47,7 @@ class QuizReviewItem {
         'explanation': explanation,
         'solvedAt': solvedAt.toIso8601String(),
         'evidence': evidence?.toJson(),
+        'correctChoiceId': correctChoiceId,
       };
 
   QuizReviewItem copyWith({bool? wrong, DateTime? solvedAt}) => QuizReviewItem(
@@ -49,6 +58,7 @@ class QuizReviewItem {
         explanation: explanation,
         solvedAt: solvedAt ?? this.solvedAt,
         evidence: evidence,
+        correctChoiceId: correctChoiceId,
       );
 }
 

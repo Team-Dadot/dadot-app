@@ -23,13 +23,8 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppHeader(
-        trailing: IconButton(
-          tooltip: '알림 설정',
-          onPressed: () => context.push(Routes.myNotifications),
-          icon: const Icon(Icons.notifications_none_rounded, size: 26, color: AppColors.ink),
-        ),
-      ),
+      // 피그마 홈(1313:8755 등): 헤더엔 로고만 (알림 설정은 마이 > 알림 설정)
+      appBar: const AppHeader(),
       body: home.when(
         skipLoadingOnRefresh: true,
         skipLoadingOnReload: true,
@@ -85,10 +80,12 @@ class _TodayCard extends StatelessWidget {
     final c = current;
     final p = c.preparation;
     final focus = c.focusMode;
-    // 피그마 1074:12877: 첫 줄은 기업 이름, 둘째 줄은 "경영전략 면접 · 10월 23일 (금)"
+    // 첫 줄은 기업 이름, 둘째 줄은 직무 ㅣ 면접일
     final title = c.companyName;
     final date = p.interviewDate == null ? null : formatMonthDayWeek(p.interviewDate!);
-    final subtitle = p.hasJob ? '${p.jobName} 면접 · ${date ?? '일정 미정'}' : (date ?? '면접 일정 미정');
+    // 피그마 1259:9198 "UX·UI디자인 ㅣ 12월 25일 (금) 면접" · 1259:9317 당일 "UX·UI디자인 ㅣ면접 당일"
+    final when = c.dday == 0 ? '면접 당일' : (date == null ? '면접 일정 미정' : '$date 면접');
+    final subtitle = p.hasJob ? '${p.jobName} ㅣ $when' : when;
     // 피그마 763:15840 집중 모드: 앞판 가장 진한 색(#15171B), 뒤 탭은 평소처럼 연라임, 탭 글자 회색
     final front = focus ? AppColors.ink : AppColors.point;
     final onFront = focus ? AppColors.white : AppColors.ink;
@@ -165,7 +162,7 @@ class _TodayCard extends StatelessWidget {
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
           ),
           child: c.allDone
-              ? const _DoneBody()
+              ? _DoneBody(focus: focus)
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -253,31 +250,36 @@ class _TaskRow extends StatelessWidget {
   }
 }
 
-/// 2-E2 하루치 학습 완료: 깃발 + "오늘의 학습을 / 모두 완료했어요!"
+/// 2-E2 하루치 학습 완료 (피그마 1313:8927): 회색 칸(깃발 + "오늘의 학습을 완료했어요!") + 라임 "복습하러 가기"
 class _DoneBody extends StatelessWidget {
-  const _DoneBody();
+  const _DoneBody({required this.focus});
+
+  final bool focus;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Column(
-        children: [
-          const Icon(Icons.flag_rounded, size: 40, color: Color(0xFF5C5D63)),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '오늘의 학습을\n모두 완료했어요!',
-            textAlign: TextAlign.center,
-            style: AppTypography.body1Medium.copyWith(color: const Color(0xFFB9B9BC)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: AppSpacing.sm),
+        Container(
+          height: 128,
+          decoration: BoxDecoration(
+            color: focus ? AppColors.tabBar : AppColors.cardDarkLine,
+            borderRadius: BorderRadius.circular(AppRadius.button),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          TextLink(
-            label: '복습하러 가기 ›',
-            style: AppTypography.body2Medium.copyWith(color: AppColors.point),
-            onTap: () => context.go(Routes.review),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.flag_rounded, size: 36, color: Color(0xFF898D9A)),
+              const SizedBox(height: AppSpacing.sm),
+              Text('오늘의 학습을 완료했어요!', style: AppTypography.body2Medium.copyWith(color: AppColors.textGuide)),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 20),
+        AppButton(label: '복습하러 가기', variant: AppButtonVariant.point, onPressed: () => context.go(Routes.review)),
+      ],
     );
   }
 }

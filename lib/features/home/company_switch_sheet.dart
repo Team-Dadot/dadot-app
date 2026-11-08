@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../core/router/app_router.dart';
 import '../../data/models/home.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
 
 /// 피그마 최종 2-3 "기업 선택하기" 시트 (홈 기업 변경 ⇄ · 복습 헤더 기업 칩)
-/// 면접이 가까운 집중 모드 기업은 위에 진한 카드(라임 테두리)로, 나머지는 흰 목록에 라디오 체크.
+/// 면접이 가까운 집중 모드 기업은 위에 진한 카드(#303137, 라임 테두리)로, 나머지는 흰 목록에 라디오 체크 (피그마 1337:10109).
 Future<void> showCompanySwitchSheet(BuildContext context, {required HomeSummary home, required String selectedId}) {
   return showAppSheet<void>(
     context,
@@ -36,25 +34,17 @@ Future<void> showCompanySwitchSheet(BuildContext context, {required HomeSummary 
               ],
               if (rest.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.button)),
                   child: Column(
                     children: [
                       for (var i = 0; i < rest.length; i++) ...[
-                        if (i > 0) const SizedBox(height: 0.5, width: double.infinity, child: ColoredBox(color: Color(0xFFDCDCDC))),
+                        if (i > 0) const SizedBox(height: 1, width: double.infinity, child: ColoredBox(color: Color(0xFFDCE0E7))),
                         _CompanyRow(c: rest[i], selected: rest[i].companyId == selectedId, onTap: () => pick(rest[i].companyId)),
                       ],
                     ],
                   ),
                 ),
-              const SizedBox(height: AppSpacing.md),
-              TextLink(
-                label: '준비 기업 추가·관리 ›',
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push(Routes.myCompanies);
-                },
-              ),
             ],
           ),
         );
@@ -77,7 +67,7 @@ class _FocusCompany extends StatelessWidget {
       selected: selected,
       button: true,
       child: Material(
-        color: AppColors.cardDark,
+        color: AppColors.tabBar,
         shape: RoundedRectangleBorder(borderRadius: radius, side: const BorderSide(color: AppColors.point, width: 1.5)),
         child: InkWell(
           onTap: onTap,
@@ -90,11 +80,11 @@ class _FocusCompany extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${c.companyName} 면접', style: AppTypography.subheading.copyWith(fontWeight: AppTypography.bold, color: AppColors.point)),
+                      Text('${c.companyName} 면접', style: AppTypography.subheading.copyWith(color: AppColors.point)),
                       const SizedBox(height: AppSpacing.xs),
                       Text.rich(
                         TextSpan(
-                          style: AppTypography.caption.copyWith(color: const Color(0xFFB9B9BC)),
+                          style: AppTypography.caption.copyWith(color: const Color(0xFFBCBFC5)),
                           children: const [
                             TextSpan(text: '면접이 얼마 남지 않았어요!\n'),
                             TextSpan(text: '집중모드로 연습해봐요', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -132,7 +122,7 @@ class _CompanyRow extends StatelessWidget {
           height: 64,
           child: Row(
             children: [
-              Expanded(child: Text(c.companyName, style: AppTypography.subheading.copyWith(color: AppColors.primary))),
+              Expanded(child: Text(c.companyName, style: AppTypography.subheading.copyWith(color: AppColors.textStrong))),
               CheckMark(checked: selected),
             ],
           ),

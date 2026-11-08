@@ -93,7 +93,7 @@ final inquiryRepositoryProvider = Provider<InquiryRepository>((ref) => _mock(ref
 final socialAuthServiceProvider = Provider<SocialAuthService>((ref) {
   final config = ref.watch(appConfigProvider);
   if (config.useMock) return const FakeSocialAuthService();
-  return RealSocialAuthService(kakaoReady: config.kakaoNativeAppKey.isNotEmpty);
+  return RealSocialAuthService(kakaoReady: config.kakaoNativeAppKey.isNotEmpty, expectedKakaoAppId: config.kakaoAppId);
 });
 
 /// TODO(출시 전): FCM 구현으로 교체
