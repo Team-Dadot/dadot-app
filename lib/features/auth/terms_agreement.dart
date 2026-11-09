@@ -189,8 +189,7 @@ Future<List<String>?> showTermsSheet(BuildContext context) {
   return showAppSheet<List<String>>(
     context,
     title: '이용약관 동의하기',
-    expand: true,
-    heightFactor: 340 / 874,
+    // QA: 고정 높이(340)라 약관 줄이 버튼 뒤로 잘렸다 → 내용 높이만큼 (길면 스크롤)
     builder: (_) => const _TermsSheet(),
   );
 }
@@ -212,9 +211,10 @@ class _TermsSheetState extends ConsumerState<_TermsSheet> {
         ? null
         : displayTerms(config.asData!.value);
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
+        Flexible(
           child: config.hasError
               ? ErrorView(
                   error: config.error!,
@@ -222,8 +222,9 @@ class _TermsSheetState extends ConsumerState<_TermsSheet> {
                   onRetry: () => ref.invalidate(serverAppConfigProvider),
                 )
               : terms == null
-              ? const LoadingView()
+              ? const SizedBox(height: 160, child: LoadingView())
               : ListView(
+                  shrinkWrap: true,
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screenH,
                     AppSpacing.xs,

@@ -515,6 +515,17 @@ class RemoteProfileRepository implements ProfileRepository {
   /// 첫 설정이 끝난 뒤, 직무 없이 추가한 기업 (서버 준비 기업 추가에는 직무가 필요하다)
   List<Preparation> _pending = [];
 
+  /// QA: 이전 계정의 "첫 설정 끝남" 캐시가 남아, 새로 가입한 계정의 STEP 2 저장이 첫 설정 API 대신
+  /// 준비 기업 API 로 가서 "기업과 직무 등 필수 단계를 확인해 주세요"(ONBOARDING_INCOMPLETE)가 나던 문제
+  @override
+  void clearCache() {
+    _onboarded = false;
+    _known.clear();
+    _pending = [];
+    _prepVersions.clear();
+    _expVersions.clear();
+  }
+
   Future<List<Preparation>> _server() async {
     final data = await _api.get(ApiPaths.meCompanies, query: {'page': 0, 'size': 100});
     return _content(data).map((j) => _preparation(j, _prepVersions)).toList();
@@ -1057,6 +1068,10 @@ class RemoteInterviewRepository implements InterviewRepository {
       text: _str(d, ['question', 'questionText', 'text', 'content']) ?? '',
       evidence: _list(d['evidence'] ?? d['references'] ?? d['disclosures']).map(_evidence).toList(),
       retryRemaining: _int(_map(d['usage']), ['questionRemaining']),
+      // 서버 usage.canSubmit · blockedReason 기준으로 "답변하기" 버튼 상태를 정한다
+      canSubmit: _bool(_map(d['usage']), ['canSubmit']) ?? true,
+      blockedReason: _str(_map(d['usage']), ['blockedReason']),
+      latestAnswerId: _str(_map(d['latestAttempt']), ['attemptId']),
     );
   }
 
@@ -1241,6 +1256,7 @@ class RemoteRecordsRepository implements RecordsRepository {
             attempts: attempts,
             score: score,
             lastAt: _date(j['lastSubmittedAt'] ?? j['lastAnsweredAt'] ?? j['updatedAt'] ?? latest?['submittedAt']),
+            retryRemaining: _int(j, ['questionRemaining']),
           );
         }(),
     ];

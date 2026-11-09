@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'toast.dart';
+
 import '../tokens/app_colors.dart';
 import '../tokens/app_spacing.dart';
 import '../tokens/app_typography.dart';
@@ -108,7 +110,7 @@ class TextLink extends StatelessWidget {
 }
 
 /// 화면 하단에 고정되는 버튼 영역 (피그마: 좌우 20, 간격 8, 바탕은 화면색)
-class BottomCta extends StatelessWidget {
+class BottomCta extends StatefulWidget {
   const BottomCta({super.key, required this.children, this.color = AppColors.background});
 
   final List<Widget> children;
@@ -117,9 +119,30 @@ class BottomCta extends StatelessWidget {
   final Color color;
 
   @override
+  State<BottomCta> createState() => _BottomCtaState();
+}
+
+class _BottomCtaState extends State<BottomCta> {
+  // 토스트가 이 버튼들 위에 뜨도록 위치를 알려 준다
+  final _key = GlobalKey(debugLabel: 'bottom-cta');
+
+  @override
+  void initState() {
+    super.initState();
+    AppToast.registerCta(_key);
+  }
+
+  @override
+  void dispose() {
+    AppToast.unregisterCta(_key);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: color,
+      key: _key,
+      color: widget.color,
       child: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.sm),
@@ -127,9 +150,9 @@ class BottomCta extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (var i = 0; i < children.length; i++) ...[
+            for (var i = 0; i < widget.children.length; i++) ...[
               if (i > 0) const SizedBox(height: AppSpacing.ctaGap),
-              children[i],
+              widget.children[i],
             ],
           ],
         ),

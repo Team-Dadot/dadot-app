@@ -89,7 +89,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
         body: ListView(
           padding: EdgeInsets.zero,
           children: [
-            FeedbackHero(feedback: fb, onBack: _back, onClose: _close),
+            // 피그마 1313:7930 · 1313:7717 (레이어 정리본): 내비는 ‹ 뒤로 만 (✕ 없음)
+            FeedbackHero(feedback: fb, onBack: _back),
             FeedbackContent(feedback: fb, questionText: question?.text),
           ],
         ),
@@ -112,9 +113,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                     label: finished || question == null ? '마무리하기' : '다음 질문',
                     onPressed: finished || question == null
                         ? _close
-                        : () => context.pushReplacement(
-                            Routes.todayInterview(question.companyId),
-                          ),
+                        // 지난 질문 화면을 스택에서 걷어 내고 다음 질문으로 (뒤로가기로 소진 질문에 못 돌아가게)
+                        : () => goNextInterviewQuestion(context, question.companyId),
                   ),
                 ),
               ],

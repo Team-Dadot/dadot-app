@@ -126,7 +126,7 @@ class MyScreen extends ConsumerWidget {
                                       style: AppTypography.caption.copyWith(color: AppColors.textGuide),
                                     ),
                                   ),
-                                  const SizedBox(width: 7),
+                                  const SizedBox(width: 5),
                                   if (user != null) LoginBadge(method: user.loginMethod),
                                 ],
                               ),
@@ -165,9 +165,10 @@ class MyScreen extends ConsumerWidget {
             ]),
             const SizedBox(height: AppSpacing.lg),
             MenuGroup(children: [
-              MenuRow(title: '회원 정보 수정', onTap: () => context.push(Routes.myProfile)),
-              MenuRow(title: '로그아웃', onTap: () => _signOut(context, ref)),
-              MenuRow(title: '회원 탈퇴', onTap: () => _delete(context, ref)),
+              // 피그마 1393:11078: 계정 묶음은 한 줄 메뉴도 위아래 16 (줄 높이 54)
+              MenuRow(title: '회원 정보 수정', verticalPadding: AppSpacing.md, onTap: () => context.push(Routes.myProfile)),
+              MenuRow(title: '로그아웃', verticalPadding: AppSpacing.md, onTap: () => _signOut(context, ref)),
+              MenuRow(title: '회원 탈퇴', verticalPadding: AppSpacing.md, onTap: () => _delete(context, ref)),
             ]),
             if (ref.watch(appConfigProvider).useMock) ...[
               const SizedBox(height: AppSpacing.lg),
@@ -193,14 +194,14 @@ class LoginBadge extends StatelessWidget {
       label: '${method.label} 계정',
       excludeSemantics: true,
       child: Container(
-        // 피그마: 14×14 노란 사각(모서리 4) 안 말풍선
-        width: kakao ? 14 : null,
-        height: kakao ? 14 : 16,
+        // 피그마 1393:11078: 15×15 노란 원 안 말풍선
+        width: kakao ? 15 : null,
+        height: kakao ? 15 : 16,
         padding: kakao ? null : const EdgeInsets.symmetric(horizontal: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: kakao ? AppColors.kakao : AppColors.fillSecondary,
-          borderRadius: BorderRadius.circular(kakao ? 4 : AppRadius.pill),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: kakao
             ? Padding(
@@ -264,7 +265,7 @@ class _PasswordConfirmState extends State<_PasswordConfirm> {
                 controller: _password,
                 hint: '비밀번호',
                 obscureText: true,
-                autofocus: true,
+                // QA: 키보드는 칸을 눌렀을 때만 (자동으로 올리지 않는다)
                 onChanged: (_) => setState(() {}),
                 semanticLabel: '비밀번호',
               ),

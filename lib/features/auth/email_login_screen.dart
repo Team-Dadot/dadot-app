@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_policy.dart';
+import '../../core/error/app_exception.dart';
 import '../../core/router/app_router.dart';
 import '../../core/session/session_controller.dart';
 import '../../design_system/design_system.dart';
@@ -24,6 +25,9 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
   final _passwordFocus = FocusNode();
   bool _emailTouched = false;
   bool _saving = false;
+
+  /// 로그인 실패 안내 (비밀번호 칸 아래 빨간 글자). 다시 입력하면 지운다.
+  String? _loginError;
 
   @override
   void initState() {
@@ -65,7 +69,14 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
           .signInWithEmail(email: _email.text.trim(), password: _password.text);
       // 이동은 라우터 redirect 가 처리 (첫 설정 전 → 온보딩, 끝났으면 → 홈)
     } catch (e) {
-      if (mounted) showErrorToast(context, e);
+      if (!mounted) return;
+      final err = asAppException(e);
+      // 보통 앱처럼: 이메일·비밀번호가 틀리면 어느 쪽이 틀렸는지 알려 주지 않고 한 문장으로 (계정 존재 여부 노출 방지)
+      if (err.kind == AppErrorKind.validation || err.kind == AppErrorKind.unauthorized || err.kind == AppErrorKind.notFound) {
+        setState(() => _loginError = '이메일 또는 비밀번호가 일치하지 않아요');
+      } else {
+        showErrorToast(context, err);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -100,8 +111,8 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
               hint: '이메일을 입력해주세요',
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
-              errorText: _emailError,
-              onChanged: (_) => setState(() {}),
+              errorText: _emailError ?? (_loginError == null ? null : ''),
+              onChanged: (_) => setState(() => _loginError = null),
               onSubmitted: (_) => _passwordFocus.requestFocus(),
               semanticLabel: '이메일',
             ),
@@ -115,7 +126,8 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
               hint: '비밀번호를 입력해주세요',
               obscureText: true,
               textInputAction: TextInputAction.done,
-              onChanged: (_) => setState(() {}),
+              errorText: _loginError,
+              onChanged: (_) => setState(() => _loginError = null),
               onSubmitted: (_) => _submit(),
               semanticLabel: '비밀번호',
             ),

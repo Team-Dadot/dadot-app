@@ -20,6 +20,7 @@ class ResultHero extends StatelessWidget {
     this.onBack,
     this.onClose,
     this.semanticLabel,
+    this.quiz = false,
   });
 
   final ResultTone tone;
@@ -38,6 +39,9 @@ class ResultHero extends StatelessWidget {
   final VoidCallback? onClose;
   final String? semanticLabel;
 
+  /// 정답 확인(퀴즈) 화면이면 true — 아쉬울 때 배경의 작은 번개 배치가 면접 피드백과 다르다
+  final bool quiz;
+
   static const _dark = Color(0xFF303237);
 
   bool get _pass => tone == ResultTone.pass;
@@ -54,45 +58,18 @@ class ResultHero extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
-          // 배경: #252525 → #303237, 그 위 초록/적갈 장식 그라데이션, 흐린 번개
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF252525), _dark],
-                ),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.5,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      _pass ? const Color(0xFF31481C) : const Color(0xFF5F1901),
-                      _dark,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // 피그마 1313:7619 배경 그대로: 그라데이션 + 라임/적갈 장식 + 큰 번개 무늬(셰이더 효과라 피그마에서 그린 그림을 쓴다).
+          // 402×364 그림을 화면 너비에 맞추고, 상태바 높이 차이만큼 올려 폴더와 번개 위치를 맞춘다.
           Positioned(
-            left: -139,
-            top: top - 62 - 152,
-            width: 530,
-            height: 500,
+            left: 0,
+            right: 0,
+            top: top - 62,
             child: Image.asset(
               _pass
                   ? 'assets/images/result_bg_pass.png'
-                  : 'assets/images/result_bg_fail.png',
-              fit: BoxFit.fill,
+                  : (quiz ? 'assets/images/result_bg_quiz_fail.png' : 'assets/images/result_bg_feedback_fail.png'),
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
               excludeFromSemantics: true,
             ),
           ),
@@ -280,16 +257,7 @@ class _Folder extends StatelessWidget {
               ),
             )
           else ...[
-            Positioned(
-              right: -16,
-              top: -40,
-              child: Image.asset(
-                'assets/images/result_bolts.png',
-                width: 162,
-                height: 81,
-                excludeFromSemantics: true,
-              ),
-            ),
+            // 작은 번개들은 배경 그림에 들어 있다
             Positioned(
               right: 27,
               top: -20,

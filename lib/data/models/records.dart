@@ -73,6 +73,7 @@ class InterviewRecord {
     this.score,
     this.metCount,
     this.lastAt,
+    this.retryRemaining,
   });
 
   factory InterviewRecord.fromJson(Map<String, dynamic> json) => InterviewRecord(
@@ -84,12 +85,16 @@ class InterviewRecord {
         score: json['score'] as int?,
         metCount: json['metCount'] as int?,
         lastAt: json['lastAt'] == null ? null : DateTime.parse(json['lastAt'] as String),
+        retryRemaining: json['retryRemaining'] as int?,
       );
 
   final String questionId;
   final String companyId;
   final String questionText;
   final AnswerStatus status;
+
+  /// 오늘 이 질문에 더 답할 수 있는 횟수 (서버 questionRemaining). 0 이면 "다시 답변하기" 숨김
+  final int? retryRemaining;
   final int attempts;
 
   /// 마지막 시도 점수 (작성 중이면 null)

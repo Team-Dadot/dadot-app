@@ -59,7 +59,7 @@ class _ExperienceFormState extends State<_ExperienceForm> {
                 controller: _title,
                 hint: '제목을 입력해주세요',
                 maxLength: null,
-                autofocus: widget.initial == null,
+                // QA: 키보드는 칸을 눌렀을 때만 (자동으로 올리지 않는다)
                 onChanged: (_) => setState(() {}),
                 semanticLabel: '경험 제목',
               ),

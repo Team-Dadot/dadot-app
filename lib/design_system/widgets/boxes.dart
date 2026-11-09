@@ -232,7 +232,7 @@ class IndexBox extends StatelessWidget {
 /// 제목 16 Medium #15171B · 설명 14 Medium #9A9DA4 (간격 4), 위아래 16 (설명 없으면 12).
 /// [MenuGroup] 안에 넣으면 줄 사이에 1px 선(#DCE0E7)이 들어간다.
 class MenuRow extends StatelessWidget {
-  const MenuRow({super.key, required this.title, this.subtitle, this.value, required this.onTap, this.showChevron = true});
+  const MenuRow({super.key, required this.title, this.subtitle, this.value, required this.onTap, this.showChevron = true, this.verticalPadding});
 
   final String title;
   final String? subtitle;
@@ -242,12 +242,15 @@ class MenuRow extends StatelessWidget {
   final VoidCallback? onTap;
   final bool showChevron;
 
+  /// 위아래 여백 (기본: 한 줄 12 · 두 줄 16). 마이 계정 묶음은 한 줄도 16 (피그마 1393:11078)
+  final double? verticalPadding;
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: subtitle == null ? AppSpacing.sm : AppSpacing.md),
+        padding: EdgeInsets.symmetric(vertical: verticalPadding ?? (subtitle == null ? AppSpacing.sm : AppSpacing.md)),
         child: Row(
           children: [
             Expanded(

@@ -25,12 +25,16 @@ abstract interface class PushService {
 }
 
 class NoopPushService implements PushService {
-  NoopPushService();
+  NoopPushService({this.permission});
+
+  /// OS 알림 권한을 묻는 함수 (로컬 학습 알림 플러그인)
+  final Future<bool> Function()? permission;
 
   final _routes = StreamController<String>.broadcast();
 
+  /// OS 알림 권한 (로컬 학습 알림용). 토큰은 없다.
   @override
-  Future<bool> requestPermission() async => false;
+  Future<bool> requestPermission() async => await permission?.call() ?? false;
 
   @override
   Future<String?> getToken() async => null;

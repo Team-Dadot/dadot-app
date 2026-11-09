@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_policy.dart';
 import '../../data/models/interview.dart';
 import '../../data/models/quiz.dart' show Evidence;
+import '../../core/router/app_router.dart';
 import '../../design_system/design_system.dart';
 import '../common/result_hero.dart';
 
@@ -333,20 +335,35 @@ class _MyAnswerState extends State<_MyAnswer> {
       children: [
         if (q != null) ...[
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: AppColors.background,
               borderRadius: BorderRadius.circular(10),
             ),
+            // 피그마는 한 줄 질문을 가운데 정렬. 실제 질문은 길 때가 많아 (QA: 6줄 가운데 정렬 문단)
+            // 한 줄에 들어가면 가운데, 넘치면 왼쪽 정렬 + 2줄까지만 보이고 "더보기" 로 답변과 함께 펼친다
             child: Semantics(
               header: true,
-              child: Text(
-                'Q. $q',
-                textAlign: TextAlign.center,
-                style: AppTypography.body2Strong.copyWith(
-                  color: AppColors.textSub,
-                  height: 1.4,
-                ),
+              label: 'Q. $q',
+              excludeSemantics: true,
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final style = AppTypography.body2Strong.copyWith(color: AppColors.textSub, height: 1.4);
+                  final painter = TextPainter(
+                    text: TextSpan(text: 'Q. $q', style: style),
+                    maxLines: 1,
+                    textDirection: TextDirection.ltr,
+                    textScaler: MediaQuery.textScalerOf(context),
+                  )..layout(maxWidth: box.maxWidth);
+                  final oneLine = !painter.didExceedMaxLines;
+                  return Text(
+                    'Q. $q',
+                    textAlign: oneLine ? TextAlign.center : TextAlign.left,
+                    maxLines: _open ? null : 2,
+                    overflow: _open ? TextOverflow.visible : TextOverflow.ellipsis,
+                    style: style,
+                  );
+                },
               ),
             ),
           ),
@@ -533,25 +550,27 @@ class EvidenceFolderCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (meta.isNotEmpty) ...[
-                for (final m in meta)
-                  Text(
-                    m,
-                    style: AppTypography.body2.copyWith(
-                      color: const Color(0xFFF9F9F9),
-                      height: 1.4,
-                    ),
-                  ),
-                const SizedBox(height: AppSpacing.md),
-              ],
+              // 피그마 1433:8985 근거 카드: 본문(흰 16) 아래에 회색 칸(#404147, r8) 안 공시일 · 대상 기간(12, #BCBFC5)
               Text(
                 evidence.excerpt,
                 style: AppTypography.subheading.copyWith(
-                  fontWeight: AppTypography.medium,
+                  fontWeight: AppTypography.regular,
                   color: AppColors.white,
-                  height: 1.8,
+                  height: 1.6,
                 ),
               ),
+              if (meta.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(color: const Color(0xFF404147), borderRadius: BorderRadius.circular(8)),
+                  child: Text(
+                    meta.join('\n'),
+                    style: AppTypography.caption.copyWith(fontWeight: AppTypography.regular, color: const Color(0xFFBCBFC5), height: 1.5),
+                  ),
+                ),
+              ],
               if (evidence.interpretation != null) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Text(
@@ -625,4 +644,12 @@ class RetryAnswerButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 오늘의 다음 면접 질문으로. 지난 질문·답변 화면은 스택에서 모두 걷어 내서
+/// 다음 질문에서 뒤로가기로 이미 답한(기회를 다 쓴) 질문에 다시 들어가지 않게 한다.
+void goNextInterviewQuestion(BuildContext context, String companyId) {
+  final router = GoRouter.of(context);
+  router.go(Routes.home);
+  WidgetsBinding.instance.addPostFrameCallback((_) => router.push(Routes.todayInterview(companyId)));
 }

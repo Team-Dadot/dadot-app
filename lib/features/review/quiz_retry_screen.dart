@@ -73,7 +73,7 @@ class _QuizRetryScreenState extends ConsumerState<QuizRetryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '다시 풀기', divider: true),
+      appBar: const AppNavBar(title: '다시 풀기'), // QA(1433:8790): 위 구분선 없음
       body: body,
       bottomNavigationBar: q == null
           ? null

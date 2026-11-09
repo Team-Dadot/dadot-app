@@ -56,6 +56,8 @@ class AppException implements Exception {
   static AppErrorKind kindFromCode(String? code, int? status) {
     switch (code) {
       case 'FEEDBACK_QUOTA_EXCEEDED':
+      case 'QUESTION_LIMIT_EXCEEDED':
+      case 'DAILY_LIMIT_EXCEEDED':
         return AppErrorKind.feedbackQuotaExceeded;
       case 'CONTENT_NOT_READY':
         return AppErrorKind.contentNotReady;

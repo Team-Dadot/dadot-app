@@ -219,13 +219,38 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) showErrorToast(context, e);
+      if (!mounted) return;
+      if (leave) {
+        // 서버 저장이 막혀도(기회 소진 등) 나가기는 된다. 글은 기기에 저장돼 있다.
+        _leaving = true;
+        Navigator.of(context).pop();
+      } else {
+        showErrorToast(context, e);
+      }
     } finally {
       if (mounted) setState(() => _savingDraft = false);
     }
   }
 
+  /// 기회를 다 쓴 질문: 안내만 띄우고 질문 화면(또는 복습)으로 돌려보낸다. 화면에 갇히지 않게.
+  Future<void> _leaveBlocked(String message) async {
+    await _store.clearDraft(widget.questionId);
+    ref.invalidate(interviewQuestionProvider(widget.questionId));
+    ref.invalidate(interviewRecordsProvider);
+    invalidateProgress(ref);
+    if (!mounted) return;
+    await showNoticeDialog(context, title: message, message: '내일 다시 도전해보세요!', buttonLabel: '확인');
+    if (!mounted) return;
+    _leaving = true;
+    Navigator.of(context).pop();
+  }
+
   Future<void> _submit() async {
+    final question = ref.read(interviewQuestionProvider(widget.questionId)).asData?.value;
+    if (question != null && question.blocked) {
+      await _leaveBlocked(question.blockedMessage);
+      return;
+    }
     if (_length < AppPolicy.minAnswerLength) {
       showToast(
         context,
@@ -267,8 +292,11 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       if (!mounted) return;
       setState(() => _mode = _Mode.writing);
       final err = asAppException(e);
+      if (err.kind == AppErrorKind.feedbackQuotaExceeded) {
+        await _leaveBlocked('이 질문의 답변 기회를 모두 사용했어요');
+        return;
+      }
       showErrorToast(context, err);
-      if (err.kind == AppErrorKind.feedbackQuotaExceeded) await _saveDraft();
     }
   }
 
@@ -351,8 +379,11 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
               header,
               const SizedBox(height: 28),
               const _VoiceTip(),
+              // QA: 녹음 전·중·멈춤·다시 녹음 어느 상태에서도 마이크 버튼이 같은 자리에 있도록
+              // 가운데 정렬 대신 위에서부터 고정 간격으로 둔다 (아래 버튼이 생겨도 움직이지 않게)
               Expanded(
-                child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 40),
                   child: _VoicePanel(
                     speech: _speech,
                     priorElapsed: _priorElapsed,

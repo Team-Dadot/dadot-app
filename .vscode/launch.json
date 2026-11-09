@@ -29,6 +29,13 @@
       ]
     },
     {
+      "name": "Mock + 튜토리얼 매번 보기",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=USE_MOCK=true", "--dart-define=ALWAYS_TUTORIAL=true"]
+    },
+    {
       "name": "Mock + D-Day 기능 켜기",
       "request": "launch",
       "type": "dart",

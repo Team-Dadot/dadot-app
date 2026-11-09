@@ -52,6 +52,23 @@ final notificationSettingsProvider = FutureProvider<NotificationSettings>((ref) 
   return ref.watch(profileRepositoryProvider).fetchNotificationSettings();
 });
 
+/// 알림 설정 ↔ 기기 알림 예약 맞추기. 앱에서 한 번 watch 해 두면
+/// 설정을 바꾸거나(켜기·끄기·시간) 로그인·로그아웃할 때마다 매일 알림을 다시 예약하거나 지운다.
+final reminderSyncProvider = Provider<void>((ref) {
+  final reminder = ref.watch(reminderServiceProvider);
+  if (ref.watch(currentUserIdProvider) == null) {
+    reminder.cancelDaily();
+    return;
+  }
+  final s = ref.watch(notificationSettingsProvider).asData?.value;
+  if (s == null) return;
+  if (s.enabled) {
+    reminder.scheduleDaily(hour: s.hour, minute: s.minute);
+  } else {
+    reminder.cancelDaily();
+  }
+});
+
 final inquiriesProvider = FutureProvider.autoDispose<List<Inquiry>>((ref) {
   ref.watch(currentUserIdProvider);
   return ref.watch(inquiryRepositoryProvider).fetchHistory();

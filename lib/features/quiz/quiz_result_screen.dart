@@ -65,7 +65,8 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
             return ListView(
               padding: EdgeInsets.zero,
               children: [
-                _Summary(result: r, onBack: home, onClose: home),
+                // 피그마 1313:7620 · 1313:7832: 내비는 ‹ 뒤로 만 (✕ 없음)
+                _Summary(result: r, onBack: home),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screenH,
@@ -115,15 +116,10 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
 
 /// 히어로: 절반 이상 맞히면 라임(불꽃), 아니면 주황(느낌표). 진행 바 = 이번 세트 정답 비율.
 class _Summary extends StatelessWidget {
-  const _Summary({
-    required this.result,
-    required this.onBack,
-    required this.onClose,
-  });
+  const _Summary({required this.result, required this.onBack});
 
   final QuizResult result;
   final VoidCallback onBack;
-  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -145,24 +141,27 @@ class _Summary extends StatelessWidget {
     return ResultHero(
       tone: tone,
       navTitle: '정답 확인',
+      quiz: true,
       badge: '퀴즈 결과',
       onBack: onBack,
-      onClose: onClose,
       progress: r.total == 0 ? 0 : r.correctCount / r.total,
       title: Semantics(
         header: true,
         child: Text.rich(
           TextSpan(
             style: AppTypography.title1.copyWith(
+              fontSize: 24,
               fontWeight: AppTypography.semibold,
               color: ink,
               height: 1.4,
+              letterSpacing: -1.2,
             ),
             children: [
               const TextSpan(text: '총 '),
+              // 피그마 1313:7832: 숫자만 Zalando SemiBold 24
               TextSpan(
                 text: '${r.correctCount}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: AppTypography.number(24, color: ink).copyWith(letterSpacing: -1.2),
               ),
               const TextSpan(text: '문제 맞혔어요'),
             ],
@@ -376,29 +375,47 @@ class _ResultItem extends StatelessWidget {
               onTap: onToggle,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 70),
+                // 피그마 1313:7832: 번호(16 SemiBold) 다음 10 띄우고 문제 한 줄(16 Medium) — 길면 … 로 줄이고, 펼치면 전체.
+                // 번호 칸 최소 너비를 고정해 번호마다 문제 글자의 시작선이 맞도록 한다.
                 child: Row(
+                  crossAxisAlignment: open ? CrossAxisAlignment.start : CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      '$number',
-                      style: AppTypography.subheading.copyWith(
-                        color: AppColors.textStrong,
+                    Padding(
+                      padding: EdgeInsets.only(top: open ? 23 : 0),
+                      // 피그마: 번호는 숫자 폰트(Zalando SemiBold 16) — 12 폭 칸에 가운데로 두어 번호마다 문제 시작선을 맞춘다
+                      child: SizedBox(
+                        width: 12,
+                        child: Text(
+                          '$number',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.number(16, color: AppColors.textStrong, height: 1.45).copyWith(letterSpacing: -0.32),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        item.title,
-                        style: AppTypography.subheading.copyWith(
-                          fontWeight: AppTypography.medium,
-                          color: AppColors.textStrong,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: open ? 23 : 0),
+                        child: Text(
+                          item.title,
+                          maxLines: open ? null : 1,
+                          overflow: open ? TextOverflow.visible : TextOverflow.ellipsis,
+                          style: AppTypography.subheading.copyWith(
+                            fontWeight: AppTypography.medium,
+                            color: AppColors.textStrong,
+                            height: 1.45,
+                            letterSpacing: -0.48,
+                          ),
                         ),
                       ),
                     ),
-                    Icon(
-                      open
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: const Color(0xFFD2D7DC),
+                    const SizedBox(width: 6),
+                    Padding(
+                      padding: EdgeInsets.only(top: open ? 23 : 0),
+                      child: Icon(
+                        open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        color: const Color(0xFFD2D7DC),
+                      ),
                     ),
                   ],
                 ),

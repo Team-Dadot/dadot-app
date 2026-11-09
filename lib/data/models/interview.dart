@@ -22,6 +22,9 @@ class InterviewQuestion {
     required this.text,
     required this.evidence,
     this.retryRemaining,
+    this.canSubmit = true,
+    this.blockedReason,
+    this.latestAnswerId,
   });
 
   factory InterviewQuestion.fromJson(Map<String, dynamic> json) => InterviewQuestion(
@@ -34,6 +37,9 @@ class InterviewQuestion {
             .map((e) => Evidence.fromJson((e as Map).cast<String, dynamic>()))
             .toList(),
         retryRemaining: json['retryRemaining'] as int?,
+        canSubmit: json['canSubmit'] as bool? ?? true,
+        blockedReason: json['blockedReason'] as String?,
+        latestAnswerId: json['latestAnswerId']?.toString(),
       );
 
   final String id;
@@ -50,6 +56,27 @@ class InterviewQuestion {
   /// 오늘 이 질문에 더 답할 수 있는 횟수
   final int? retryRemaining;
 
+  /// 지금 답변을 제출할 수 있는지 (서버 usage.canSubmit). false 면 "답변하기" 를 숨긴다.
+  final bool canSubmit;
+
+  /// 제출할 수 없는 이유 (QUESTION_LIMIT_EXCEEDED · DAILY_LIMIT_EXCEEDED · COMPANY_INACTIVE …)
+  final String? blockedReason;
+
+  /// 마지막으로 제출한 답변 (평가 보기)
+  final String? latestAnswerId;
+
+  /// 기회를 다 써서 더 답할 수 없음
+  bool get blocked => !canSubmit || retryRemaining == 0;
+
+  /// 막힌 이유 안내 문구
+  String get blockedMessage => switch (blockedReason) {
+        'DAILY_LIMIT_EXCEEDED' => '오늘 답변할 수 있는 횟수를 모두 사용했어요',
+        'COMPANY_INACTIVE' => '준비 기업에서 빠진 기업이라 답변할 수 없어요',
+        'CONTENT_UNAVAILABLE' => '지금은 이 질문에 답변할 수 없어요',
+        'TASK_PROCESSING' => '이전 답변을 평가하고 있어요. 잠시 후 다시 시도해 주세요',
+        _ => '이 질문의 답변 기회를 모두 사용했어요',
+      };
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'companyId': companyId,
@@ -58,6 +85,9 @@ class InterviewQuestion {
         'text': text,
         'evidence': evidence.map((e) => e.toJson()).toList(),
         'retryRemaining': retryRemaining,
+        'canSubmit': canSubmit,
+        'blockedReason': blockedReason,
+        'latestAnswerId': latestAnswerId,
       };
 }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'toast.dart';
+
 import '../../core/error/app_exception.dart';
 import '../tokens/app_colors.dart';
 import '../tokens/app_spacing.dart';
@@ -264,32 +266,13 @@ class SheetHeader extends StatelessWidget {
   }
 }
 
-/// 하단 토스트 메시지
-void showToast(BuildContext context, String message) {
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  if (messenger == null) return;
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(message),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-      duration: const Duration(seconds: 3),
-    ));
-}
+/// 하단 토스트 메시지 (하단 버튼이 있으면 그 위에 뜬다 — [AppToast])
+void showToast(BuildContext context, String message) => AppToast.show(context, Text(message));
 
 /// 완료 안내 토스트 (피그마 1074:12476 "✓ 준비 중인 기업이 2개 추가되었어요   확인"): 진한 바탕 + 라임 체크 + 라임 "확인"
-void showDoneToast(BuildContext context, String message, {String actionLabel = '확인'}) {
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  if (messenger == null) return;
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      backgroundColor: AppColors.cardDark,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialogButton)),
-      duration: const Duration(seconds: 3),
-      content: Row(
+void showDoneToast(BuildContext context, String message, {String actionLabel = '확인'}) => AppToast.show(
+      context,
+      Row(
         children: [
           Container(
             width: 18,
@@ -298,12 +281,12 @@ void showDoneToast(BuildContext context, String message, {String actionLabel = '
             child: const Icon(Icons.check_rounded, size: 13, color: AppColors.ink),
           ),
           const SizedBox(width: AppSpacing.xs),
-          Expanded(child: Text(message, style: AppTypography.body2Medium.copyWith(color: AppColors.white))),
+          Expanded(child: Text(message)),
         ],
       ),
-      action: SnackBarAction(label: actionLabel, textColor: AppColors.point, onPressed: messenger.hideCurrentSnackBar),
-    ));
-}
+      actionLabel: actionLabel,
+      background: AppColors.cardDark,
+    );
 
 /// 오류 토스트
 void showErrorToast(BuildContext context, Object error) => showToast(context, asAppException(error).userMessage);

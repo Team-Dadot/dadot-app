@@ -89,6 +89,9 @@ class MockProfileRepository implements ProfileRepository {
   final MockBackend _b;
 
   @override
+  void clearCache() {}
+
+  @override
   Future<List<Preparation>> fetchPreparations() => _b.run(_b.preparations);
   @override
   Future<List<Preparation>> savePreparations(List<Preparation> items) => _b.run(() => _b.savePreparations(items));

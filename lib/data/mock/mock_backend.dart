@@ -488,7 +488,7 @@ class MockBackend {
         for (final a in s.answers)
           QuizResultItem(
             questionId: a.questionId,
-            title: _seed(a.questionId).title,
+            title: _seed(a.questionId).prompt, // 서버처럼 문제 문장 그대로
             correct: a.correct,
             explanation: a.explanation,
             myAnswer: _answerLabel(_seed(a.questionId), a.answer),
@@ -551,6 +551,12 @@ class MockBackend {
       text: seed.text.replaceAll('{job}', job),
       evidence: seed.evidence,
       retryRemaining: _retryRemaining(questionId),
+      canSubmit: _retryRemaining(questionId) > 0,
+      blockedReason: _retryRemaining(questionId) > 0 ? null : 'QUESTION_LIMIT_EXCEEDED',
+      latestAnswerId: (_answers.values.where((a) => a.questionId == questionId).toList()
+            ..sort((a, b) => a.attempt.compareTo(b.attempt)))
+          .lastOrNull
+          ?.answerId,
     );
   }
 
@@ -659,6 +665,7 @@ class MockBackend {
         score: last?.score,
         metCount: last?.metCount,
         lastAt: last?.submittedAt,
+        retryRemaining: _retryRemaining(id),
       ));
     }
     records.sort((a, b) => (b.lastAt ?? _now()).compareTo(a.lastAt ?? _now()));

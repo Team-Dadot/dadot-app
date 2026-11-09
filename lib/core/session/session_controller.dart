@@ -106,6 +106,8 @@ class SessionController extends Notifier<SessionState> {
   }
 
   Future<void> _start(AuthSession session) async {
+    // 새 계정으로 들어오면 이전 계정의 첫 설정·준비 기업 캐시를 비운다
+    ref.read(profileRepositoryProvider).clearCache();
     await ref.read(tokenStorageProvider).save(accessToken: session.accessToken, refreshToken: session.refreshToken);
     if (!ref.mounted) return;
     _setUser(session.user);
@@ -151,6 +153,7 @@ class SessionController extends Notifier<SessionState> {
   }
 
   Future<void> _clearLocal() async {
+    ref.read(profileRepositoryProvider).clearCache();
     await ref.read(tokenStorageProvider).clear();
     await ref.read(localStoreProvider).clearUserData();
     try {

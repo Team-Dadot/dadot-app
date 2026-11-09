@@ -125,6 +125,8 @@ class AppTextField extends StatelessWidget {
     );
 
     final hasError = errorText != null && errorText!.isNotEmpty;
+    // errorText 가 '' 면 글자 없이 빨간 테두리만 (로그인 실패 때 이메일 칸)
+    final redBorder = errorText != null;
     final Widget? side = hasError && !bordered
         ? const ExcludeSemantics(child: Icon(Icons.error_rounded, size: 18, color: AppColors.destructive))
         : trailing;
@@ -137,11 +139,18 @@ class AppTextField extends StatelessWidget {
         decoration: BoxDecoration(
           color: readOnly ? AppColors.surfaceMuted : AppColors.surface,
           borderRadius: BorderRadius.circular(bordered ? 12 : (multiline ? AppRadius.lg : AppRadius.md)),
-          border: bordered ? Border.all(color: hasError ? AppColors.destructive : const Color(0xFFE9EBED)) : null,
+          border: bordered ? Border.all(color: redBorder ? AppColors.destructive : const Color(0xFFE9EBED)) : null,
         ),
         alignment: multiline ? null : Alignment.centerLeft,
         child: maxLength == null
-            ? (side == null || multiline ? field : Row(children: [Expanded(child: field), const SizedBox(width: AppSpacing.xs), side]))
+            // QA: ✕ · 오류 표시가 생기고 없어질 때 입력칸이 다시 만들어지면 포커스가 빠져 키보드가 내려간다
+            // → 한 줄 입력은 늘 같은 Row 구조로 두고 오른쪽 칸만 바꾼다
+            ? (multiline
+                ? field
+                : Row(children: [
+                    Expanded(child: field),
+                    if (side != null) ...[const SizedBox(width: AppSpacing.xs), side],
+                  ]))
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -162,20 +171,22 @@ class AppTextField extends StatelessWidget {
               ),
       ),
     );
-    if (!hasError) return box;
+    // 오류가 있든 없든 같은 Column (구조가 바뀌면 입력칸이 새로 만들어져 키보드가 내려간다)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         box,
-        SizedBox(height: bordered ? 4 : 6),
-        Semantics(
-          liveRegion: true,
-          child: Padding(
-            padding: EdgeInsets.only(left: bordered ? 0 : AppSpacing.xxs),
-            child: Text(errorText!, style: AppTypography.caption.copyWith(color: AppColors.destructive)),
+        if (hasError) ...[
+          SizedBox(height: bordered ? 4 : 6),
+          Semantics(
+            liveRegion: true,
+            child: Padding(
+              padding: EdgeInsets.only(left: bordered ? 0 : AppSpacing.xxs),
+              child: Text(errorText!, style: AppTypography.caption.copyWith(color: AppColors.destructive)),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

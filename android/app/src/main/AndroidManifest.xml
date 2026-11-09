@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- 알림 (Android 13+). FCM 붙인 뒤 런타임에 요청 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- 학습 알림: 재부팅 후 매일 알림 다시 예약 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <application
         android:label="Dadot"
@@ -48,6 +50,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- 학습 알림 예약 (flutter_local_notifications) -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

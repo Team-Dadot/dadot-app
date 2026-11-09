@@ -36,11 +36,28 @@ class QuestionScreen extends ConsumerWidget {
           ],
         ),
       ),
-      bottomNavigationBar: q.hasValue
-          ? BottomCta(children: [
-              AppButton(label: '답변하기', onPressed: () => context.push(Routes.interviewAnswer(questionId))),
-            ])
-          : null,
+      bottomNavigationBar: switch (q.asData?.value) {
+        null => null,
+        // 기회를 다 쓴 질문: "답변하기" 대신 안내 + 평가 보기 (QA: 소진 질문에 다시 들어와 제출되던 문제)
+        final v when v.blocked => BottomCta(children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                v.blockedMessage,
+                textAlign: TextAlign.center,
+                style: AppTypography.body2Medium.copyWith(color: AppColors.textGuide),
+              ),
+            ),
+            // QA(1435:12791): 기회를 다 쓴 질문은 "평가 보기" 만 (지난 답변이 없으면 다음 질문으로)
+            if (v.latestAnswerId != null)
+              AppButton(label: '평가 보기', onPressed: () => context.push(Routes.feedback(v.latestAnswerId!)))
+            else
+              AppButton(label: '다음 질문', onPressed: () => goNextInterviewQuestion(context, v.companyId)),
+          ]),
+        _ => BottomCta(children: [
+            AppButton(label: '답변하기', onPressed: () => context.push(Routes.interviewAnswer(questionId))),
+          ]),
+      },
     );
   }
 }

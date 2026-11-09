@@ -10,7 +10,7 @@ import '../common/format.dart';
 import 'company_switch_sheet.dart';
 
 /// 피그마 최종: 홈3(기본) · 집중 모드(D-3) · 2-E1 첫 방문(면접 일정 미정) · 2-E2 하루치 학습 완료 · 2-3 기업 선택 시트
-/// 라임 폴더 카드(오늘의 학습 · 기업 변경 ⇄) 위에 기업·면접일·D-day, 아래 진한 몸통에 기업 퀴즈 · 면접 연습 · 오늘의 학습하기.
+/// 진한 폴더 카드(오늘의 학습 · 기업 변경 ⇄) 위에 기업·면접일·D-day, 아래 회색 칸에 기업 퀴즈 · 면접 연습 → 라임 오늘의 학습하기.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -49,7 +49,7 @@ class HomeScreen extends ConsumerWidget {
                   current: current,
                   onSwitch: () => showCompanySwitchSheet(context, home: h, selectedId: current.companyId),
                 ),
-                const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: 28),
                 _Stats(c: current),
               ],
             ),
@@ -60,7 +60,9 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// 오늘의 학습 카드: 라임(집중 모드면 진한) 폴더 + 진한 몸통
+/// 오늘의 학습 카드 (피그마 1313:8755 기본 · 1313:8839 집중 · 1313:8927 학습 완료)
+/// 회색 뒤판(기업 변경 ⇄) 위에 진한 앞판(#15171B) 폴더: 탭 "오늘의 학습"(집중이면 ⚡집중) ·
+/// 로고 · 기업 · "직무 | 면접일" · 라임 D-day → 회색 칸(🔥 기업 퀴즈 5/5 · 면접 연습 2/3) → 라임 "오늘의 학습하기"
 class _TodayCard extends StatelessWidget {
   const _TodayCard({required this.current, required this.onSwitch});
 
@@ -80,34 +82,32 @@ class _TodayCard extends StatelessWidget {
     final c = current;
     final p = c.preparation;
     final focus = c.focusMode;
-    // 첫 줄은 기업 이름, 둘째 줄은 직무 ㅣ 면접일
-    final title = c.companyName;
     final date = p.interviewDate == null ? null : formatMonthDayWeek(p.interviewDate!);
-    // 피그마 1259:9198 "UX·UI디자인 ㅣ 12월 25일 (금) 면접" · 1259:9317 당일 "UX·UI디자인 ㅣ면접 당일"
+    // 피그마: "UX·UI디자인 | 12월 25일 (금) 면접" · 당일 "UX·UI디자인 | 면접 당일"
     final when = c.dday == 0 ? '면접 당일' : (date == null ? '면접 일정 미정' : '$date 면접');
-    final subtitle = p.hasJob ? '${p.jobName} ㅣ $when' : when;
-    // 피그마 763:15840 집중 모드: 앞판 가장 진한 색(#15171B), 뒤 탭은 평소처럼 연라임, 탭 글자 회색
-    final front = focus ? AppColors.ink : AppColors.point;
-    final onFront = focus ? AppColors.white : AppColors.ink;
-    final tabText = focus ? AppColors.tabActive : AppColors.pointText;
+    final sub = AppTypography.caption.copyWith(fontSize: 13, color: AppColors.white, letterSpacing: -0.39, height: 1.4);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FolderCard(
-          color: front,
-          backColor: AppColors.folderBack,
-          tabWidth: 150,
-          tabHeight: 44,
-          curveWidth: 50,
-          radius: AppRadius.lg,
+          color: AppColors.ink,
+          backColor: const Color(0xFFE4E4E4),
+          // 앞판 탭: 기본 142 + 곡선 57 / 집중(⚡집중 배지만큼 넓게) 162 + 곡선 47, 탭 높이 45
+          tabWidth: focus ? 162 : 142,
+          tabHeight: 45,
+          curveWidth: focus ? 47 : 57,
+          radius: 20,
           bottomRadius: 0,
-          bodyPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
+          bodyPadding: const EdgeInsets.fromLTRB(20, 26, 20, 11),
           tab: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (focus) ...[const _FocusBadge(), const SizedBox(width: 6)],
-              Text('오늘의 학습', style: AppTypography.body2Strong.copyWith(color: tabText)),
+              if (focus) ...[const _FocusBadge(), const SizedBox(width: 8)],
+              Text(
+                '오늘의 학습',
+                style: AppTypography.caption.copyWith(fontSize: 13, color: AppColors.tabActive, letterSpacing: -0.39),
+              ),
             ],
           ),
           trailing: Semantics(
@@ -117,66 +117,95 @@ class _TodayCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('기업 변경', style: AppTypography.body2Medium.copyWith(color: AppColors.pointText)),
+                Text(
+                  '기업 변경',
+                  style: AppTypography.caption.copyWith(fontSize: 13, color: const Color(0xFF4C4C4C), letterSpacing: -0.39),
+                ),
                 const SizedBox(width: 6),
-                const Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.pointText),
+                const Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFF727272)),
               ],
             ),
           ),
           onTrailingTap: onSwitch,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CompanyLogo(name: c.companyName, size: 48, bordered: true),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.subheading.copyWith(fontSize: 18, color: onFront, height: 1.4),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.body2Medium.copyWith(
-                        color: focus ? AppColors.white : AppColors.pointText,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        c.companyName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.subheading.copyWith(fontSize: 18, color: AppColors.white, height: 1.4, letterSpacing: -0.54),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          if (p.hasJob) ...[
+                            Flexible(child: Text(p.jobName!, maxLines: 1, overflow: TextOverflow.ellipsis, style: sub)),
+                            Container(
+                              width: 1,
+                              height: 10,
+                              margin: const EdgeInsets.symmetric(horizontal: 6),
+                              color: const Color(0xFF55565A),
+                            ),
+                          ],
+                          Text(when, maxLines: 1, style: sub),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (c.dday != null)
-                Text(formatDday(c.dday!), style: AppTypography.number(26, color: focus ? AppColors.point : AppColors.ink)),
+                Text(
+                  formatDday(c.dday!),
+                  style: AppTypography.number(28, color: AppColors.point, height: 1).copyWith(letterSpacing: -1.4),
+                ),
             ],
           ),
         ),
         Container(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xxs, AppSpacing.lg, AppSpacing.lg),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
           decoration: const BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
+            color: AppColors.ink,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
           ),
-          child: c.allDone
-              ? _DoneBody(focus: focus)
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _TaskRow(title: '기업 퀴즈', task: c.quiz, onTap: () => context.push(Routes.quiz(c.companyId))),
-                    const SizedBox(height: 0.5, child: ColoredBox(color: AppColors.cardDarkLine)),
-                    _TaskRow(title: '면접 연습', task: c.interview, onTap: () => context.push(Routes.todayInterview(c.companyId))),
-                    const SizedBox(height: AppSpacing.xs),
-                    AppButton(
-                      label: '오늘의 학습하기',
-                      variant: focus ? AppButtonVariant.point : AppButtonVariant.ink,
-                      onPressed: () => _start(context),
-                    ),
-                  ],
-                ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                height: 128,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(color: AppColors.tabBar, borderRadius: BorderRadius.circular(16)),
+                child: c.allDone
+                    ? const _DoneBody()
+                    : Column(
+                        children: [
+                          _TaskRow(title: '기업 퀴즈', task: c.quiz, onTap: () => context.push(Routes.quiz(c.companyId))),
+                          const SizedBox(height: 1, width: double.infinity, child: ColoredBox(color: Color(0xFF4F5464))),
+                          Expanded(
+                            child: _TaskRow(
+                              title: '면접 연습',
+                              task: c.interview,
+                              onTap: () => context.push(Routes.todayInterview(c.companyId)),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 20),
+              c.allDone
+                  ? AppButton(label: '복습하러 가기', variant: AppButtonVariant.point, onPressed: () => context.go(Routes.review))
+                  : AppButton(label: '오늘의 학습하기', variant: AppButtonVariant.point, onPressed: () => _start(context)),
+            ],
+          ),
         ),
       ],
     );
@@ -209,7 +238,7 @@ class _FocusBadge extends StatelessWidget {
   }
 }
 
-/// "🔥 기업 퀴즈 · 5/5" (다 하면 라임 숫자)
+/// "🔥 기업 퀴즈        5/5" (피그마: 14 SemiBold 흰 글자 · 숫자 14 Medium, 다 하면 라임 · 아니면 #BCBFC5)
 class _TaskRow extends StatelessWidget {
   const _TaskRow({required this.title, required this.task, required this.onTap});
 
@@ -226,23 +255,25 @@ class _TaskRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          height: 64,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
-            child: Row(
-              children: [
-                Image.asset('assets/images/icons/fire.png', width: 20, height: 20, excludeFromSemantics: true),
-                const SizedBox(width: AppSpacing.xxs),
-                Expanded(child: Text(title, style: AppTypography.subheading.copyWith(color: AppColors.white, height: 1.4))),
-                Text(
-                  '${task.done}/${task.total}',
-                  style: AppTypography.subheading.copyWith(
-                    fontWeight: AppTypography.regular,
-                    color: task.isDone ? AppColors.point : const Color(0xFFB9B9BC),
-                  ),
+          height: 63,
+          child: Row(
+            children: [
+              Image.asset('assets/images/icons/fire.png', width: 20, height: 20, excludeFromSemantics: true),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTypography.body2Strong.copyWith(color: AppColors.white, height: 1.4, letterSpacing: -0.42),
                 ),
-              ],
-            ),
+              ),
+              Text(
+                '${task.done}/${task.total}',
+                style: AppTypography.body2Medium.copyWith(
+                  color: task.isDone ? AppColors.point : AppColors.tabActive,
+                  letterSpacing: -0.42,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -250,35 +281,18 @@ class _TaskRow extends StatelessWidget {
   }
 }
 
-/// 2-E2 하루치 학습 완료 (피그마 1313:8927): 회색 칸(깃발 + "오늘의 학습을 완료했어요!") + 라임 "복습하러 가기"
+/// 2-E2 하루치 학습 완료 (피그마 1313:8927): 회색 칸 안 깃발(36) + "오늘의 학습을 완료했어요!" (버튼은 "복습하러 가기")
 class _DoneBody extends StatelessWidget {
-  const _DoneBody({required this.focus});
-
-  final bool focus;
+  const _DoneBody();
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        const Icon(Icons.flag_rounded, size: 36, color: Color(0xFF898D9A)),
         const SizedBox(height: AppSpacing.sm),
-        Container(
-          height: 128,
-          decoration: BoxDecoration(
-            color: focus ? AppColors.tabBar : AppColors.cardDarkLine,
-            borderRadius: BorderRadius.circular(AppRadius.button),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.flag_rounded, size: 36, color: Color(0xFF898D9A)),
-              const SizedBox(height: AppSpacing.sm),
-              Text('오늘의 학습을 완료했어요!', style: AppTypography.body2Medium.copyWith(color: AppColors.textGuide)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        AppButton(label: '복습하러 가기', variant: AppButtonVariant.point, onPressed: () => context.go(Routes.review)),
+        Text('오늘의 학습을 완료했어요!', style: AppTypography.body2Medium.copyWith(color: AppColors.textGuide)),
       ],
     );
   }
@@ -295,7 +309,7 @@ class _Stats extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('학습 현황', style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: const Color(0xFF9A9A9A))),
+        Text('학습 현황', style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: AppColors.textGuide, letterSpacing: -0.48)),
         const SizedBox(height: AppSpacing.md),
         Row(
           children: [
@@ -304,7 +318,7 @@ class _Stats extends StatelessWidget {
                 label: '퀴즈 정답률',
                 value: c.accuracy ?? 0,
                 detail: c.quizSolved == 0 ? '아직 푼 퀴즈가 없어요' : '${c.quizSolved}문제 중 ${c.quizCorrect}개 정답',
-                barColor: AppColors.statQuiz,
+                barColor: AppColors.accent,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -347,13 +361,13 @@ class _StatCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: const Color(0xFF22282F))),
+            Text(label, style: AppTypography.body2Strong.copyWith(color: AppColors.textStrong, letterSpacing: -0.42)),
             const Spacer(),
             Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(text: '$value', style: AppTypography.number(32, color: const Color(0xFF2B2B2C))),
-                  TextSpan(text: '%', style: AppTypography.number(20, color: const Color(0xFF2B2B2C))),
+                  TextSpan(text: '$value', style: AppTypography.number(30, color: AppColors.textStrong).copyWith(letterSpacing: -1.5)),
+                  TextSpan(text: '%', style: AppTypography.number(18, color: AppColors.textStrong)),
                 ],
               ),
             ),
@@ -361,9 +375,9 @@ class _StatCard extends StatelessWidget {
               detail,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(fontWeight: AppTypography.regular, color: const Color(0xFF979BA3)),
+              style: AppTypography.caption.copyWith(fontWeight: AppTypography.regular, color: AppColors.textGuide),
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.sm),
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.pill),
               child: Container(

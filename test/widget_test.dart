@@ -40,12 +40,12 @@ void main() {
     // 처음 실행: 스플래시(최소 1.5초) → 튜토리얼 3장 → 로그인
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
-    expect(find.text('복잡한 기업 분석을 한 번에'), findsWidgets);
+    expect(find.bySemanticsLabel(RegExp('복잡한 기업 분석을 한 번에')), findsWidgets);
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('시작하기'));
+    await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
     // 1-1: 테스트 환경(Android 로 취급)에서는 카카오 + 이메일
@@ -64,9 +64,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('추가한 기업'), findsOneWidget);
     await tester.tap(find.text('추가 완료'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('내가 추가한 기업'), findsOneWidget);
+    // 토스트는 3초 뒤 사라진다
     expect(find.text('준비 중인 기업이 1개 추가되었어요'), findsOneWidget);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
@@ -93,12 +96,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // STEP 5 알림 → 일단 넘어갈게요
-    expect(find.text('오늘의 학습\n놓치지 않게 챙겨드려요'), findsOneWidget);
+    expect(find.text('오늘의 학습, 잊지 않게\n알림으로 챙겨드려요'), findsOneWidget);
     await tester.tap(find.text('일단 넘어갈게요'));
     await tester.pumpAndSettle();
 
     // 완료 → 오늘의 학습 시작하기 → 첫 퀴즈
-    expect(find.text('준비가 끝났어요!'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('준비가 모두 끝났어요')), findsOneWidget);
     await tester.tap(find.text('오늘의 학습 시작하기'));
     await tester.pumpAndSettle();
     // 3-1 퀴즈 (피그마 최종: 제목 없는 내비 + "Q1." + 문제)

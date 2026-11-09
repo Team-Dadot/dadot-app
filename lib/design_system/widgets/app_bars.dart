@@ -102,8 +102,8 @@ class AppNavBar extends StatelessWidget implements PreferredSizeWidget {
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   const AppHeader({super.key, this.title, this.trailing});
 
-  /// 피그마 최종 홈 상단 DADOT 로고 (Group 33693 벡터를 PNG 로 내보냄, 80×16)
-  static const String logoAsset = 'assets/images/dadot_logo.png';
+  /// 피그마 1313:8755 홈 상단 "dadot." 워드마크 (소문자 + 라임 점, 86×18)
+  static const String logoAsset = 'assets/images/dadot_wordmark_dark.png';
 
   /// null 이면 DADOT 로고
   final String? title;
@@ -125,7 +125,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
             child: Row(
               children: [
                 if (title == null)
-                  Image.asset(logoAsset, height: 16, semanticLabel: 'Dadot', filterQuality: FilterQuality.medium)
+                  Image.asset(logoAsset, height: 18, semanticLabel: 'Dadot', filterQuality: FilterQuality.medium)
                 else
                   Semantics(header: true, child: Text(title!, style: AppTypography.brand)),
                 const Spacer(),

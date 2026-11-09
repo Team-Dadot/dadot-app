@@ -57,12 +57,20 @@ class _OnboardingExperienceScreenState
               ? null
               : () => context.push(Routes.onboardingNotification),
         ),
-        AppButton(
-          label: '나중에 추가하기',
-          variant: AppButtonVariant.secondary,
-          onPressed: _saving
-              ? null
-              : () => context.push(Routes.onboardingNotification),
+        // 피그마 1433:8998: "나중에 추가하기" 는 버튼이 아니라 밑줄 글자 (16 SemiBold #65666B)
+        SizedBox(
+          height: 56,
+          child: Center(
+            child: TextLink(
+              label: '나중에 추가하기',
+              style: AppTypography.subheading.copyWith(
+                color: const Color(0xFF65666B),
+                decoration: TextDecoration.underline,
+                decorationColor: const Color(0xFF65666B),
+              ),
+              onTap: _saving ? null : () => context.push(Routes.onboardingNotification),
+            ),
+          ),
         ),
       ],
       children: [

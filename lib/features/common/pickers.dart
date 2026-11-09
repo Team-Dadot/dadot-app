@@ -800,7 +800,7 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
                 SearchField(
                   controller: _search,
                   hint: '기업 이름을 검색해보세요',
-                  autofocus: true,
+                  // QA: 키보드는 칸을 눌렀을 때만 (자동으로 올리지 않는다)
                   onChanged: _onQuery,
                 ),
                 if (added.isNotEmpty) ...[

@@ -603,10 +603,11 @@ class _InterviewRecordCard extends StatelessWidget {
         onSecondary: draft
             ? null
             : () => context.push(Routes.answerView(r.questionId)),
+        // QA: 오늘 기회를 다 쓴 질문은 "다시 답변하기" 를 숨기고 평가 보기만
         primaryLabel: switch (r.status) {
           AnswerStatus.draft => '이어서 답변하기',
-          AnswerStatus.needsWork => '다시 답변하기',
-          AnswerStatus.complete => null,
+          AnswerStatus.needsWork when (r.retryRemaining ?? 1) > 0 => '다시 답변하기',
+          _ => null,
         },
         onPrimary: () => context.push(Routes.interviewAnswer(r.questionId)),
         onLongPress: onDelete,

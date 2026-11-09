@@ -69,6 +69,9 @@ abstract interface class CatalogRepository {
 }
 
 abstract interface class ProfileRepository {
+  /// 계정이 바뀔 때(로그인·가입·로그아웃) 이전 계정의 캐시를 비운다
+  void clearCache();
+
   /// 준비 기업 · 지원 정보 (직무, 면접일)
   Future<List<Preparation>> fetchPreparations();
 

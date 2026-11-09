@@ -8,8 +8,11 @@ import '../../design_system/design_system.dart';
 final tutorialSeenProvider = NotifierProvider<TutorialSeen, bool>(TutorialSeen.new);
 
 class TutorialSeen extends Notifier<bool> {
+  /// 개발용: --dart-define=ALWAYS_TUTORIAL=true 면 본 적 있어도 매번 보여 준다 (로그아웃 상태일 때)
+  static const _always = bool.fromEnvironment('ALWAYS_TUTORIAL');
+
   @override
-  bool build() => ref.read(localStoreProvider).tutorialSeen;
+  bool build() => !_always && ref.read(localStoreProvider).tutorialSeen;
 
   Future<void> markSeen() async {
     await ref.read(localStoreProvider).markTutorialSeen();
@@ -26,9 +29,8 @@ class _Page {
   final String image;
 }
 
-/// 피그마 "튜토리얼" (1300:8056 · 1313:7382 · 1313:7424) — 스플래시 다음, 로그인 전에 한 번만.
-/// 3장을 넘기며(스와이프 또는 "다음") 보고, 마지막 장에서 로그인으로.
-/// 피그마 섹션이 "그래픽 필요함" 상태라 세 장 모두 같은 문구·그림이다. 확정되면 [_pages] 만 바꾸면 된다.
+/// 피그마 "튜토리얼" (1468:9585 · 1468:9451 · 1468:9484) — 스플래시 다음, 로그인 전에 한 번만.
+/// 3장을 넘기며(스와이프 또는 "다음") 보고, 마지막 장의 "다음" 에서 로그인으로.
 class TutorialScreen extends ConsumerStatefulWidget {
   const TutorialScreen({super.key});
 
@@ -37,10 +39,11 @@ class TutorialScreen extends ConsumerStatefulWidget {
 }
 
 class _TutorialScreenState extends ConsumerState<TutorialScreen> {
+  // 피그마 1468:9585 · 1468:9451 · 1468:9484. 글자가 그림 위에 겹쳐 있어 글자까지 함께 이미지로 넣고, 읽어 주기는 문구로 한다.
   static const _pages = [
-    _Page(eyebrow: '복잡한 기업 분석을 한 번에', title: 'DART 기반 공시정보를\n퀴즈로 빠르게 학습해요', image: 'assets/images/tutorial_1.png'),
-    _Page(eyebrow: '복잡한 기업 분석을 한 번에', title: 'DART 기반 공시정보를\n퀴즈로 빠르게 학습해요', image: 'assets/images/tutorial_1.png'),
-    _Page(eyebrow: '복잡한 기업 분석을 한 번에', title: 'DART 기반 공시정보를\n퀴즈로 빠르게 학습해요', image: 'assets/images/tutorial_1.png'),
+    _Page(eyebrow: '복잡한 기업 분석을 한 번에', title: 'DART 기반 공시정보를\n퀴즈로 빠르게 학습', image: 'assets/images/tutorial_1.png'),
+    _Page(eyebrow: '퀴즈 다음은 면접까지', title: '기업 맞춤 면접 질문과\n피드백까지 한 번에', image: 'assets/images/tutorial_2.png'),
+    _Page(eyebrow: '면접이 가까워지면', title: '약한 부분만 골라\n다시 한번 점검', image: 'assets/images/tutorial_3.png'),
   ];
 
   final _controller = PageController();
@@ -100,13 +103,13 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                 ],
               ),
             ),
-            // 피그마: 점(633) 아래로 버튼(782)까지 비어 있다
-            const SizedBox(height: 134),
+            // 피그마: 점(722) 아래 버튼(782)까지
+            const SizedBox(height: 48),
           ],
         ),
       ),
       bottomNavigationBar: BottomCta(children: [
-        AppButton(label: _last ? '시작하기' : '다음', onPressed: _next),
+        AppButton(label: '다음', onPressed: _next),
       ]),
     );
   }
@@ -119,30 +122,13 @@ class _PageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-      child: Column(
-        children: [
-          // 피그마: 위 글 159 (내비 아래), 그림 325~556
-          const SizedBox(height: 97),
-          Text(
-            page.eyebrow,
-            textAlign: TextAlign.center,
-            style: AppTypography.body2Strong.copyWith(color: const Color(0xFF4A4A4A), height: 1.4),
-          ),
-          const SizedBox(height: 10),
-          Semantics(
-            header: true,
-            child: Text(
-              page.title,
-              textAlign: TextAlign.center,
-              style: AppTypography.title1.copyWith(fontSize: 22, fontWeight: AppTypography.bold, color: AppColors.textStrong, height: 1.3),
-            ),
-          ),
-          const Spacer(),
-          Image.asset(page.image, width: 202, height: 231, excludeFromSemantics: true),
-          const Spacer(),
-        ],
+    // 피그마 화면(402×874)에서 상태바 아래(62)부터 점 위(715)까지를 그대로 그린 그림 (402×653)
+    return Semantics(
+      label: '${page.eyebrow}. ${page.title.replaceAll('\n', ' ')}',
+      excludeSemantics: true,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Image.asset(page.image, width: double.infinity, fit: BoxFit.contain, alignment: Alignment.topCenter),
       ),
     );
   }

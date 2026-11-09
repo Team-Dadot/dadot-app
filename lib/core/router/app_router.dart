@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../design_system/widgets/toast.dart';
+
 import '../../features/auth/email_login_screen.dart';
 import '../../features/auth/email_signup_screen.dart';
 import '../../features/auth/login_screen.dart';
@@ -93,6 +95,17 @@ class Routes {
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
+/// 앱 전체 토스트(SnackBar) 관리자. 새 화면이 열리면 떠 있던 토스트를 내린다.
+final rootMessengerKey = GlobalKey<ScaffoldMessengerState>(debugLabel: 'messenger');
+
+/// QA: 이전 화면의 토스트가 다음 화면의 버튼("추가" · "확인")을 가리던 문제 → 화면을 새로 열면 토스트를 닫는다.
+class _HideToastOnPush extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PageRoute) AppToast.hide();
+  }
+}
+
 /// 로그인·첫 설정 상태에 따라 갈 수 있는 화면을 정한다.
 /// 처음 설치하고 로그인 전이면 스플래시 → 튜토리얼 3장 → 로그인 (튜토리얼은 한 번만).
 String? sessionRedirect(SessionState session, String location, {bool tutorialSeen = true, bool splashElapsed = true}) {
@@ -135,6 +148,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
+    observers: [_HideToastOnPush()],
     initialLocation: Routes.splash,
     refreshListenable: Listenable.merge([session, tutorial, splashElapsed]),
     redirect: (context, state) => sessionRedirect(

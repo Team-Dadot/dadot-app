@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/config/app_policy.dart';
 import '../../core/providers.dart';
 import '../../core/router/app_router.dart';
 import '../../core/session/session_controller.dart';
@@ -46,14 +45,9 @@ class _OnboardingNotificationScreenState extends ConsumerState<OnboardingNotific
 
   @override
   Widget build(BuildContext context) {
-    final preps = ref.watch(onboardingPrepsProvider).asData?.value ?? const <Preparation>[];
-    // 예시 알림은 면접일이 가장 가까운 기업으로
-    final dated = preps.where((p) => p.interviewDate != null).toList()
-      ..sort((a, b) => a.interviewDate!.compareTo(b.interviewDate!));
-    final company = (dated.firstOrNull ?? preps.firstOrNull)?.companyName ?? '기아';
     return OnboardingStepScaffold(
       step: 5,
-      title: '오늘의 학습\n놓치지 않게 챙겨드려요',
+      title: '오늘의 학습, 잊지 않게\n알림으로 챙겨드려요',
       bottom: [
         AppButton(label: '알림 허용하기', loading: _busy, onPressed: _busy ? null : () => _set(allow: true)),
         AppButton(label: '일단 넘어갈게요', variant: AppButtonVariant.secondary, onPressed: _busy ? null : () => _set(allow: false)),
@@ -62,29 +56,9 @@ class _OnboardingNotificationScreenState extends ConsumerState<OnboardingNotific
         const _CheckLine('하루 한 번, 학습할 시간에만 보내요.'),
         const SizedBox(height: AppSpacing.xs),
         const _CheckLine('알림은 설정에서 언제든 변경할 수 있어요'),
-        const SizedBox(height: 56),
-        // 피그마는 그래픽 자리("그래픽 고민중") — 알림 미리보기 카드 두 장을 겹쳐 둔다
-        ExcludeSemantics(
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Opacity(
-                  opacity: 0.5,
-                  child: _NotificationPreview(title: '오늘의 학습이 기다리고 있어요', body: '퀴즈 5문제와 면접 질문을 풀어 볼까요?'),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 28),
-                child: _NotificationPreview(
-                  title: '$company 면접이 ${AppPolicy.focusModeDays}일 남았어요',
-                  body: '오늘은 틀렸던 문제와 답변을 다듬어 볼까요?',
-                ),
-              ),
-            ],
-          ),
-        ),
+        const SizedBox(height: AppSpacing.sm),
+        // 피그마 1468:9529: 휴대폰 속 라임 종 그림
+        Image.asset('assets/images/onboarding_alarm.png', width: double.infinity, fit: BoxFit.fitWidth, excludeFromSemantics: true),
       ],
     );
   }
@@ -101,50 +75,12 @@ class _CheckLine extends StatelessWidget {
         children: [
           const CheckMark(checked: true, size: 18),
           const SizedBox(width: AppSpacing.xs),
-          Expanded(child: Text(text, style: AppTypography.body2Medium.copyWith(color: AppColors.textSub))),
+          Expanded(child: Text(text, style: AppTypography.rowTitle.copyWith(color: AppColors.textStrong))),
         ],
       );
 }
 
-/// 알림 미리보기 카드 (앱 아이콘 + 제목 + 내용)
-class _NotificationPreview extends StatelessWidget {
-  const _NotificationPreview({required this.title, required this.body});
-
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedBox(
-      radius: AppRadius.button,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: AppColors.point, borderRadius: BorderRadius.circular(AppRadius.sm)),
-            child: Image.asset(AppHeader.logoAsset, fit: BoxFit.contain),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body2Strong.copyWith(color: AppColors.ink)),
-                const SizedBox(height: 2),
-                Text(body, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textCaption)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 피그마 최종 1-2 완료 (763:17615): 그래픽 + 오늘의 학습 시작하기 / 홈화면 둘러보기
+/// 피그마 1468:9563 준비 완료: 그래픽 + 오늘의 학습 시작하기 / 홈화면 둘러보기
 class OnboardingDoneScreen extends ConsumerStatefulWidget {
   const OnboardingDoneScreen({super.key});
 
@@ -179,25 +115,17 @@ class _OnboardingDoneScreenState extends ConsumerState<OnboardingDoneScreen> {
     final preps = ref.watch(onboardingPrepsProvider).asData?.value ?? const <Preparation>[];
     return Scaffold(
       backgroundColor: AppColors.background,
+      // 피그마 1468:9563: 라임 번개 무늬 + 폴더(O/X) 그림 위 "준비가 모두 끝났어요 / 퀴즈 5문제로 가볍게 시작해볼까요?"
+      // (글자가 그림 위에 겹쳐 있어 함께 이미지로, 읽어 주기는 문구로)
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: AppSpacing.screen,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 피그마는 그래픽 자리("그래픽 고민중") — 결과 화면 폴더 그림을 쓴다
-                Image.asset('assets/images/folder_result.png', width: 140, excludeFromSemantics: true),
-                const SizedBox(height: AppSpacing.lg),
-                Semantics(header: true, child: Text('준비가 끝났어요!', textAlign: TextAlign.center, style: AppTypography.title1.copyWith(color: AppColors.ink))),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '오늘의 학습으로 첫 퀴즈와\n면접 질문을 시작해 볼까요?',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body1.copyWith(color: AppColors.textCaption),
-                ),
-              ],
-            ),
+        bottom: false,
+        child: Semantics(
+          header: true,
+          label: '준비가 모두 끝났어요. 퀴즈 5문제로 가볍게 시작해볼까요?',
+          excludeSemantics: true,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Image.asset('assets/images/onboarding_done.png', width: double.infinity, fit: BoxFit.contain, alignment: Alignment.topCenter),
           ),
         ),
       ),

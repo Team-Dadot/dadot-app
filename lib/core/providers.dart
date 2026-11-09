@@ -14,6 +14,7 @@ import 'config/app_config.dart';
 import 'network/api_client.dart';
 import 'services/link_service.dart';
 import 'services/push_service.dart';
+import 'services/reminder_service.dart';
 import 'services/real_social_auth_service.dart';
 import 'services/social_auth_service.dart';
 import 'storage/local_store.dart';
@@ -96,7 +97,12 @@ final socialAuthServiceProvider = Provider<SocialAuthService>((ref) {
   return RealSocialAuthService(kakaoReady: config.kakaoNativeAppKey.isNotEmpty, expectedKakaoAppId: config.kakaoAppId);
 });
 
-/// TODO(출시 전): FCM 구현으로 교체
-final pushServiceProvider = Provider<PushService>((ref) => NoopPushService());
+/// 학습 알림: 기기 로컬 알림으로 매일 예약 (서버 푸시가 생기기 전까지)
+final reminderServiceProvider = Provider<ReminderService>((ref) => ReminderService());
+
+/// 서버 푸시(FCM)는 아직 없음. 알림 권한 요청만 로컬 알림 플러그인으로 한다.
+final pushServiceProvider = Provider<PushService>(
+  (ref) => NoopPushService(permission: ref.watch(reminderServiceProvider).requestPermission),
+);
 
 final linkServiceProvider = Provider<LinkService>((ref) => const LinkService());
