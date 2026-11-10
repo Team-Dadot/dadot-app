@@ -660,7 +660,8 @@ class MockBackend {
         questionId: id,
         companyId: companyId,
         questionText: question(id).text,
-        status: last?.status ?? AnswerStatus.draft,
+        // 서버처럼: 다시 쓰다 저장만 해 둔 답변이 있으면 "작성 중"
+        status: _drafts.containsKey(id) ? AnswerStatus.draft : (last?.status ?? AnswerStatus.draft),
         attempts: attempts.length,
         score: last?.score,
         metCount: last?.metCount,

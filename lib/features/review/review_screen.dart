@@ -361,18 +361,20 @@ class ReviewFolderCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
+                // 피그마 1337:10034: 12 Medium · #303137 60%
                 Text(
                   date,
                   style: AppTypography.caption.copyWith(
-                    color: AppColors.textStrong,
+                    color: _cardText.withValues(alpha: 0.6),
                     fontWeight: AppTypography.medium,
+                    letterSpacing: 0,
                   ),
                 ),
                 if (scoreTag != null) ...[
@@ -410,12 +412,10 @@ class ReviewFolderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.md),
+            // 피그마 1337:10037 List/Item: 16 SemiBold · 줄 140% · 자간 -3% · #303137
             Text(
               title,
-              style: AppTypography.subheading.copyWith(
-                color: AppColors.textStrong,
-                height: 1.45,
-              ),
+              style: _cardTextStyle(_cardText),
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
@@ -423,20 +423,23 @@ class ReviewFolderCard extends StatelessWidget {
                 // 피그마 1337:10014: 회색 버튼 #E9EBED · 글자 #303137 (42, 모서리 10)
                 if (secondaryLabel != null)
                   Expanded(
-                    child: _CardGreyButton(
+                    child: _CardButton(
                       label: secondaryLabel!,
                       onPressed: onSecondary,
+                      color: const Color(0xFFE9EBED),
+                      textColor: _cardText,
                     ),
                   ),
                 if (secondaryLabel != null && primaryLabel != null)
                   const SizedBox(width: AppSpacing.sm),
+                // 피그마 Button/Small Card Accent: 라임 #C8E324 · 글자 16 SemiBold #15171B (회색 버튼과 같은 크기)
                 if (primaryLabel != null)
                   Expanded(
-                    child: AppButton(
+                    child: _CardButton(
                       label: primaryLabel!,
-                      small: true,
-                      variant: AppButtonVariant.point,
                       onPressed: onPrimary,
+                      color: AppColors.point,
+                      textColor: AppColors.ink,
                     ),
                   ),
               ],
@@ -591,9 +594,11 @@ class _InterviewRecordCard extends StatelessWidget {
         const CustomSemanticsAction(label: '삭제'): onDelete,
       },
       child: ReviewFolderCard(
-        date: r.lastAt == null
-            ? '작성 중'
-            : formatDotSpaced(r.lastAt!).replaceAll(RegExp(r'\.$'), ''),
+        // 제출 전이면 질문을 받은 날짜 (QA: 날짜 자리에 "작성 중" 이 나오던 것)
+        date: switch (r.lastAt ?? r.createdAt) {
+          final d? => formatDotSpaced(d).replaceAll(RegExp(r'\.$'), ''),
+          null => '',
+        },
         // 복습 카드에는 점수를 보여주지 않는다 (상태 배지만)
         status: status,
         tone: tone,
@@ -616,10 +621,28 @@ class _InterviewRecordCard extends StatelessWidget {
   }
 }
 
-class _CardGreyButton extends StatelessWidget {
-  const _CardGreyButton({required this.label, this.onPressed});
+/// 피그마 1337:10014 카드 글자색 (text/secondary)
+const Color _cardText = Color(0xFF303137);
+
+/// 카드 질문 · 카드 버튼 글자 (피그마 List/Item · Button/Small: 16 SemiBold · 줄 140% · 자간 -3%)
+TextStyle _cardTextStyle(Color color) => AppTypography.subheading.copyWith(
+      color: color,
+      height: 1.4,
+      letterSpacing: -0.48,
+    );
+
+/// 복습 카드 버튼 (높이 42 · 모서리 10 · 글자 16 SemiBold)
+class _CardButton extends StatelessWidget {
+  const _CardButton({
+    required this.label,
+    required this.color,
+    required this.textColor,
+    this.onPressed,
+  });
 
   final String label;
+  final Color color;
+  final Color textColor;
   final VoidCallback? onPressed;
 
   @override
@@ -630,7 +653,7 @@ class _CardGreyButton extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       child: Material(
-        color: const Color(0xFFE9EBED),
+        color: color,
         borderRadius: radius,
         child: InkWell(
           onTap: onPressed,
@@ -640,7 +663,8 @@ class _CardGreyButton extends StatelessWidget {
             child: Center(
               child: Text(
                 label,
-                style: AppTypography.subheading.copyWith(color: AppColors.textStrong),
+                maxLines: 1,
+                style: _cardTextStyle(textColor),
               ),
             ),
           ),

@@ -217,12 +217,15 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
                       ],
                     ),
             ),
-            if (items.isEmpty)
+            if (items.isEmpty) ...[
               const EmptyView(
                 card: true,
                 title: '저장한 경험이 없어요',
                 description: '경험을 추가하면 내 경험에 맞춘 질문을 받아요.',
               ),
+              // QA 1520-9617: 빈 카드와 "삭제했어요" 띠가 붙어 겹쳐 보였다 → 카드 아래로 띄운다
+              const SizedBox(height: AppSpacing.sm),
+            ],
             for (final e in items) ...[
               _ExperienceCard(
                 experience: e,

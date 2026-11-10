@@ -74,6 +74,7 @@ class InterviewRecord {
     this.metCount,
     this.lastAt,
     this.retryRemaining,
+    this.createdAt,
   });
 
   factory InterviewRecord.fromJson(Map<String, dynamic> json) => InterviewRecord(
@@ -86,6 +87,7 @@ class InterviewRecord {
         metCount: json['metCount'] as int?,
         lastAt: json['lastAt'] == null ? null : DateTime.parse(json['lastAt'] as String),
         retryRemaining: json['retryRemaining'] as int?,
+        createdAt: json['createdAt'] == null ? null : DateTime.parse(json['createdAt'] as String),
       );
 
   final String questionId;
@@ -101,6 +103,9 @@ class InterviewRecord {
   final int? score;
   final int? metCount;
   final DateTime? lastAt;
+
+  /// 질문이 만들어진 때 (아직 제출 전이면 카드 날짜로 쓴다)
+  final DateTime? createdAt;
 }
 
 /// 답변 보기 (5-3): 질문 + 시도 목록

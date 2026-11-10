@@ -31,6 +31,7 @@ class AppTextField extends StatelessWidget {
     this.onSubmitted,
     this.bordered = false,
     this.clearable = false,
+    this.fill = false,
   });
 
   final TextEditingController controller;
@@ -67,6 +68,9 @@ class AppTextField extends StatelessWidget {
 
   /// 글자가 있으면 오른쪽에 회색 원 ✕ (16, #DCE0E7) — 누르면 지운다 (피그마 1164:6116 이메일 로그인)
   final bool clearable;
+
+  /// 여러 줄 입력칸이 주어진 높이를 꽉 채운다 (시트 남은 칸). 부모가 높이를 정해 줘야 한다.
+  final bool fill;
 
   static String _comma(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
 
@@ -105,8 +109,10 @@ class AppTextField extends StatelessWidget {
       onSubmitted: onSubmitted,
       readOnly: readOnly,
       autofocus: autofocus,
-      minLines: minLines,
-      maxLines: maxLines,
+      minLines: fill ? null : minLines,
+      maxLines: fill ? null : maxLines,
+      expands: fill,
+      textAlignVertical: fill ? TextAlignVertical.top : null,
       onChanged: onChanged,
       obscureText: obscureText,
       textInputAction: textInputAction ?? (multiline ? TextInputAction.newline : TextInputAction.done),
@@ -154,7 +160,7 @@ class AppTextField extends StatelessWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  field,
+                  if (fill) Expanded(child: field) else field,
                   const SizedBox(height: AppSpacing.xs),
                   ValueListenableBuilder<TextEditingValue>(
                     valueListenable: controller,
@@ -174,9 +180,9 @@ class AppTextField extends StatelessWidget {
     // 오류가 있든 없든 같은 Column (구조가 바뀌면 입력칸이 새로 만들어져 키보드가 내려간다)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
       children: [
-        box,
+        if (fill) Expanded(child: box) else box,
         if (hasError) ...[
           SizedBox(height: bordered ? 4 : 6),
           Semantics(

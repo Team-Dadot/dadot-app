@@ -127,7 +127,15 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                 if (title == null)
                   Image.asset(logoAsset, height: 18, semanticLabel: 'Dadot', filterQuality: FilterQuality.medium)
                 else
-                  Semantics(header: true, child: Text(title!, style: AppTypography.brand)),
+                  // 피그마 1337:10216 Display/Header: Zalando Sans SemiExpanded Medium 24 · 줄 140% · 자간 -3% · #303137
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      title!,
+                      style: AppTypography.number(24, weight: FontWeight.w500, color: const Color(0xFF303137))
+                          .copyWith(letterSpacing: -0.72),
+                    ),
+                  ),
                 const Spacer(),
                 ?trailing,
               ],

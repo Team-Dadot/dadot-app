@@ -42,7 +42,8 @@ class SwipeApp extends ConsumerWidget {
             statusBarBrightness: Brightness.light, // iOS: 밝은 바탕 → 검은 글자
           ),
           child: MediaQuery(
-            data: media.copyWith(textScaler: media.textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.3)),
+            // QA: 폰 글자 크기를 키운 기기에서 피그마보다 15% 커져 카드가 넘쳤다 → 최대 1.1배까지만 따른다
+            data: media.copyWith(textScaler: media.textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.1)),
             child: child ?? const SizedBox.shrink(),
           ),
         );

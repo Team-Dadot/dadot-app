@@ -95,44 +95,58 @@ class _ReauthScreenState extends ConsumerState<ReauthScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AppNavBar(title: '수정하기'),
+      // 피그마 서브 그래픽 "개인 정보보호 그래픽" (1514:9672): 내비 아래 43 에 그림 · 제목 20 · 설명 16 · 38 아래 흰 버튼(52, 모서리 16)
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 56, AppSpacing.screenH, AppSpacing.xl),
+        padding: EdgeInsets.fromLTRB(AppSpacing.screenH, 224 - 113 - StateGraphic.privacy.height, AppSpacing.screenH, AppSpacing.xl),
         children: [
           const StatusMessage(
             icon: StatusIcon.shield,
             title: '개인정보 보호를 위한 인증이 필요해요',
             description: '로그인 계정으로 재인증을 진행해주세요',
+            titleColor: AppColors.ink,
+            descriptionColor: AppColors.textCaption,
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: 38),
           Semantics(
             button: true,
             label: '$label 계정으로 인증',
             excludeSemantics: true,
-            child: OutlinedBox(
-              radius: AppRadius.button,
-              onTap: _busy ? null : () => _reauth(provider, label),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_busy)
-                    const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.primary))
-                  else ...[
-                    Container(
-                      width: 22,
-                      height: 22,
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-                      child: switch (method) {
-                        LoginMethod.apple => Image.asset('assets/images/icons/login_apple.png', excludeFromSemantics: true),
-                        LoginMethod.google => Icon(icon, size: 13, color: AppColors.ink),
-                        _ => Image.asset('assets/images/icons/login_kakao.png', excludeFromSemantics: true),
-                      },
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text('$label 계정으로 인증', style: AppTypography.body2Medium.copyWith(color: AppColors.ink)),
-                  ],
-                ],
+            child: Material(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: InkWell(
+                onTap: _busy ? null : () => _reauth(provider, label),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                child: SizedBox(
+                  height: 52,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_busy)
+                        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.primary))
+                      else ...[
+                        switch (method) {
+                          LoginMethod.apple || LoginMethod.google => Container(
+                              width: 20,
+                              height: 20,
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(4)),
+                              child: method == LoginMethod.apple
+                                  ? Image.asset('assets/images/icons/login_apple.png', excludeFromSemantics: true)
+                                  : Icon(icon, size: 13, color: AppColors.ink),
+                            ),
+                          // 피그마: 노란 네모(#FFE812, 모서리 4) 안 말풍선
+                          _ => Image.asset('assets/images/icons/kakao_square.png', width: 20, height: 20, excludeFromSemantics: true),
+                        },
+                        const SizedBox(width: 9),
+                        Text(
+                          '$label 계정으로 인증',
+                          style: AppTypography.body2Medium.copyWith(color: AppColors.ink, height: 1.4, letterSpacing: -0.42),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

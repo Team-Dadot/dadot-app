@@ -846,7 +846,8 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
                         .toList();
                     if (shown.isEmpty) {
                       return Padding(
-                        padding: const EdgeInsets.only(top: 120),
+                        // 피그마 1514:9656: 검색창 아래 151 에 그림, 그 아래 제목 (위 간격 16 포함)
+                        padding: const EdgeInsets.only(top: 135),
                         child: _query.isEmpty
                             ? const StatusMessage(
                                 title: '더 추가할 기업이 없어요',

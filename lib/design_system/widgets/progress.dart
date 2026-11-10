@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../tokens/app_colors.dart';
 import '../tokens/app_spacing.dart';
 import '../tokens/app_typography.dart';
+import 'state_views.dart';
 
 /// 진행 막대 (높이 8, 둥근 알약). [gap] 이 0 이면 한 줄 막대(퀴즈), 아니면 칸 나뉜 막대(온보딩 STEP).
 class StepBar extends StatelessWidget {
@@ -103,46 +104,53 @@ class ScoreBar extends StatelessWidget {
   }
 }
 
-/// 로딩 화면 (피그마 4-1 질문 생성 중 · 4-5 분석 중): 회색 원 72 + 제목 18 + 설명 14
+/// 로딩 화면 (피그마 서브 그래픽 1514:9603 질문 생성 · 1514:9616 텍스트 변환 · 1514:9590 답변 분석):
+/// 제목 20 SemiBold · 설명 16 Medium 묶음이 화면 한가운데, 그 위에 그림
 class ProcessingView extends StatelessWidget {
-  const ProcessingView({super.key, required this.title, this.description = '잠시만 기다려 주세요', this.iconAsset});
+  const ProcessingView({super.key, required this.title, this.description = '잠시만 기다려 주세요', this.graphic});
 
   final String title;
   final String description;
 
-  /// 피그마 최종 로딩 아이콘 (질문 생성: load_question · 답변 분석: load_answer). 없으면 회색 원 + 스피너.
-  final String? iconAsset;
+  /// 피그마 서브 그래픽. 없으면 회색 원 + 스피너.
+  final StateGraphic? graphic;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    final g = graphic;
+    return CenteredStatus(
+      graphicHeight: g?.height ?? AppSizes.illustration + AppSpacing.md,
       child: Padding(
         padding: AppSpacing.screen,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (iconAsset != null)
-              _Pulse(child: Image.asset(iconAsset!, width: 48, height: 48, excludeFromSemantics: true))
-            else
-              Container(
-                width: AppSizes.illustration,
-                height: AppSizes.illustration,
-                decoration: const BoxDecoration(color: AppColors.placeholder, shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.white)),
-              ),
-            const SizedBox(height: AppSpacing.md),
-            Text(title, textAlign: TextAlign.center, style: AppTypography.heading.copyWith(fontSize: 18, fontWeight: AppTypography.medium)),
-            const SizedBox(height: AppSpacing.xs),
-            Text(description, textAlign: TextAlign.center, style: AppTypography.body2.copyWith(color: AppColors.textSecondary)),
-          ],
+        child: Semantics(
+          liveRegion: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (g != null)
+                _Pulse(child: g.image())
+              else ...[
+                Container(
+                  width: AppSizes.illustration,
+                  height: AppSizes.illustration,
+                  decoration: const BoxDecoration(color: AppColors.placeholder, shape: BoxShape.circle),
+                  alignment: Alignment.center,
+                  child: const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.white)),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              Text(title, textAlign: TextAlign.center, style: StateText.title()),
+              const SizedBox(height: AppSpacing.xs),
+              Text(description, textAlign: TextAlign.center, style: StateText.description()),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// 로딩 아이콘이 천천히 숨 쉬듯 움직인다 (기다리는 중이라는 표시)
+/// 로딩 그림이 천천히 숨 쉬듯 움직인다 (기다리는 중이라는 표시)
 class _Pulse extends StatefulWidget {
   const _Pulse({required this.child});
 

@@ -63,14 +63,16 @@ class _InterviewTodayScreenState extends ConsumerState<InterviewTodayScreen> {
         },
       );
     } else {
-      body = const ProcessingView(title: '질문을 만들고 있어요', iconAsset: 'assets/images/icons/load_question.png');
+      body = const ProcessingView(title: '질문을 만들고 있어요', graphic: StateGraphic.question);
     }
-    // 피그마 4-1 로딩: 내비 바 없이 가운데 회색 원 + "질문을 만들고 있어요"
-    final loading = _error == null && !_allDone;
+    // 피그마 서브 그래픽 로딩1 · 오류발생 (1514:9603 · 1514:9640): 내비 바 없이 가운데 그림 + 글자
+    final bare = !_allDone;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: loading ? null : AppNavBar(title: _error != null ? '' : '면접 질문'),
-      body: loading ? SafeArea(child: body) : body,
+      appBar: bare ? null : const AppNavBar(title: '면접 질문'),
+      // 오류 화면: 아래 "질문 불러오기" 버튼 영역까지 포함한 화면 한가운데에 글자 (피그마 1514:9640)
+      extendBody: _error != null,
+      body: bare ? SafeArea(bottom: _error == null, child: body) : body,
       bottomNavigationBar: _error == null ? null : BottomCta(children: [AppButton(label: '질문 불러오기', onPressed: _load)]),
     );
   }

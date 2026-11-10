@@ -49,32 +49,54 @@ class _ExperienceFormState extends State<_ExperienceForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // QA 1520-9618: 내용 칸(9줄 고정)이 시트보다 길어 아래 버튼에 잘려 보였다 (내용 칸 ↔ 버튼 24)
+        // → 피그마 942:4495 처럼 내용 칸이 남은 높이를 꽉 채우고, 너무 좁으면(작은 폰·키보드) 스크롤
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.md),
-            children: [
-              const FieldLabel('경험 제목'),
-              const SizedBox(height: AppSpacing.xs),
-              AppTextField(
-                controller: _title,
-                hint: '제목을 입력해주세요',
-                maxLength: null,
-                // QA: 키보드는 칸을 눌렀을 때만 (자동으로 올리지 않는다)
-                onChanged: (_) => setState(() {}),
-                semanticLabel: '경험 제목',
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                controller: _content,
-                hint: '경험을 자유롭게 적어 주세요.',
-                minLines: 9,
-                maxLines: 14,
-                maxLength: AppPolicy.experienceMaxLength,
-                showLimitInCounter: false,
-                onChanged: (_) => setState(() {}),
-                semanticLabel: '경험 내용',
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, box) {
+              // 제목 줄(22+8+52) + 간격 24 + 내용 칸 최소 160
+              const minHeight = 22 + 8 + AppSizes.inputHeight + 24 + 160.0;
+              final height = box.maxHeight - AppSpacing.xs - AppSpacing.md;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.md,
+                ),
+                child: SizedBox(
+                  height: height < minHeight ? minHeight : height,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const FieldLabel('경험 제목'),
+                      const SizedBox(height: AppSpacing.xs),
+                      AppTextField(
+                        controller: _title,
+                        hint: '제목을 입력해주세요',
+                        maxLength: null,
+                        // QA: 키보드는 칸을 눌렀을 때만 (자동으로 올리지 않는다)
+                        onChanged: (_) => setState(() {}),
+                        semanticLabel: '경험 제목',
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      Expanded(
+                        child: AppTextField(
+                          controller: _content,
+                          hint: '경험을 자유롭게 적어 주세요.',
+                          fill: true,
+                          maxLines: 2,
+                          maxLength: AppPolicy.experienceMaxLength,
+                          showLimitInCounter: false,
+                          onChanged: (_) => setState(() {}),
+                          semanticLabel: '경험 내용',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
         BottomCta(
@@ -84,7 +106,9 @@ class _ExperienceFormState extends State<_ExperienceForm> {
               label: widget.confirmLabel,
               onPressed: !_filled
                   ? null
-                  : () => Navigator.of(context).pop(ExperienceDraft(title: _title.text.trim(), content: _content.text.trim())),
+                  : () =>
+                        Navigator.of(context)
+                            .pop(ExperienceDraft(title: _title.text.trim(), content: _content.text.trim())),
             ),
           ],
         ),
@@ -125,7 +149,9 @@ class _ExperienceAccordionState extends State<ExperienceAccordion> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 18),
                 child: Row(
                   children: [
-                    Expanded(child: Text(e.title, style: AppTypography.cardTitle.copyWith(color: AppColors.ink))),
+                    Expanded(
+                      child: Text(e.title, style: AppTypography.cardTitle.copyWith(color: AppColors.ink)),
+                    ),
                     ExcludeSemantics(
                       child: Icon(
                         _open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
@@ -138,7 +164,10 @@ class _ExperienceAccordionState extends State<ExperienceAccordion> {
             ),
           ),
           if (_open) ...[
-            const Padding(padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg), child: LineDivider()),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: LineDivider(),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
               child: Text(e.content, style: AppTypography.body1.copyWith(color: AppColors.textSub, height: 1.6)),

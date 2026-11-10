@@ -1243,7 +1243,8 @@ class RemoteRecordsRepository implements RecordsRepository {
           // InterviewReview.Question: {questionId, question, hasDraft, latestAttempt, latestScorePercent, completionDecision, questionUsed, ...}
           final attempts = _int(j, ['questionUsed', 'attemptCount']) ?? (latest == null ? 0 : 1);
           final decided = _bool(j, ['completionDecision']);
-          final status = latest == null && j['hasDraft'] == true
+          // QA: 아직 제출 안 한 질문 · 다시 쓰다 저장만 해 둔 질문은 "작성 중" (이어서 답변하기)
+          final status = latest == null || j['hasDraft'] == true
               ? AnswerStatus.draft
               : (decided ?? (score != null && score >= AppPolicy.completeScore))
                   ? AnswerStatus.complete
@@ -1257,6 +1258,7 @@ class RemoteRecordsRepository implements RecordsRepository {
             score: score,
             lastAt: _date(j['lastSubmittedAt'] ?? j['lastAnsweredAt'] ?? j['updatedAt'] ?? latest?['submittedAt']),
             retryRemaining: _int(j, ['questionRemaining']),
+            createdAt: _date(j['createdAt']),
           );
         }(),
     ];

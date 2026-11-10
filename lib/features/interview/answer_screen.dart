@@ -345,12 +345,12 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     if (_mode == _Mode.analyzing) {
       body = const ProcessingView(
         title: '답변을 분석하고 있어요',
-        iconAsset: 'assets/images/icons/load_answer.png',
+        graphic: StateGraphic.analyze,
       );
     } else if (_mode == _Mode.converting) {
       body = const ProcessingView(
         title: '답변을 텍스트로 변환 중이에요',
-        iconAsset: 'assets/images/icons/load_answer.png',
+        graphic: StateGraphic.convert,
       );
     } else {
       final header = q.when(
