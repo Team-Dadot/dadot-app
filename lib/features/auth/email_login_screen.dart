@@ -84,10 +84,6 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final small = AppTypography.caption.copyWith(
-      fontWeight: FontWeight.w400,
-      color: AppColors.textSub,
-    );
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AppNavBar(title: '이메일로 시작하기'),
@@ -137,39 +133,31 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
               loading: _saving,
               onPressed: _valid && !_saving ? _submit : null,
             ),
+            // 피그마 1435:11151: 로그인 버튼 아래 20 — "비밀번호 찾기 | 회원가입" 한 줄.
+            // QA 메모(1435:11796): 그냥 글자처럼 보인다는 피드백 → 밑줄 + 12 → 14
             const SizedBox(height: AppSpacing.lg),
-            Center(
-              child: InkWell(
-                onTap: _saving
-                    ? null
-                    : () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const PasswordResetScreen(),
-                        ),
-                      ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text('비밀번호 찾기', style: small),
-                ),
-              ),
-            ),
-            const SizedBox(height: 36),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('아직 다닷 회원이 아니신가요?', style: small),
-                const SizedBox(width: 10),
-                InkWell(
+                _AuthLink(
+                  label: '비밀번호 찾기',
                   onTap: _saving
                       ? null
-                      : () => context.push(Routes.emailSignup),
-                  child: Text(
-                    '회원가입',
-                    style: small.copyWith(
-                      decoration: TextDecoration.underline,
-                      decorationColor: AppColors.textSub,
-                    ),
-                  ),
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const PasswordResetScreen(),
+                          ),
+                        ),
+                ),
+                Container(
+                  width: 1,
+                  height: 14,
+                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  color: AppColors.textSub,
+                ),
+                _AuthLink(
+                  label: '회원가입',
+                  onTap: _saving ? null : () => context.push(Routes.emailSignup),
                 ),
               ],
             ),
@@ -178,6 +166,36 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
       ),
     );
   }
+}
+
+/// 로그인 버튼 아래 글자 링크 (피그마 1435:11152 · 1435:11154 — 14 Regular #55565A, 밑줄, 자간 -0.42)
+class _AuthLink extends StatelessWidget {
+  const _AuthLink({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: onTap != null,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Text(
+          label,
+          style: AppTypography.body2.copyWith(
+            color: AppColors.textSub,
+            height: 1.4,
+            letterSpacing: -0.42,
+            decoration: TextDecoration.underline,
+            decorationColor: AppColors.textSub,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// 입력칸 위 라벨 (피그마 14 Medium #55565A, 아래 4)

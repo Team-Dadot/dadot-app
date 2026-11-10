@@ -288,5 +288,17 @@ void showDoneToast(BuildContext context, String message, {String actionLabel = '
       background: AppColors.cardDark,
     );
 
+/// 안내 토스트 (피그마 회원가입 helpertext 1435:11283 — 진한 바탕 + 라임 ! 아이콘 + 14 Medium 흰 글자)
+void showInfoToast(BuildContext context, String message) => AppToast.show(
+      context,
+      Row(
+        children: [
+          const ExcludeSemantics(child: Icon(Icons.error_rounded, size: 16, color: AppColors.point)),
+          const SizedBox(width: 6),
+          Expanded(child: Text(message)),
+        ],
+      ),
+    );
+
 /// 오류 토스트
 void showErrorToast(BuildContext context, Object error) => showToast(context, asAppException(error).userMessage);

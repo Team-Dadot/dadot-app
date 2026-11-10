@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_policy.dart';
+import '../../core/error/app_exception.dart';
 import '../../core/providers.dart';
 import '../../core/session/session_controller.dart';
 import '../../data/models/auth.dart';
@@ -46,6 +47,9 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
   bool _verifying = false;
   bool _saving = false;
 
+  /// 인증번호가 틀렸을 때 칸 아래 빨간 글자 (피그마 1435:11390 — 토스트가 아니라 하단 서브 텍스트)
+  String? _codeError;
+
   @override
   void initState() {
     super.initState();
@@ -77,9 +81,7 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
       ? '이메일 형식이 올바르지 않아요'
       : null;
   String? get _passwordError =>
-      _password.text.isNotEmpty && !AppPolicy.isValidPassword(_password.text)
-      ? AppPolicy.passwordRule
-      : null;
+      _password.text.isEmpty ? null : AppPolicy.passwordProblem(_password.text);
   String? get _confirmError =>
       _confirm.text.isNotEmpty && _confirm.text != _password.text
       ? '비밀번호가 일치하지 않아요'
@@ -109,8 +111,9 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
         _verificationId = id;
         _codeEmail = _emailText;
         _code.clear();
+        _codeError = null;
       });
-      showToast(context, '인증번호를 보냈어요. 메일함을 확인해 주세요.');
+      showInfoToast(context, '인증 번호를 보냈어요. 메일함을 확인해 주세요.');
     } catch (e) {
       if (mounted) showErrorToast(context, e);
     } finally {
@@ -130,10 +133,20 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
       setState(() {
         _verificationToken = token;
         _verifiedEmail = _emailText;
+        _codeError = null;
       });
       FocusScope.of(context).nextFocus();
     } catch (e) {
-      if (mounted) showErrorToast(context, e);
+      if (!mounted) return;
+      // 피그마 QA(1435:11798): 인증번호가 틀리면 토스트 대신 칸 아래 빨간 서브 텍스트로 알려 준다
+      final err = asAppException(e);
+      if (err.kind == AppErrorKind.validation ||
+          err.kind == AppErrorKind.unauthorized ||
+          err.kind == AppErrorKind.notFound) {
+        setState(() => _codeError = '인증번호가 일치하지 않아요');
+      } else {
+        showErrorToast(context, err);
+      }
     } finally {
       if (mounted) setState(() => _verifying = false);
     }
@@ -206,43 +219,65 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _verified ? null : _sendCode(),
             semanticLabel: '이메일',
-            trailing: _verified
-                ? Text(
-                    '인증 완료',
-                    style: AppTypography.body2Strong.copyWith(
-                      color: AppColors.pointDeep,
-                    ),
-                  )
-                : InlineAction(
-                    label: _codeSent ? '재전송' : '인증 요청',
+            // 피그마 시안2 (1435:11436): 지우기 ✕ + 오른쪽 작은 버튼. 인증이 끝나면 라임 "인증 완료" 칩.
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_email.text.isNotEmpty) ...[
+                  FieldClearButton(
+                    semanticLabel: '이메일 지우기',
+                    onTap: () {
+                      _email.clear();
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                if (_verified)
+                  const InlineAction(label: '인증 완료', onTap: null, accent: true)
+                else
+                  InlineAction(
+                    label: _codeSent ? '재요청' : '인증 요청',
                     loading: _sending,
                     onTap: AppPolicy.isValidEmail(_email.text)
                         ? _sendCode
                         : null,
                   ),
+              ],
+            ),
           ),
           if (_codeSent && !_verified) ...[
+            // 피그마 1435:11234: 이메일 칸 아래 12 에 인증번호 칸 (안내 문구는 칸 안내 글자로 합쳤다)
             const SizedBox(height: AppSpacing.sm),
             AppTextField(
               controller: _code,
               bordered: true,
-              hint: '이메일로 받은 인증번호 6자리',
+              hint: '인증번호 6자리 (10분 이내)',
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
-              onChanged: (_) => setState(() {}),
+              errorText: _codeError,
+              onChanged: (_) => setState(() => _codeError = null),
               onSubmitted: (_) => _verify(),
               semanticLabel: '인증번호',
-              trailing: InlineAction(
-                label: '확인',
-                loading: _verifying,
-                onTap: _code.text.trim().length == 6 ? _verify : null,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '인증번호는 10분 동안 쓸 수 있어요',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textCaption,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_code.text.isNotEmpty) ...[
+                    FieldClearButton(
+                      semanticLabel: '인증번호 지우기',
+                      onTap: () {
+                        _code.clear();
+                        setState(() => _codeError = null);
+                      },
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  InlineAction(
+                    label: '확인',
+                    loading: _verifying,
+                    onTap: _code.text.trim().length == 6 ? _verify : null,
+                  ),
+                ],
               ),
             ),
           ],
@@ -252,13 +287,18 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
             controller: _password,
             focusNode: _passwordFocus,
             bordered: true,
-            clearable: true,
-            hint: '영문, 숫자 포함 8자 이상',
+            hint: AppPolicy.passwordHint,
             obscureText: true,
             textInputAction: TextInputAction.next,
             errorText: _shown(_passwordFocus, _passwordError),
             onChanged: (_) => setState(() {}),
             semanticLabel: '비밀번호',
+            trailing: fieldMark(
+              controller: _password,
+              valid: AppPolicy.isValidPassword(_password.text),
+              label: '비밀번호',
+              onCleared: () => setState(() {}),
+            ),
           ),
           const SizedBox(height: 28),
           const _Label('비밀번호 확인'),
@@ -266,12 +306,17 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
             controller: _confirm,
             focusNode: _confirmFocus,
             bordered: true,
-            clearable: true,
             hint: '비밀번호를 한번 더 입력해 주세요',
             obscureText: true,
             errorText: _shown(_confirmFocus, _confirmError),
             onChanged: (_) => setState(() {}),
             semanticLabel: '비밀번호 확인',
+            trailing: fieldMark(
+              controller: _confirm,
+              valid: _confirm.text.isNotEmpty && _confirm.text == _password.text,
+              label: '비밀번호 확인',
+              onCleared: () => setState(() {}),
+            ),
           ),
           if (config.hasError) ...[
             const SizedBox(height: AppSpacing.xl),
