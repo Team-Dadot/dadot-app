@@ -1109,7 +1109,8 @@ class RemoteInterviewRepository implements InterviewRepository {
         'VERSION_CONFLICT',
       };
       // 접수되지 않았음이 명확한 경우만 새 작성·제출을 허용한다.
-      if (pending.attemptId == null && rejected.contains(e.code)) await _forget(key);
+      // try 안에서는 pending 이 null 이 아님이 보장되지만 catch 에서는 승격이 풀린다
+      if (pending!.attemptId == null && rejected.contains(e.code)) await _forget(key);
       rethrow;
     }
   }
