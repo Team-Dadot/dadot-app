@@ -27,12 +27,10 @@ class QuestionScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
           children: [
             QuestionHeadline(q.text),
+            // 피그마 1520:11296: 근거가 2개여도 카드는 하나 (내용만 선으로 나눠 쌓는다)
             if (q.evidence.isNotEmpty) ...[
               const SizedBox(height: 36),
-              for (var i = 0; i < q.evidence.length; i++) ...[
-                EvidenceFolderCard(evidence: q.evidence[i], showTab: i == 0),
-                const SizedBox(height: AppSpacing.md),
-              ],
+              EvidenceFolderCard(evidence: q.evidence),
             ],
           ],
         ),

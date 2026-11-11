@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +12,6 @@ import '../../data/models/records.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
 import '../common/format.dart';
-import '../common/pickers.dart';
 import '../home/company_switch_sheet.dart';
 
 /// 피그마 5-1 퀴즈 복습 · 5-2 면접 복습 (작업 프레임): 상단 "Review" + 기업 칩, 밑줄 탭, 알약 필터, 폴더 탭 카드
@@ -180,111 +181,152 @@ class _QuizReviewState extends ConsumerState<_QuizReview> {
   }
 }
 
+/// 피그마 1520:11376 해설 카드 + 1520:11459 하단(DART 원문보기 · 밑줄 오류 제보하기)
+class _ExplanationSheet extends ConsumerStatefulWidget {
+  const _ExplanationSheet({required this.item});
+
+  final QuizReviewItem item;
+
+  @override
+  ConsumerState<_ExplanationSheet> createState() => _ExplanationSheetState();
+}
+
+class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
+  bool _reporting = false;
+
+  Future<void> _report() async {
+    setState(() => _reporting = true);
+    try {
+      await ref
+          .read(quizRepositoryProvider)
+          .reportQuestion(questionId: widget.item.question.id, reason: '문제 해설에서 오류 제보');
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showToast(context, '제보해 주셔서 고마워요. 확인 후 고칠게요.');
+    } catch (e) {
+      if (mounted) showErrorToast(context, e);
+    } finally {
+      if (mounted) setState(() => _reporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final ev = item.evidence ?? item.question.evidence;
+    final correct = item.correctText;
+    // 피그마: 본문 16 Regular 줄 160% — 제목줄 #303137, 설명 #727479
+    final head = AppTypography.body1.copyWith(fontSize: 16, height: 1.6, letterSpacing: -0.48, color: const Color(0xFF303137));
+    final body = AppTypography.body1.copyWith(fontSize: 16, height: 1.6, letterSpacing: -0.48, color: const Color(0xFF727479));
+    final meta = AppTypography.body1.copyWith(fontSize: 13, height: 1.4, letterSpacing: -0.39, color: AppColors.textGuide);
+    final url = ev?.url;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            // 시트 헤더 아래 24 에 문제, 24 아래 해설 카드
+            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(item.question.prompt, style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4)),
+                const SizedBox(height: AppSpacing.xl),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.button)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 정답 영역: 아래 12 띄우고 #DCE0E7 선
+                      Container(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        decoration: const BoxDecoration(
+                          border: Border(bottom: BorderSide(color: AppColors.fillMuted)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (correct != null) ...[
+                              Text('정답 : $correct', style: head),
+                              const SizedBox(height: AppSpacing.xs),
+                            ],
+                            Text(item.explanation, style: body),
+                          ],
+                        ),
+                      ),
+                      if (ev != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text('공시 근거', style: head),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(ev.excerpt, style: body),
+                        const SizedBox(height: AppSpacing.xs),
+                        Row(
+                          children: [
+                            if (ev.publishedAt != null) ...[
+                              Text(ev.publishedAt!, style: meta),
+                              Container(width: 1, height: 10, margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs), color: AppColors.textGuide),
+                            ],
+                            Expanded(child: Text(ev.title, style: meta)),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        BottomCta(
+          color: AppColors.sheet,
+          children: [
+            if (url != null)
+              AppButton(label: 'DART 원문보기', onPressed: () => unawaited(ref.read(linkServiceProvider).open(url))),
+            Semantics(
+              button: true,
+              label: '오류 제보하기',
+              excludeSemantics: true,
+              child: InkWell(
+                onTap: _reporting ? null : _report,
+                child: SizedBox(
+                  height: AppSizes.ctaHeight,
+                  child: Center(
+                    child: _reporting
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.textCaption))
+                        : Text(
+                            '오류 제보하기',
+                            style: AppTypography.subheading.copyWith(
+                              color: const Color(0xFF65666B),
+                              height: 1.4,
+                              decoration: TextDecoration.underline,
+                              decorationColor: const Color(0xFF65666B),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _QuizReviewCard extends StatelessWidget {
   const _QuizReviewCard({required this.item});
 
   final QuizReviewItem item;
 
-  /// 피그마 1337:10053 "문제 해설" 시트: 문제 · 흰 카드(정답 : ○○ / 해설 | 공시 근거 / 인용 / 공시일 | 보고서) · 공시 근거 보기
+  /// 피그마 1520:11333 "문제 해설" 시트: 문제 · 흰 카드(정답 : ○○ / 해설 — 선 — 공시 근거 / 인용 / 공시일 | 보고서)
+  /// · DART 원문보기 + 밑줄 "오류 제보하기"
   void _showExplanation(BuildContext context) {
-    final ev = item.evidence ?? item.question.evidence;
-    final body = AppTypography.body1.copyWith(
-      fontSize: 16,
-      height: 1.6,
-      color: const Color(0xFF727479),
-    );
-    final head = AppTypography.body1.copyWith(
-      fontSize: 16,
-      height: 1.6,
-      color: AppColors.textStrong,
-    );
-    final meta = AppTypography.caption.copyWith(
-      fontSize: 13,
-      fontWeight: FontWeight.w400,
-      color: AppColors.textGuide,
-    );
-    final correct = item.correctText;
     showAppSheet<void>(
       context,
       title: '문제 해설',
       expand: true,
-      builder: (sheetContext) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.xxs,
-                AppSpacing.screenH,
-                AppSpacing.lg,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    item.question.prompt,
-                    style: AppTypography.title4.copyWith(
-                      color: AppColors.ink,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (correct != null) Text('정답 : $correct', style: head),
-                        if (correct != null)
-                          const SizedBox(height: AppSpacing.xs),
-                        Text(item.explanation, style: body),
-                        if (ev != null) ...[
-                          const Padding(
-                            padding: EdgeInsets.symmetric(
-                              vertical: AppSpacing.md,
-                            ),
-                            child: LineDivider(),
-                          ),
-                          Text('공시 근거', style: head),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(ev.excerpt, style: body),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            [
-                              if (ev.publishedAt != null) ev.publishedAt!,
-                              ev.title,
-                            ].join('  |  '),
-                            style: meta,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (ev != null)
-            BottomCta(
-              color: AppColors.sheet,
-              children: [
-                AppButton(
-                  label: '공시 근거 보기',
-                  onPressed: () => showEvidenceSheet(
-                    context,
-                    evidence: ev,
-                    questionId: item.question.id,
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
+      builder: (_) => _ExplanationSheet(item: item),
     );
   }
 

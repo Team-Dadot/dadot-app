@@ -422,24 +422,34 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       if (_mode == _Mode.voiceReady ||
           _mode == _Mode.recording ||
           _mode == _Mode.voiceStopped) {
+        // 피그마 1540:11882 · 1540:11963 · 1540:11748: 내비 아래 23 에 질문(26 Bold),
+        // 16 아래 "답변은 최대 3분" 카드, 그 아래 90 에 녹음 버튼
         body = Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.screenH,
-            AppSpacing.lg,
+            23,
             AppSpacing.screenH,
             AppSpacing.xl,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              header,
-              const SizedBox(height: 28),
+              q.when(
+                loading: () => const SizedBox(height: 80, child: LoadingView()),
+                error: (e, _) => ErrorView(
+                  error: e,
+                  compact: true,
+                  onRetry: () => ref.invalidate(interviewQuestionProvider(widget.questionId)),
+                ),
+                data: (q) => QuestionHeadline(q.text),
+              ),
+              const SizedBox(height: AppSpacing.md),
               const _VoiceTip(),
               // QA: 녹음 전·중·멈춤·다시 녹음 어느 상태에서도 마이크 버튼이 같은 자리에 있도록
               // 가운데 정렬 대신 위에서부터 고정 간격으로 둔다 (아래 버튼이 생겨도 움직이지 않게)
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 40),
+                  padding: const EdgeInsets.only(top: 90),
                   child: _VoicePanel(
                     speech: _speech,
                     priorElapsed: _priorElapsed,
@@ -478,7 +488,9 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
         );
       }
       bottom = switch (_mode) {
-        _Mode.voiceReady || _Mode.recording => null,
+        // 피그마 1540:11882: 녹음 전에는 눌리지 않는 "제출하기" 만 / 녹음 중에는 버튼 없음
+        _Mode.voiceReady => [const AppButton(label: '제출하기', onPressed: null)],
+        _Mode.recording => null,
         _Mode.voiceStopped => [
           AppButton(
             label: '다시 녹음하기',
@@ -674,48 +686,69 @@ class _VoiceTip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedBox(
-      padding: const EdgeInsets.all(AppSpacing.md),
+    // 피그마 1541:12746: 흰 카드 · 모서리 16 · 안쪽 4 · 44 아이콘 칸(타이머 20) + 16 Medium #303137 한 줄
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xxs),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+      ),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: AppColors.cardDark,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.timer_outlined,
-              size: 20,
-              color: AppColors.white,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: 44, height: 44, child: Center(child: TimerIcon())),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '답변은 최대 ${AppPolicy.voiceMaxDuration.inMinutes}분 정도를 추천해요',
-                  style: AppTypography.body2Strong.copyWith(
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '간결하고 핵심만 담아서 말하기',
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textCaption,
-                  ),
-                ),
-              ],
+            child: Text(
+              '답변은 최대 ${AppPolicy.voiceMaxDuration.inMinutes}분 정도를 추천해요',
+              style: AppTypography.rowTitle.copyWith(color: const Color(0xFF303137)),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// 피그마 icon/timer (20×20, #27282C)
+class TimerIcon extends StatelessWidget {
+  const TimerIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) => const ExcludeSemantics(
+    child: SizedBox(width: 20, height: 20, child: CustomPaint(painter: _TimerPainter())),
+  );
+}
+
+class _TimerPainter extends CustomPainter {
+  const _TimerPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const color = Color(0xFF27282C);
+    // 원본 16.25×18.875 를 20×20 칸 가운데에 둔다
+    canvas.translate((size.width - 16.25) / 2, (size.height - 18.875) / 2);
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(const Offset(6.458, 0.75), const Offset(9.792, 0.75), stroke);
+    canvas.drawLine(const Offset(8.125, 0.75), const Offset(8.125, 3.25), stroke);
+    canvas.drawLine(const Offset(13.542, 4.917), const Offset(13.958, 4.5), stroke);
+    // 시계 몸통 (가운데 바늘은 비워 둔다)
+    canvas.drawCircle(const Offset(8.125, 10.75), 8.125, Paint()..color = color);
+    canvas.drawLine(
+      const Offset(8.125, 10.75),
+      const Offset(10.625, 8.25),
+      Paint()
+        ..color = AppColors.surface
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TimerPainter old) => false;
 }
 
 enum _VoiceState { ready, recording, stopped }
@@ -737,11 +770,15 @@ class _VoicePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recording = state == _VoiceState.recording;
+    final ready = state == _VoiceState.ready;
     final elapsed = priorElapsed + (speech?.elapsed ?? Duration.zero);
     final starting =
         recording &&
         (speech == null || speech!.status == SpeechStatus.initializing);
-    final sub = AppTypography.body2.copyWith(color: AppColors.textCaption);
+    // 피그마 1540:11767 · 1540:11966: 녹음 전 링 136.8 / 녹음 중·멈춤 링 119.7,
+    // 링 선 #DCE0E7 2.4, 안쪽 원은 녹음 중 라임 · 그 외 #27282C
+    final ring = ready ? 136.8 : 119.7;
+    final inner = ready ? 125.6 : 109.9;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -751,62 +788,107 @@ class _VoicePanel extends StatelessWidget {
           excludeSemantics: true,
           child: GestureDetector(
             onTap: starting ? null : onTap,
-            child: Container(
-              width: 140,
-              height: 140,
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.surface,
-                border: Border.all(color: AppColors.fillMuted, width: 2),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: recording ? AppColors.point : AppColors.cardDark,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: recording
-                    ? const _Waveform()
-                    : const Icon(
-                        Icons.mic_rounded,
-                        size: 40,
-                        color: AppColors.white,
+            child: SizedBox(
+              width: ring,
+              height: ring,
+              child: Center(
+                child: Container(
+                  width: ring,
+                  height: ring,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.fillMuted, width: 2.4),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: inner,
+                      height: inner,
+                      decoration: BoxDecoration(
+                        color: recording ? AppColors.point : const Color(0xFF27282C),
+                        shape: BoxShape.circle,
                       ),
+                      alignment: Alignment.center,
+                      child: recording ? const _Waveform() : const _MicIcon(),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.xl),
-        if (state == _VoiceState.ready)
+        const SizedBox(height: AppSpacing.xxl),
+        if (ready)
           Text(
             '버튼을 눌러\n답변을 시작하세요',
             textAlign: TextAlign.center,
-            style: AppTypography.heading.copyWith(
-              fontSize: 18,
-              fontWeight: AppTypography.medium,
-              color: AppColors.textStrong,
-            ),
+            // 피그마 1541:12599: 20 SemiBold · 줄 140% · #15171B
+            style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4, letterSpacing: -0.6),
           )
         else ...[
           Semantics(
             liveRegion: true,
-            child: Text(formatClock(elapsed), style: AppTypography.number(22)),
+            child: Text(
+              formatClock(elapsed),
+              // 피그마 1540:11773: 24 SemiBold · 줄 145% · 자간 -0.72
+              style: AppTypography.title1.copyWith(
+                fontSize: 24,
+                fontWeight: AppTypography.semibold,
+                color: AppColors.ink,
+                height: 1.45,
+                letterSpacing: -0.72,
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             recording ? (starting ? '준비하고 있어요' : '녹음 중이에요') : '녹음을 멈췄어요',
-            style: AppTypography.heading.copyWith(
-              fontSize: 18,
-              color: AppColors.ink,
-            ),
+            textAlign: TextAlign.center,
+            style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4, letterSpacing: -0.6),
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(recording ? '다시 터치하면 녹음을 멈춰요' : '다시 터치하면 녹음을 시작해요', style: sub),
+          const SizedBox(height: 2),
+          Text(
+            recording ? '다시 터치하면 녹음을 멈춰요' : '다시 터치하면 녹음을 시작해요',
+            textAlign: TextAlign.center,
+            style: AppTypography.rowTitle.copyWith(color: AppColors.textCaption),
+          ),
         ],
       ],
     );
   }
+}
+
+/// 녹음 버튼 안 마이크 (피그마 1540:11771 — 흰 선 2, 32×39.5)
+class _MicIcon extends StatelessWidget {
+  const _MicIcon();
+
+  @override
+  Widget build(BuildContext context) => const ExcludeSemantics(
+    child: SizedBox(width: 32, height: 39.5, child: CustomPaint(painter: _MicPainter())),
+  );
+}
+
+class _MicPainter extends CustomPainter {
+  const _MicPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final white = Paint()
+      ..color = AppColors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    // 마이크 몸통 (둥근 알약, 채움)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(const Rect.fromLTWH(8.5, 1, 15, 24.375), const Radius.circular(7.5)),
+      Paint()..color = AppColors.white,
+    );
+    // 아래 반원 + 받침대
+    canvas.drawArc(Rect.fromCircle(center: const Offset(16, 18.8125), radius: 15), 0, 3.14159265, false, white);
+    canvas.drawLine(const Offset(16, 38.5), const Offset(16, 34.75), white);
+  }
+
+  @override
+  bool shouldRepaint(_MicPainter old) => false;
 }
 
 /// 녹음 중 원 안의 파형 (피그마 4-4 녹음 중). 막대가 천천히 움직인다.
@@ -834,8 +916,8 @@ class _WaveformState extends State<_Waveform>
   Widget build(BuildContext context) {
     return ExcludeSemantics(
       child: SizedBox(
-        height: 40,
-        width: 56,
+        height: 38.28,
+        width: 38.28,
         child: AnimatedBuilder(
           animation: _c,
           builder: (_, _) => Row(
@@ -852,8 +934,9 @@ class _WaveformState extends State<_Waveform>
                               (0.5 +
                                   0.5 * (i.isEven ? _c.value : 1 - _c.value))),
                   decoration: BoxDecoration(
-                    color: AppColors.ink,
-                    borderRadius: BorderRadius.circular(2),
+                    // 피그마 1540:11970: 막대 5개 · 두께 3 · 둥근 끝 · #27282C
+                    color: const Color(0xFF27282C),
+                    borderRadius: BorderRadius.circular(1.5),
                   ),
                 ),
             ],

@@ -499,35 +499,32 @@ class CriteriaList extends StatelessWidget {
   }
 }
 
-/// 피그마 최종 4-2 "답변에 활용할 정보" 카드: 라임 폴더 탭 + 라임 제목 칸 + 진한 몸통(공시일 · 대상 기간 · 내용)
+/// 피그마 최종 4-2 "답변에 활용할 정보" 카드: 라임 폴더 탭 + 라임 제목 칸 + 진한 몸통(내용 · 공시일 · 대상 기간)
+///
+/// 근거가 여러 개여도 카드는 하나다 (피그마 1520:11296 "공시 근거 2개일 경우"):
+/// 같은 진한 몸통 안에 내용을 16 간격 · #404147 1px 선으로 나눠 쌓고, 공시 정보 칸은 맨 아래 하나만 둔다.
 class EvidenceFolderCard extends StatelessWidget {
-  const EvidenceFolderCard({
-    super.key,
-    required this.evidence,
-    this.showTab = true,
-  });
+  const EvidenceFolderCard({super.key, required this.evidence})
+    : assert(evidence.length > 0, '근거가 없으면 카드를 그리지 않는다');
 
-  final Evidence evidence;
-
-  /// 근거가 여러 개면 첫 카드만 탭을 단다
-  final bool showTab;
+  final List<Evidence> evidence;
 
   @override
   Widget build(BuildContext context) {
+    final first = evidence.first;
     final meta = [
-      if (evidence.publishedAt != null) '공시일 ㅣ ${evidence.publishedAt}',
-      if (evidence.period != null) '대상 기간 ㅣ ${evidence.period}',
+      if (first.publishedAt != null) '공시일 ㅣ ${first.publishedAt}',
+      if (first.period != null) '대상 기간 ㅣ ${first.period}',
     ];
     final title = Text(
-      evidence.title,
+      first.title,
       // 피그마 1520:9645: 20 SemiBold · 줄 140% · #15171B
       style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showTab)
-          FolderCard(
+        FolderCard(
             color: AppColors.point,
             tabWidth: 148,
             tabHeight: 39,
@@ -543,19 +540,8 @@ class EvidenceFolderCard extends StatelessWidget {
                 style: AppTypography.body2Medium.copyWith(color: AppColors.pointText, height: 1.4),
               ),
             ),
-            child: title,
-          )
-        else
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: const BoxDecoration(
-              color: AppColors.point,
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(AppRadius.lg),
-              ),
-            ),
-            child: title,
-          ),
+          child: title,
+        ),
         Container(
           // 피그마 1520:9646: 좌우 20 · 위아래 24 (QA: 좌우 24 · 아래 36 이라 디자인보다 넓었다), 바탕 #303137
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
@@ -568,33 +554,39 @@ class EvidenceFolderCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 피그마 1433:8985 근거 카드: 본문(흰 16) 아래에 회색 칸(#404147, r8) 안 공시일 · 대상 기간(12, #BCBFC5)
-              Text(
-                evidence.excerpt,
-                style: AppTypography.subheading.copyWith(
-                  fontWeight: AppTypography.regular,
-                  color: AppColors.white,
-                  height: 1.6,
+              // 피그마 1520:11310: 내용 16 / #404147 1px 선 / 내용 … 사이를 모두 16 으로 띄운다
+              for (var i = 0; i < evidence.length; i++) ...[
+                if (i > 0) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  const Divider(height: 1, thickness: 1, color: Color(0xFF404147)),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                Text(
+                  evidence[i].excerpt,
+                  style: AppTypography.subheading.copyWith(
+                    fontWeight: AppTypography.regular,
+                    color: AppColors.white,
+                    height: 1.6,
+                  ),
                 ),
-              ),
+                if (evidence[i].interpretation != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    '해석 · ${evidence[i].interpretation}',
+                    style: AppTypography.body2.copyWith(color: const Color(0xFFB9B9BC)),
+                  ),
+                ],
+              ],
+              // 피그마 1520:11312: 공시 정보 칸은 근거가 몇 개든 맨 아래 하나 (#404147, r12, 안쪽 12)
               if (meta.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: const Color(0xFF404147), borderRadius: BorderRadius.circular(12)),
                   child: Text(
                     meta.join('\n'),
                     style: AppTypography.caption.copyWith(fontWeight: AppTypography.regular, color: const Color(0xFFBCBFC5), height: 1.4, letterSpacing: 0),
-                  ),
-                ),
-              ],
-              if (evidence.interpretation != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  '해석 · ${evidence.interpretation}',
-                  style: AppTypography.body2.copyWith(
-                    color: const Color(0xFFB9B9BC),
                   ),
                 ),
               ],
