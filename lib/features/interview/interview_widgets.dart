@@ -174,19 +174,21 @@ class FeedbackContent extends StatelessWidget {
             child: CriteriaList(criteria: f.criteria),
           ),
           const SizedBox(height: AppSpacing.md),
-          _FeedbackCard(
-            icon: 'fb_review.png',
-            iconSize: const Size(17.5, 18),
-            title: '답변 돌아보기',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Point(title: '잘한 점', body: f.goodPoint),
-                const SizedBox(height: 20),
-                _Point(title: '보완할 점', body: f.improvement),
-              ],
+          // QA 1520:9956: 잘한 점(또는 보완할 점)이 비어 있으면 그 항목은 띄우지 않는다. 둘 다 없으면 카드도 없다.
+          if (f.goodPoint.trim().isNotEmpty || f.improvement.trim().isNotEmpty)
+            _FeedbackCard(
+              icon: 'fb_review.png',
+              iconSize: const Size(17.5, 18),
+              title: '답변 돌아보기',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (f.goodPoint.trim().isNotEmpty) _Point(title: '잘한 점', body: f.goodPoint),
+                  if (f.goodPoint.trim().isNotEmpty && f.improvement.trim().isNotEmpty) const SizedBox(height: 20),
+                  if (f.improvement.trim().isNotEmpty) _Point(title: '보완할 점', body: f.improvement),
+                ],
+              ),
             ),
-          ),
           if (related != null) ...[
             const SizedBox(height: AppSpacing.md),
             _FeedbackCard(
@@ -518,7 +520,8 @@ class EvidenceFolderCard extends StatelessWidget {
     ];
     final title = Text(
       evidence.title,
-      style: AppTypography.title4.copyWith(color: const Color(0xFF212121)),
+      // 피그마 1520:9645: 20 SemiBold · 줄 140% · #15171B
+      style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -534,12 +537,10 @@ class EvidenceFolderCard extends StatelessWidget {
             bodyPadding: const EdgeInsets.all(AppSpacing.lg),
             tab: Padding(
               padding: const EdgeInsets.only(top: 10),
+              // 피그마 1520:9641: 14 Medium #5E6B0B (탭 148×39, 위 10 아래 칸의 가운데)
               child: Text(
                 '답변에 활용할 정보',
-                style: AppTypography.subheading.copyWith(
-                  fontWeight: AppTypography.medium,
-                  color: const Color(0xFF6E7D14),
-                ),
+                style: AppTypography.body2Medium.copyWith(color: AppColors.pointText, height: 1.4),
               ),
             ),
             child: title,
@@ -556,9 +557,10 @@ class EvidenceFolderCard extends StatelessWidget {
             child: title,
           ),
         Container(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
+          // 피그마 1520:9646: 좌우 20 · 위아래 24 (QA: 좌우 24 · 아래 36 이라 디자인보다 넓었다), 바탕 #303137
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
           decoration: const BoxDecoration(
-            color: AppColors.cardDark,
+            color: AppColors.tabBar,
             borderRadius: BorderRadius.vertical(
               bottom: Radius.circular(AppRadius.lg),
             ),
@@ -580,10 +582,10 @@ class EvidenceFolderCard extends StatelessWidget {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(color: const Color(0xFF404147), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: const Color(0xFF404147), borderRadius: BorderRadius.circular(12)),
                   child: Text(
                     meta.join('\n'),
-                    style: AppTypography.caption.copyWith(fontWeight: AppTypography.regular, color: const Color(0xFFBCBFC5), height: 1.5),
+                    style: AppTypography.caption.copyWith(fontWeight: AppTypography.regular, color: const Color(0xFFBCBFC5), height: 1.4, letterSpacing: 0),
                   ),
                 ),
               ],

@@ -23,31 +23,42 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AppNavBar(title: '내 정보'),
+      // 피그마 6-11 (1393:10874): 내비 아래 27 에 "연결된 계정"(16 Medium #767A82), 16 아래 흰 카드(높이 62 · 모서리 16)
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 27, AppSpacing.screenH, AppSpacing.xl),
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: AppSpacing.xxs, bottom: AppSpacing.sm),
-            child: Text('연결된 계정', style: AppTypography.body2Medium.copyWith(color: AppColors.textCaption)),
-          ),
+          Text('연결된 계정', style: AppTypography.rowTitle.copyWith(color: AppColors.textCaption)),
+          const SizedBox(height: AppSpacing.md),
           Semantics(
             button: true,
             label: '연결된 계정 $account, ${user?.loginMethod.label ?? ''}',
             excludeSemantics: true,
-            child: OutlinedBox(
-              radius: AppRadius.button,
-              onTap: user == null
-                  ? null
-                  : () => isEmail ? context.push(Routes.myPassword) : Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReauthScreen())),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 18),
-              child: Row(
-                children: [
-                  Flexible(child: Text(account, overflow: TextOverflow.ellipsis, style: AppTypography.body1Medium.copyWith(color: AppColors.ink))),
-                  const SizedBox(width: AppSpacing.xs),
-                  if (user != null) LoginBadge(method: user.loginMethod),
-                  const Spacer(),
-                  const Chevron(),
-                ],
+            child: Material(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.button),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: user == null
+                    ? null
+                    : () => isEmail ? context.push(Routes.myPassword) : Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReauthScreen())),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
+                  child: Row(
+                    children: [
+                      // QA 1520:9623: 화살표가 줄 가운데에 떠 있던 것 → 글자·배지는 왼쪽, 화살표는 오른쪽 끝
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(child: Text(account, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.rowTitle.copyWith(color: AppColors.ink))),
+                            const SizedBox(width: 5),
+                            if (user != null) LoginBadge(method: user.loginMethod),
+                          ],
+                        ),
+                      ),
+                      const Chevron(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -71,6 +82,7 @@ class _ReauthScreenState extends ConsumerState<ReauthScreen> {
   Future<void> _reauth(SocialProvider provider, String label) async {
     setState(() => _busy = true);
     try {
+      // Apple 은 서버 nonce 가 있어야 로그인 창이 뜬다 (일반 로그인과 같은 순서: 서버 nonce → SDK)
       final nonce = await ref.read(authRepositoryProvider).prepareSocial(provider);
       await ref.read(socialAuthServiceProvider).signIn(provider, nonce: nonce);
       if (!mounted) return;
