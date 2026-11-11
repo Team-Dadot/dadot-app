@@ -18,6 +18,7 @@ import 'services/reminder_service.dart';
 import 'services/real_social_auth_service.dart';
 import 'services/social_auth_service.dart';
 import 'storage/local_store.dart';
+import 'session/session_controller.dart';
 import 'storage/token_storage.dart';
 
 // ---------------------------------------------------------------- 기반
@@ -78,7 +79,11 @@ final quizRepositoryProvider = Provider<QuizRepository>((ref) => _mock(ref)
 
 final interviewRepositoryProvider = Provider<InterviewRepository>((ref) => _mock(ref)
     ? MockInterviewRepository(ref.watch(mockBackendProvider))
-    : RemoteInterviewRepository(ref.watch(apiClientProvider)));
+    : RemoteInterviewRepository(
+        ref.watch(apiClientProvider),
+        store: ref.watch(localStoreProvider),
+        ownerId: () => ref.read(sessionProvider).user?.id,
+      ));
 
 final recordsRepositoryProvider = Provider<RecordsRepository>((ref) => _mock(ref)
     ? MockRecordsRepository(ref.watch(mockBackendProvider))

@@ -5,6 +5,7 @@ import '../models/auth.dart';
 import '../models/catalog.dart';
 import '../models/home.dart';
 import '../models/interview.dart';
+import '../models/pending_interview_submission.dart';
 import '../models/quiz.dart';
 import '../models/records.dart';
 import '../models/settings.dart';
@@ -166,6 +167,16 @@ class MockInterviewRepository implements InterviewRepository {
   Future<TodayInterview> fetchToday(String companyId) => _slow(_b.run(() => _b.todayInterview(companyId)));
   @override
   Future<InterviewQuestion> fetchQuestion(String questionId) => _b.run(() => _b.question(questionId));
+  @override
+  PendingInterviewSubmission? pendingSubmission(String questionId) => null;
+  @override
+  Future<void> acknowledgeSubmission(String questionId, String attemptId) async {}
+  @override
+  Future<String> submitAnswerForEvaluation({
+    required String questionId,
+    required String content,
+    required AnswerInputType inputType,
+  }) async => (await submitAnswer(questionId: questionId, content: content, inputType: inputType)).answerId;
   @override
   Future<AnswerFeedback> submitAnswer({
     required String questionId,

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../error/app_exception.dart';
+
 /// 기기에만 남겨도 되는 값 (서버에 안 보내는 것).
 /// - 작성 중인 답변 임시 저장 (S09)
 /// - 홈에서 마지막으로 본 기업 (S05)
@@ -13,6 +15,7 @@ class LocalStore {
   final SharedPreferences _prefs;
 
   static const _draftPrefix = 'draft.answer.';
+  static const pendingInterviewPrefix = 'submission.interview.';
   static const _lastCompanyKey = 'home.lastCompanyId';
   static const _askedPushKey = 'push.askedPermission';
   static const _onboardingStepKey = 'onboarding.lastStep';
@@ -30,6 +33,14 @@ class LocalStore {
   }
 
   Future<void> clearDraft(String questionId) => _prefs.remove('$_draftPrefix$questionId');
+
+  /// 네트워크 전송 전에 제출 상태를 기기에 기록한다.
+  Future<void> savePendingSubmission(String key, Map<String, dynamic> value) async {
+    final saved = await _prefs.setString(key, jsonEncode(value));
+    if (!saved) {
+      throw const AppException(AppErrorKind.unknown, message: '제출 상태를 기기에 저장하지 못했어요. 다시 시도해 주세요.');
+    }
+  }
 
   // ---- 홈 기본 기업 ----
   String? get lastCompanyId => _prefs.getString(_lastCompanyKey);
@@ -64,7 +75,7 @@ class LocalStore {
 
   /// 로그아웃·탈퇴 시 기기에 남은 개인 데이터 삭제
   Future<void> clearUserData() async {
-    final keys = _prefs.getKeys().where((k) => k.startsWith(_draftPrefix) || k == _lastCompanyKey || k == _onboardingStepKey);
+    final keys = _prefs.getKeys().where((k) => k.startsWith(_draftPrefix) || k.startsWith(pendingInterviewPrefix) || k == _lastCompanyKey || k == _onboardingStepKey);
     for (final k in keys.toList()) {
       await _prefs.remove(k);
     }

@@ -54,6 +54,9 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   bool _usedVoice = false;
   bool _savingDraft = false;
   bool _leaving = false;
+  bool _hasSubmissionRequest = false;
+  bool _answerAccepted = false;
+  Future<void> _draftSave = Future<void>.value();
 
   /// 말로 답하기를 시작하기 전 글 (다시 녹음하면 여기로 되돌린다)
   String _beforeVoice = '';
@@ -65,12 +68,22 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   void initState() {
     super.initState();
     _store = ref.read(localStoreProvider);
+    final pending = ref.read(interviewRepositoryProvider).pendingSubmission(widget.questionId);
+    _hasSubmissionRequest = pending != null;
+    _answerAccepted = pending?.attemptId != null;
     _text = TextEditingController(
-      text: _store.readDraft(widget.questionId) ?? '',
+      text: pending?.text ?? _store.readDraft(widget.questionId) ?? '',
     );
     _text.addListener(_scheduleDraftSave);
-    if (_text.text.isEmpty) _loadServerDraft();
-    if (widget.startWithVoice) _mode = _Mode.voiceReady;
+    if (_text.text.isEmpty && pending == null) _loadServerDraft();
+    if (pending?.attemptId != null) {
+      _mode = _Mode.analyzing;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openFeedback(pending!.attemptId!);
+      });
+    } else if (widget.startWithVoice && pending == null) {
+      _mode = _Mode.voiceReady;
+    }
   }
 
   Future<void> _loadServerDraft() async {
@@ -78,7 +91,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       final draft = await ref
           .read(interviewRepositoryProvider)
           .fetchDraft(widget.questionId);
-      if (mounted && draft != null && _text.text.isEmpty) {
+      if (mounted && !_hasSubmissionRequest && draft != null && _text.text.isEmpty) {
         setState(() => _text.text = draft);
       }
     } catch (_) {
@@ -97,18 +110,51 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
 
   void _scheduleDraftSave() {
     _draftTimer?.cancel();
+    if (_hasSubmissionRequest || _answerAccepted) return;
     _draftTimer = Timer(const Duration(milliseconds: 800), _saveLocalDraft);
   }
 
-  void _saveLocalDraft() => _store.saveDraft(widget.questionId, _text.text);
+  void _saveLocalDraft() {
+    if (_hasSubmissionRequest || _answerAccepted) return;
+    final text = _text.text;
+    _draftSave = _draftSave.then((_) async {
+      if (!_answerAccepted) await _store.saveDraft(widget.questionId, text);
+    }).catchError((Object _) {});
+  }
+
+  Future<void> _openFeedback(String attemptId) async {
+    _answerAccepted = true;
+    _hasSubmissionRequest = true;
+    _draftTimer?.cancel();
+    _text.removeListener(_scheduleDraftSave);
+    try {
+      // 이미 시작한 저장까지 끝낸 뒤 삭제해 임시 답변 재생성을 막는다.
+      await _draftSave;
+      await _store.clearDraft(widget.questionId);
+      if (!mounted) return;
+      await ref.read(interviewRepositoryProvider).acknowledgeSubmission(widget.questionId, attemptId);
+    } catch (_) {
+      // 정리 실패 시 접수 기록을 유지한다. 재진입해도 같은 attemptId로 복구한다.
+    }
+    if (!mounted) return;
+    _text.clear();
+    invalidateProgress(ref);
+    ref.invalidate(interviewQuestionProvider(widget.questionId));
+    _leaving = true;
+    context.pushReplacement(Routes.feedback(attemptId));
+  }
 
   int get _length => _text.text.trim().characters.length;
 
-  bool get _canSubmit => _length >= AppPolicy.minAnswerLength;
+  bool get _canSubmit => _length >= AppPolicy.minAnswerLength && !_savingDraft;
 
   // ---------------------------------------------------------------- 말로 답하기
 
   Future<void> _startRecording({bool restart = false}) async {
+    if (_hasSubmissionRequest) {
+      showToast(context, '접수 여부를 확인 중이에요. 기존 제출을 먼저 확인해 주세요.');
+      return;
+    }
     FocusScope.of(context).unfocus();
     final speech = _speech ??= SpeechService()..addListener(_onSpeech);
     if (restart) {
@@ -205,6 +251,15 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   // ---------------------------------------------------------------- 저장 · 제출
 
   Future<void> _saveDraft({bool leave = false}) async {
+    if (_hasSubmissionRequest || _answerAccepted) {
+      if (leave) {
+        _leaving = true;
+        if (mounted) Navigator.of(context).pop();
+      } else {
+        showToast(context, '제출한 답변의 접수 여부를 먼저 확인해 주세요.');
+      }
+      return;
+    }
     setState(() => _savingDraft = true);
     _saveLocalDraft();
     try {
@@ -234,6 +289,9 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
 
   /// 기회를 다 쓴 질문: 안내만 띄우고 질문 화면(또는 복습)으로 돌려보낸다. 화면에 갇히지 않게.
   Future<void> _leaveBlocked(String message) async {
+    _hasSubmissionRequest = true;
+    _draftTimer?.cancel();
+    await _draftSave;
     await _store.clearDraft(widget.questionId);
     ref.invalidate(interviewQuestionProvider(widget.questionId));
     ref.invalidate(interviewRecordsProvider);
@@ -246,57 +304,49 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   }
 
   Future<void> _submit() async {
+    if (_mode == _Mode.analyzing || _savingDraft || _answerAccepted) return;
+    final repository = ref.read(interviewRepositoryProvider);
+    final pending = repository.pendingSubmission(widget.questionId);
     final question = ref.read(interviewQuestionProvider(widget.questionId)).asData?.value;
-    if (question != null && question.blocked) {
+    // 응답 유실 복구는 새 제출이 아니다. 소진·처리 중이어도 같은 키로 결과를 확인한다.
+    if (pending == null && question != null && question.blocked) {
       await _leaveBlocked(question.blockedMessage);
       return;
     }
     if (_length < AppPolicy.minAnswerLength) {
-      showToast(
-        context,
-        '${AppPolicy.minAnswerLength}자 이상 써 주세요. (지금 $_length자)',
-      );
+      showToast(context, '${AppPolicy.minAnswerLength}자 이상 써 주세요. (지금 $_length자)');
       return;
     }
     FocusScope.of(context).unfocus();
     _saveLocalDraft();
+    _draftTimer?.cancel();
+    _hasSubmissionRequest = true;
     setState(() => _mode = _Mode.analyzing);
     try {
-      final feedback = await ref
-          .read(interviewRepositoryProvider)
-          .submitAnswer(
-            questionId: widget.questionId,
-            content: _text.text.trim(),
-            inputType: _usedVoice
-                ? AnswerInputType.voice
-                : AnswerInputType.text,
-          );
-      await _store.clearDraft(widget.questionId);
-      _text.removeListener(_scheduleDraftSave);
-      _text.clear();
-      invalidateProgress(ref);
-      ref.invalidate(interviewQuestionProvider(widget.questionId));
-      if (mounted) {
-        _leaving = true;
-        context.pushReplacement(Routes.feedback(feedback.answerId));
-      }
-    } on EvaluationFailed catch (e) {
-      // 답변은 제출됐고 평가만 실패 → 결과 화면에서 "다시 시도하기" (피그마 4-E4)
-      await _store.clearDraft(widget.questionId);
-      invalidateProgress(ref);
-      if (mounted) {
-        _leaving = true;
-        context.pushReplacement(Routes.feedback(e.answerId));
-      }
+      await _draftSave;
+      final attemptId = await repository.submitAnswerForEvaluation(
+        questionId: widget.questionId,
+        content: _text.text.trim(),
+        inputType: _usedVoice ? AnswerInputType.voice : AnswerInputType.text,
+      );
+      if (mounted) await _openFeedback(attemptId);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _mode = _Mode.writing);
-      final err = asAppException(e);
-      if (err.kind == AppErrorKind.feedbackQuotaExceeded) {
-        await _leaveBlocked('이 질문의 답변 기회를 모두 사용했어요');
+      final current = repository.pendingSubmission(widget.questionId);
+      if (current?.attemptId != null) {
+        await _openFeedback(current!.attemptId!);
         return;
       }
-      showErrorToast(context, err);
+      _hasSubmissionRequest = current != null;
+      setState(() => _mode = _Mode.writing);
+      final err = asAppException(e);
+      if (current != null) {
+        showToast(context, '접수 여부를 확인하지 못했어요. 다시 제출하면 기존 요청으로 확인해요.');
+      } else if (err.kind == AppErrorKind.feedbackQuotaExceeded) {
+        await _leaveBlocked('이 질문의 답변 기회를 모두 사용했어요');
+      } else {
+        showErrorToast(context, err);
+      }
     }
   }
 
@@ -308,6 +358,11 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       return;
     }
     if (_mode == _Mode.analyzing || _mode == _Mode.converting) return;
+    if (_hasSubmissionRequest || _answerAccepted) {
+      _leaving = true;
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
     if (_text.text.trim().isEmpty) {
       // 아직 쓴 게 없으면 묻지 않는다. 말로 답하기에서 뒤로 → 답변 작성 (질문 화면에서 바로 왔으면 나간다)
       if (_mode != _Mode.writing && !widget.startWithVoice) {
@@ -498,13 +553,16 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       ),
     ),
     const SizedBox(height: AppSpacing.sm),
-    AppTextField(
-      controller: _text,
-      minLines: 7,
-      maxLines: 16,
-      maxLength: AppPolicy.maxAnswerLength,
-      showLimitInCounter: false,
-      onChanged: (_) => setState(() {}),
+    AbsorbPointer(
+      absorbing: _hasSubmissionRequest,
+      child: AppTextField(
+        controller: _text,
+        minLines: 7,
+        maxLines: 16,
+        maxLength: AppPolicy.maxAnswerLength,
+        showLimitInCounter: false,
+        onChanged: (_) => setState(() {}),
+      ),
     ),
     const SizedBox(height: AppSpacing.xs),
     _LengthHint(length: _length),
@@ -523,6 +581,10 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: InkWell(
           onTap: () {
+            if (_hasSubmissionRequest) {
+              showToast(context, '제출한 답변의 접수 여부를 먼저 확인해 주세요.');
+              return;
+            }
             FocusScope.of(context).unfocus();
             setState(() => _mode = _Mode.voiceReady);
           },
@@ -567,14 +629,17 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       ),
     ),
     const SizedBox(height: AppSpacing.lg),
-    AppTextField(
-      controller: _text,
-      hint: '질문에 대한 내 생각을 적어 주세요.\n기업 근거와 내 역할·행동을 연결하면 좋아요.',
-      minLines: 6,
-      maxLines: 16,
-      maxLength: AppPolicy.maxAnswerLength,
-      showLimitInCounter: false,
-      onChanged: (_) => setState(() {}),
+    AbsorbPointer(
+      absorbing: _hasSubmissionRequest,
+      child: AppTextField(
+        controller: _text,
+        hint: '질문에 대한 내 생각을 적어 주세요.\n기업 근거와 내 역할·행동을 연결하면 좋아요.',
+        minLines: 6,
+        maxLines: 16,
+        maxLength: AppPolicy.maxAnswerLength,
+        showLimitInCounter: false,
+        onChanged: (_) => setState(() {}),
+      ),
     ),
     if (_length > 0) ...[
       const SizedBox(height: AppSpacing.xs),

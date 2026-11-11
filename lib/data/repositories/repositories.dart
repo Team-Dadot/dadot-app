@@ -9,6 +9,7 @@ import '../models/auth.dart';
 import '../models/catalog.dart';
 import '../models/home.dart';
 import '../models/interview.dart';
+import '../models/pending_interview_submission.dart';
 import '../models/quiz.dart';
 import '../models/records.dart';
 import '../models/settings.dart';
@@ -123,6 +124,19 @@ abstract interface class InterviewRepository {
   /// 오늘의 면접 질문 (기업별 3개). 처음 부르면 서버가 질문을 만든다 (4-1).
   Future<TodayInterview> fetchToday(String companyId);
   Future<InterviewQuestion> fetchQuestion(String questionId);
+
+  /// 확인 중인 원 제출. 새 키를 만들지 않고 이 요청을 먼저 복구한다.
+  PendingInterviewSubmission? pendingSubmission(String questionId);
+
+  /// 평가 완료를 기다리지 않고 접수된 attemptId를 반환한다.
+  Future<String> submitAnswerForEvaluation({
+    required String questionId,
+    required String content,
+    required AnswerInputType inputType,
+  });
+
+  /// 화면이 접수 상태를 인계받은 뒤에만 복구 기록을 정리한다.
+  Future<void> acknowledgeSubmission(String questionId, String attemptId);
 
   /// 답변 제출 → AI 피드백 (4-5 → 4-6). 오늘 재도전 횟수를 다 쓰면 AppErrorKind.feedbackQuotaExceeded
   Future<AnswerFeedback> submitAnswer({

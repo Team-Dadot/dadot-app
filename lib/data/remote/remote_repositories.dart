@@ -13,10 +13,12 @@ import '../../core/config/app_policy.dart';
 import '../../core/error/app_exception.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_paths.dart';
+import '../../core/storage/local_store.dart';
 import '../models/auth.dart';
 import '../models/catalog.dart';
 import '../models/home.dart';
 import '../models/interview.dart';
+import '../models/pending_interview_submission.dart';
 import '../models/quiz.dart';
 import '../models/records.dart';
 import '../models/settings.dart';
@@ -997,8 +999,105 @@ class RemoteQuizRepository implements QuizRepository {
 // ---------------------------------------------------------------- 면접
 
 class RemoteInterviewRepository implements InterviewRepository {
-  RemoteInterviewRepository(this._api);
+  RemoteInterviewRepository(this._api, {LocalStore? store, String? Function()? ownerId})
+      : _store = store, _ownerId = ownerId;
   final ApiClient _api;
+  final LocalStore? _store;
+  final String? Function()? _ownerId;
+  final Map<String, PendingInterviewSubmission> _pending = {};
+  final Map<String, Future<String>> _submitting = {};
+
+  String _submissionKey(String questionId) {
+    final owner = _ownerId?.call() ?? (_store == null ? 'memory' : null);
+    if (owner == null) throw const AppException(AppErrorKind.unauthorized);
+    return '${LocalStore.pendingInterviewPrefix}$owner.$questionId';
+  }
+
+  @override
+  PendingInterviewSubmission? pendingSubmission(String questionId) => _readPending(_submissionKey(questionId));
+
+  PendingInterviewSubmission? _readPending(String key) {
+    if (_pending.containsKey(key)) return _pending[key];
+    final saved = _store?.readJson(key);
+    if (saved == null) return null;
+    final pending = PendingInterviewSubmission.fromJson(saved);
+    _pending[key] = pending;
+    return pending;
+  }
+
+  Future<void> _remember(String key, PendingInterviewSubmission pending) async {
+    _pending[key] = pending;
+    final store = _store;
+    if (store != null) await store.savePendingSubmission(key, pending.toJson());
+  }
+
+  Future<void> _forget(String key) async {
+    final store = _store;
+    if (store != null) await store.remove(key);
+    _pending.remove(key);
+  }
+
+  @override
+  Future<void> acknowledgeSubmission(String questionId, String attemptId) async {
+    final key = _submissionKey(questionId);
+    if (_readPending(key)?.attemptId == attemptId) await _forget(key);
+  }
+
+  @override
+  Future<String> submitAnswerForEvaluation({
+    required String questionId,
+    required String content,
+    required AnswerInputType inputType,
+  }) async {
+    final key = _submissionKey(questionId);
+    final active = _submitting[key];
+    if (active != null) return active;
+    final task = _acceptAnswer(key, questionId, content);
+    _submitting[key] = task;
+    try {
+      return await task;
+    } finally {
+      if (identical(_submitting[key], task)) _submitting.remove(key);
+    }
+  }
+
+  Future<String> _acceptAnswer(String key, String questionId, String content) async {
+    var pending = _readPending(key);
+    if (pending?.attemptId != null) return pending!.attemptId!;
+    if (pending == null) {
+      final version = _drafts[questionId]?.version;
+      pending = PendingInterviewSubmission(
+        idempotencyKey: _idem(),
+        body: {'text': content, 'draftVersion': ?version},
+      );
+    }
+    // 응답을 못 받으면 같은 본문·같은 키를 유지한다. 초안 버전도 다시 계산하지 않는다.
+    await _remember(key, pending);
+    try {
+      final accepted = _obj(await _api.post(
+        ApiPaths.interviewAttempts(questionId),
+        body: pending.body,
+        idempotencyKey: pending.idempotencyKey,
+      ));
+      final attemptId = _str(accepted, ['attemptId']);
+      if (attemptId == null) {
+        throw const AppException(AppErrorKind.server, message: '답변 접수 결과를 확인하지 못했어요. 같은 답변으로 다시 확인해 주세요.');
+      }
+      pending = pending.withAccepted(attemptId, accepted);
+      _drafts.remove(questionId);
+      await _remember(key, pending);
+      return attemptId;
+    } on AppException catch (e) {
+      const rejected = {
+        'INVALID_INPUT', 'VALIDATION_ERROR', 'QUESTION_LIMIT_EXCEEDED',
+        'DAILY_LIMIT_EXCEEDED', 'COMPANY_INACTIVE', 'CONTENT_UNAVAILABLE',
+        'VERSION_CONFLICT',
+      };
+      // 접수되지 않았음이 명확한 경우만 새 작성·제출을 허용한다.
+      if (pending.attemptId == null && rejected.contains(e.code)) await _forget(key);
+      rethrow;
+    }
+  }
 
   /// 질문별 서버 초안 (text, version). 제출 시 draftVersion, 저장 시 expectedVersion 으로 쓴다.
   final Map<String, ({String text, int? version})> _drafts = {};
@@ -1082,24 +1181,19 @@ class RemoteInterviewRepository implements InterviewRepository {
     required String content,
     required AnswerInputType inputType,
   }) async {
-    final version = _drafts[questionId]?.version;
-    final accepted = _obj(await _api.post(
-      ApiPaths.interviewAttempts(questionId),
-      body: {'text': content, 'draftVersion': ?version},
-      idempotencyKey: _idem(),
-    ));
-    final attemptId = _str(accepted, ['attemptId']);
-    if (attemptId == null) throw const AppException(AppErrorKind.server);
-    _drafts.remove(questionId);
+    final attemptId = await submitAnswerForEvaluation(questionId: questionId, content: content, inputType: inputType);
+    final pending = pendingSubmission(questionId);
     final evaluation = await _waitForEvaluation(attemptId);
-    return _feedback(
+    final feedback = _feedback(
       attemptId: attemptId,
       evaluation: evaluation,
-      attempt: accepted,
-      usage: _map(accepted['usage']),
+      attempt: pending?.accepted,
+      usage: _map(pending?.accepted?['usage']),
       questionId: questionId,
-      text: content,
+      text: pending?.text ?? content,
     );
+    await acknowledgeSubmission(questionId, attemptId);
+    return feedback;
   }
 
   /// 평가 결과가 나올 때까지 조회 (AI 평가는 수십 초 걸릴 수 있다)
@@ -1140,6 +1234,9 @@ class RemoteInterviewRepository implements InterviewRepository {
 
   @override
   Future<void> saveDraft({required String questionId, required String content}) async {
+    if (pendingSubmission(questionId) != null) {
+      throw const AppException(AppErrorKind.validation, message: '제출한 답변의 접수 여부를 먼저 확인해 주세요.');
+    }
     Future<void> put() async {
       // InterviewSubmission.SaveDraft: {text, version} 둘 다 필수 (처음 저장이면 version=null)
       final data = _obj(await _api.put(ApiPaths.interviewDraft(questionId), body: <String, dynamic>{

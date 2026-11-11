@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers.dart';
+import '../../core/error/app_exception.dart';
 import '../../core/router/app_router.dart';
 import '../../data/models/quiz.dart';
 import '../../design_system/design_system.dart';
@@ -32,6 +33,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   int _startIndex = 0;
   String? _selected;
   bool _submitting = false;
+  bool _loading = false;
+  bool _submissionAccepted = false;
 
   @override
   void initState() {
@@ -40,23 +43,34 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _error = null);
+    if (_loading) return;
+    final previousSet = _set;
+    final previousQuestionId = previousSet != null && _index < previousSet.questions.length
+        ? previousSet.questions[_index].id : null;
+    setState(() { _loading = true; _error = null; });
     try {
-      final set = await ref
-          .read(quizRepositoryProvider)
-          .fetchTodaySet(widget.companyId);
+      final set = await ref.read(quizRepositoryProvider).fetchTodaySet(widget.companyId);
       if (!mounted) return;
       if (set.isCompleted) {
+        _submissionAccepted = false;
         context.pushReplacement(Routes.quizResult(set.id));
         return;
+      }
+      if (_submissionAccepted && set.id == previousSet?.id &&
+          set.nextIndex < set.questions.length && set.questions[set.nextIndex].id == previousQuestionId) {
+        throw const AppException(AppErrorKind.server, message: '제출은 완료됐어요. 진행 상태를 다시 불러와 주세요.');
       }
       setState(() {
         _set = set;
         _index = set.nextIndex;
-        _startIndex = set.nextIndex;
+        if (previousSet == null) _startIndex = set.nextIndex;
+        _selected = null;
+        _submissionAccepted = false;
       });
     } catch (e) {
       if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -66,47 +80,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   /// 답을 제출(채점은 서버)하고 바로 다음 문제로. 마지막 문제면 결과로.
   Future<void> _submitAndNext() async {
+    if (_submitting || _loading) return;
+    if (_submissionAccepted) {
+      await _load();
+      return;
+    }
     final answer = _answer;
     if (answer == null) return;
     FocusScope.of(context).unfocus();
     setState(() => _submitting = true);
     try {
-      await ref
-          .read(quizRepositoryProvider)
-          .submitAnswer(
-            setId: _set!.id,
-            questionId: _question.id,
-            answer: answer,
-          );
+      await ref.read(quizRepositoryProvider).submitAnswer(
+        setId: _set!.id,
+        questionId: _question.id,
+        answer: answer,
+      );
+      _submissionAccepted = true;
       invalidateProgress(ref);
       if (!mounted) return;
-      if (_index + 1 >= _set!.questions.length) {
-        context.pushReplacement(Routes.quizResult(_set!.id));
-        return;
-      }
-      // 다닷 서버는 다음 문항을 제출한 뒤에 준다 → 세트를 다시 불러와 다음 문항을 받는다
-      if (_set!.questions[_index + 1].isPlaceholder) {
-        final next = await ref
-            .read(quizRepositoryProvider)
-            .fetchTodaySet(widget.companyId);
-        if (!mounted) return;
-        if (next.isCompleted) {
-          context.pushReplacement(Routes.quizResult(next.id));
-          return;
-        }
-        setState(() {
-          _set = next;
-          _index = next.nextIndex;
-          _selected = null;
-        });
-        return;
-      }
-      setState(() {
-        _index += 1;
-        _selected = null;
-      });
+      // 이후 조회 실패는 제출을 반복하지 않고 서버의 현재 위치를 다시 불러온다.
+      await _load();
     } catch (e) {
-      if (mounted) showErrorToast(context, e);
+      if (!mounted) return;
+      final err = asAppException(e);
+      if (err.code == 'ANSWER_ALREADY_SUBMITTED') {
+        _submissionAccepted = true;
+        invalidateProgress(ref);
+        await _load();
+      } else if (err.kind == AppErrorKind.network || err.kind == AppErrorKind.timeout ||
+                 err.kind == AppErrorKind.server || err.kind == AppErrorKind.unknown) {
+        // 응답 유실 시에도 현재 세트를 먼저 확인한다.
+        setState(() => _error = e);
+      } else {
+        showErrorToast(context, err);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -119,7 +126,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     Widget? bottom;
     if (_error != null) {
       body = ErrorView(error: _error!, onRetry: _load);
-    } else if (set == null) {
+    } else if (set == null || _loading) {
       body = const LoadingView();
     } else {
       final q = _question;
@@ -158,7 +165,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           AppButton(
             label: last ? '결과보기' : '다음',
             loading: _submitting,
-            onPressed: _answer == null ? null : _submitAndNext,
+            onPressed: _answer == null || _submitting ? null : _submitAndNext,
           ),
         ],
       );
