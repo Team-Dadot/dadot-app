@@ -326,6 +326,8 @@ class _QuizReviewCard extends StatelessWidget {
       context,
       title: '문제 해설',
       expand: true,
+      // 피그마 1337:10093: 시트 높이 665 / 874
+      heightFactor: SheetHeights.explain,
       builder: (_) => _ExplanationSheet(item: item),
     );
   }

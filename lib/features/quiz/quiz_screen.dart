@@ -180,7 +180,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         final keepGoing = await showChoiceDialog(
           context,
           title: '퀴즈를 그만두시나요?',
-          message: '나가면 저장되지 않아요',
+          // 피그마 3-E6 (1332:7710)
+          message: '이어서 풀 수 있어요',
           cancelLabel: '나가기',
           confirmLabel: '진행하기',
           warning: true,

@@ -184,6 +184,9 @@ class SheetHeights {
   /// 6-3 직무 선택 시트 (678 / 874)
   static const double tall = 0.78;
 
+  /// 문제 해설 시트 (피그마 1337:10093 — 665 / 874)
+  static const double explain = 665 / 874;
+
   /// 내 경험 추가하기 시트 (542 / 874)
   static const double form = 0.62;
 
