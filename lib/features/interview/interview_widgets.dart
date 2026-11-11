@@ -20,6 +20,22 @@ class QuestionCard extends StatelessWidget {
   Widget build(BuildContext context) => QuestionTitle(question.text);
 }
 
+/// 4-2 면접 질문 화면의 질문 (피그마 1520:9637): 26 Bold · 줄 140% · 자간 -3% · #15171B
+class QuestionHeadline extends StatelessWidget {
+  const QuestionHeadline(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    header: true,
+    child: Text(
+      text,
+      style: AppTypography.title1.copyWith(fontSize: 26, height: 1.4, letterSpacing: -0.78, color: AppColors.ink),
+    ),
+  );
+}
+
 /// 질문 글자 (피그마 최종 24 Bold, 줄 높이 1.45)
 class QuestionTitle extends StatelessWidget {
   const QuestionTitle(this.text, {super.key});

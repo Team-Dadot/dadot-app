@@ -43,9 +43,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
   bool get _verified => _token != null && _codeEmail == _emailText;
 
   String? get _passwordError =>
-      _password.text.isNotEmpty && !AppPolicy.isValidPassword(_password.text)
-      ? AppPolicy.passwordRule
-      : null;
+      _password.text.isEmpty ? null : AppPolicy.passwordProblem(_password.text);
   String? get _confirmError =>
       _confirm.text.isNotEmpty && _confirm.text != _password.text
       ? '비밀번호가 일치하지 않아요'

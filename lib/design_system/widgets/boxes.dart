@@ -232,7 +232,7 @@ class IndexBox extends StatelessWidget {
 /// 제목 16 Medium #15171B · 설명 14 Medium #9A9DA4 (간격 4), 위아래 16 (설명 없으면 12).
 /// [MenuGroup] 안에 넣으면 줄 사이에 1px 선(#DCE0E7)이 들어간다.
 class MenuRow extends StatelessWidget {
-  const MenuRow({super.key, required this.title, this.subtitle, this.value, required this.onTap, this.showChevron = true, this.verticalPadding});
+  const MenuRow({super.key, required this.title, this.subtitle, this.value, required this.onTap, this.showChevron = true, this.verticalPadding, this.padding});
 
   final String title;
   final String? subtitle;
@@ -245,12 +245,15 @@ class MenuRow extends StatelessWidget {
   /// 위아래 여백 (기본: 한 줄 12 · 두 줄 16). 마이 계정 묶음은 한 줄도 16 (피그마 1393:11078)
   final double? verticalPadding;
 
+  /// 위·아래 여백을 따로 줄 때 (피그마 6-1 마이: 카드 첫 줄 · 끝 줄 여백이 가운데 줄과 다르다)
+  final EdgeInsets? padding;
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: verticalPadding ?? (subtitle == null ? AppSpacing.sm : AppSpacing.md)),
+        padding: padding ?? EdgeInsets.symmetric(vertical: verticalPadding ?? (subtitle == null ? AppSpacing.sm : AppSpacing.md)),
         child: Row(
           children: [
             Expanded(
@@ -278,7 +281,8 @@ class MenuRow extends StatelessWidget {
   }
 }
 
-/// 흰 카드(모서리 16, 좌우 20 · 위아래 8) 안에 [MenuRow] 를 1px 선으로 나눠 담는다. 너비는 화면 좌우 20 을 뺀 362.
+/// 흰 카드(모서리 16, 좌우 20 · 위아래 8) 안에 [MenuRow] 를 0.5px 선(#DCE0E7)으로 나눠 담는다. 너비는 화면 좌우 20 을 뺀 362.
+/// (피그마 1520:9847 border/divider 0.5 — QA: 1px 로 그려 디자인보다 굵어 보였다)
 class MenuGroup extends StatelessWidget {
   const MenuGroup({super.key, required this.children, this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs)});
 
@@ -295,7 +299,7 @@ class MenuGroup extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const SizedBox(height: 1, width: double.infinity, child: ColoredBox(color: AppColors.fillMuted)),
+            if (i > 0) const SizedBox(height: 0.5, width: double.infinity, child: ColoredBox(color: AppColors.fillMuted)),
             children[i],
           ],
         ],

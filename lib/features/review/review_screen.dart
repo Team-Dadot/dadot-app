@@ -164,8 +164,7 @@ class _QuizReviewState extends ConsumerState<_QuizReview> {
             ),
             const SizedBox(height: AppSpacing.xxl),
             if (shown.isEmpty)
-              const EmptyView(
-                compact: true,
+              const _FilterEmpty(
                 title: '다시 풀 오답이 없어요',
                 description: '틀린 문제가 생기면 여기에 모아 둘게요.',
               )
@@ -468,6 +467,25 @@ class _ReviewEmpty extends StatelessWidget {
   }
 }
 
+/// 필터에 맞는 카드가 없을 때 안내 — QA 1520:9625: 칩 바로 아래에 붙어 있던 것을 화면 한가운데로
+class _FilterEmpty extends StatelessWidget {
+  const _FilterEmpty({required this.title, required this.description});
+
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    // 안내 시작 위치(머리 52 + 탭 · 칩 줄 ≈ 147)에서 화면 세로 가운데까지 남은 거리 − 안내 높이 절반
+    final top = media.size.height / 2 - (media.padding.top + 52 + 147) - 27;
+    return Padding(
+      padding: EdgeInsets.only(top: top < 24 ? 24 : top, bottom: AppSpacing.xl),
+      child: EmptyView(compact: true, title: title, description: description),
+    );
+  }
+}
+
 // ---------------------------------------------------------------- 면접 복습
 
 enum _InterviewFilter { all, needsWork, draft, complete }
@@ -556,8 +574,7 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
             ),
             const SizedBox(height: AppSpacing.xxl),
             if (shown.isEmpty)
-              const EmptyView(
-                compact: true,
+              const _FilterEmpty(
                 title: '해당하는 답변이 없어요',
                 description: '답변을 쌓아 내용을 확인해 보세요!',
               )

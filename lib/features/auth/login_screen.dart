@@ -94,11 +94,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Center(
-                child: _failed
-                    ? StatusMessage(title: '일시적인 오류가 발생했어요', description: _reason ?? '잠시 후 다시 시도해 주세요')
-                    : const _Intro(),
-              ),
+              child: _failed
+                  ? Center(child: StatusMessage(title: '일시적인 오류가 발생했어요', description: _reason ?? '잠시 후 다시 시도해 주세요'))
+                  // 피그마 1300:8036: 로고 윗선이 화면 높이의 339/874 (가운데보다 조금 위쪽 선에서 시작).
+                  // QA: 버튼 위 남은 칸 한가운데에 둬서 디자인보다 위에 있었다 → 버튼 개수와 상관없이 같은 높이에 둔다
+                  : LayoutBuilder(
+                      builder: (context, box) {
+                        final media = MediaQuery.of(context);
+                        final top = media.size.height * 339 / 874 - media.padding.top;
+                        const block = 80.0;
+                        final max = box.maxHeight - block;
+                        return Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(top: top.clamp(0, max < 0 ? 0 : max).toDouble()),
+                            child: const _Intro(),
+                          ),
+                        );
+                      },
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.sm),
@@ -136,12 +150,13 @@ class _Intro extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(AppHeader.logoAsset, height: 32, semanticLabel: 'Dadot'),
-        const SizedBox(height: AppSpacing.md),
+        // 피그마 1337:11993 로고 170×36.75, 17 아래 한 줄 소개 (1300:8047: 16 SemiBold #303137)
+        Image.asset('assets/images/dadot_wordmark_login.png', width: 170.2, height: 36.75, semanticLabel: 'Dadot'),
+        const SizedBox(height: 17.25),
         Text(
-          '공시 기반 퀴즈로 익히고\n내 경험을 담아 답해보세요',
+          '공시 기반 핵심들로 준비하는 기업 분석',
           textAlign: TextAlign.center,
-          style: AppTypography.body2Medium.copyWith(color: AppColors.textSub),
+          style: AppTypography.subheading.copyWith(color: const Color(0xFF303137), height: 1.4, letterSpacing: -0.48),
         ),
       ],
     );

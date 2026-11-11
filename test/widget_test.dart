@@ -49,7 +49,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 1-1: 테스트 환경(Android 로 취급)에서는 카카오 + 이메일
-    expect(find.text('공시 기반 퀴즈로 익히고\n내 경험을 담아 답해보세요'), findsOneWidget);
+    expect(find.text('공시 기반 핵심들로 준비하는 기업 분석'), findsOneWidget);
     expect(find.text('이메일로 시작하기'), findsOneWidget);
     await tester.tap(find.text('카카오로 시작하기'));
     await tester.pump(const Duration(milliseconds: 300)); // FakeSocialAuthService 지연

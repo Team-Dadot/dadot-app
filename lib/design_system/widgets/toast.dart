@@ -113,9 +113,10 @@ class _ToastViewState extends State<_ToastView> with SingleTickerProviderStateMi
     // 키보드가 오르내리면 버튼 위치도 바뀌므로 다시 잰다
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
     final keyboard = media.viewInsets.bottom;
-    final bottom = _ctaTop != null
-        ? (media.size.height - _ctaTop! + AppSpacing.xs)
-        : (keyboard > 0 ? keyboard : media.padding.bottom) + AppSpacing.md;
+    final aboveKeyboard = (keyboard > 0 ? keyboard : media.padding.bottom) + AppSpacing.md;
+    final aboveCta = _ctaTop == null ? null : media.size.height - _ctaTop! + AppSpacing.xs;
+    // 버튼이 키보드에 가려져 있으면(화면 맨 아래 고정 버튼) 버튼 기준 위치가 키보드 밑이 된다 → 둘 중 더 높은 쪽
+    final bottom = aboveCta == null ? aboveKeyboard : (aboveCta > aboveKeyboard || keyboard == 0 ? aboveCta : aboveKeyboard);
     return Positioned(
       left: AppSpacing.screenH,
       right: AppSpacing.screenH,

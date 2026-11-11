@@ -95,11 +95,11 @@ class MyScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          // 피그마 6-1: 좌우 20 (카드 너비 362), 상태 바 아래 32 에서 시작
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xxl, AppSpacing.screenH, AppSpacing.xl),
+          // 피그마 6-1 (1520:9847): 좌우 20 (카드 너비 362), 상태 바 아래 33 에서 시작
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 33, AppSpacing.screenH, AppSpacing.xl),
           children: [
             const _GroupLabel('내 계정', first: true),
-            // 프로필 카드 (누르면 내 정보)
+            // 프로필 카드 (누르면 내 정보): 카드 위아래 8 + 줄 위아래 12, 이름 16 · 4 · 메일 12
             MenuGroup(children: [
               Semantics(
                 button: true,
@@ -123,7 +123,7 @@ class MyScreen extends ConsumerWidget {
                                     child: Text(
                                       (user?.email ?? '').isNotEmpty ? user!.email! : '${user?.loginMethod.detailLabel ?? ''} 로그인',
                                       overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.caption.copyWith(color: AppColors.textGuide),
+                                      style: AppTypography.caption.copyWith(color: AppColors.textGuide, height: 1.4),
                                     ),
                                   ),
                                   const SizedBox(width: 5),
@@ -140,34 +140,41 @@ class MyScreen extends ConsumerWidget {
                 ),
               ),
             ]),
-            const _GroupLabel('학습 현황'),
-            MenuGroup(children: [
-              MenuRow(
-                title: '준비 기업 관리',
-                subtitle: '준비 기업 ${preps?.length ?? '-'}/${AppPolicy.maxCompanies}',
-                onTap: () => context.push(Routes.myCompanies),
-              ),
-              MenuRow(title: '지원 정보·면접 일정', subtitle: '기업별 직무 · 면접일', onTap: () => context.push(Routes.myApplications)),
-              MenuRow(
-                title: '내 경험 정보',
-                subtitle: '저장한 경험 ${experiences?.length ?? '-'}/${AppPolicy.maxExperiences}',
-                onTap: () => context.push(Routes.myExperiences),
-              ),
-              MenuRow(
-                title: '알림',
-                subtitle: notification == null ? null : (notification.enabled ? notification.summary.split(' · ').first : '꺼짐'),
-                onTap: () => context.push(Routes.myNotifications),
-              ),
-            ]),
+            // QA 1520:9624: "학습 현황" → "학습 관리", "지원 정보·면접 일정" 은 준비 기업 관리와 같은 내용이라 뺐다
+            const _GroupLabel('학습 관리'),
+            // 두 줄 메뉴 카드: 카드 위아래 12, 줄 사이 16 · 0.5 선 · 16 (첫 줄 위 · 끝 줄 아래는 12)
+            MenuGroup(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+              children: [
+                MenuRow(
+                  title: '준비 기업 관리',
+                  subtitle: '준비 기업 ${preps?.length ?? '-'}/${AppPolicy.maxCompanies}',
+                  padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.md),
+                  onTap: () => context.push(Routes.myCompanies),
+                ),
+                MenuRow(
+                  title: '내 경험 정보',
+                  subtitle: '저장한 경험 ${experiences?.length ?? '-'}/${AppPolicy.maxExperiences}',
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  onTap: () => context.push(Routes.myExperiences),
+                ),
+                MenuRow(
+                  title: '알림',
+                  subtitle: notification == null ? null : (notification.enabled ? notification.summary.split(' · ').first : '꺼짐'),
+                  padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.sm),
+                  onTap: () => context.push(Routes.myNotifications),
+                ),
+              ],
+            ),
             const _GroupLabel('고객 지원'),
             MenuGroup(children: [
-              MenuRow(title: '서비스 문의 및 오류제보', onTap: () => _openInquiry(context, ref)),
+              MenuRow(title: '서비스 문의 및 오류제보', verticalPadding: AppSpacing.sm, onTap: () => _openInquiry(context, ref)),
             ]),
             const SizedBox(height: AppSpacing.lg),
             MenuGroup(children: [
-              // 피그마 1393:11078: 계정 묶음은 한 줄 메뉴도 위아래 16 (줄 높이 54)
+              // 피그마 1520:9902: 계정 묶음 줄 여백 16 · 20 · 16 (카드 위아래 8)
               MenuRow(title: '회원 정보 수정', verticalPadding: AppSpacing.md, onTap: () => context.push(Routes.myProfile)),
-              MenuRow(title: '로그아웃', verticalPadding: AppSpacing.md, onTap: () => _signOut(context, ref)),
+              MenuRow(title: '로그아웃', verticalPadding: AppSpacing.lg, onTap: () => _signOut(context, ref)),
               MenuRow(title: '회원 탈퇴', verticalPadding: AppSpacing.md, onTap: () => _delete(context, ref)),
             ]),
             if (ref.watch(appConfigProvider).useMock) ...[
@@ -189,24 +196,32 @@ class LoginBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kakao = method == LoginMethod.kakao;
+    // 피그마 1520:9861 · 1393:11078: 15×15 원 안 로고 (카카오 노란 원 + 말풍선 · Apple 검은 원 + 사과)
+    final asset = switch (method) {
+      LoginMethod.kakao => 'assets/images/icons/login_kakao.png',
+      LoginMethod.apple => 'assets/images/icons/login_apple.png',
+      _ => null,
+    };
     return Semantics(
       label: '${method.label} 계정',
       excludeSemantics: true,
       child: Container(
-        // 피그마 1393:11078: 15×15 노란 원 안 말풍선
-        width: kakao ? 15 : null,
-        height: kakao ? 15 : 16,
-        padding: kakao ? null : const EdgeInsets.symmetric(horizontal: 6),
+        width: asset != null ? 15 : null,
+        height: asset != null ? 15 : 16,
+        padding: asset != null ? null : const EdgeInsets.symmetric(horizontal: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: kakao ? AppColors.kakao : AppColors.fillSecondary,
+          color: switch (method) {
+            LoginMethod.kakao => AppColors.kakao,
+            LoginMethod.apple => AppColors.ink,
+            _ => AppColors.fillSecondary,
+          },
           borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
-        child: kakao
+        child: asset != null
             ? Padding(
-                padding: const EdgeInsets.all(2.5),
-                child: Image.asset('assets/images/icons/login_kakao.png', excludeFromSemantics: true),
+                padding: EdgeInsets.all(method == LoginMethod.apple ? 3 : 2.5),
+                child: Image.asset(asset, excludeFromSemantics: true),
               )
             : Text(method.label, style: AppTypography.micro.copyWith(fontSize: 10, height: 1)),
       ),
