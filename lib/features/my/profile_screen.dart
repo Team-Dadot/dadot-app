@@ -71,7 +71,8 @@ class _ReauthScreenState extends ConsumerState<ReauthScreen> {
   Future<void> _reauth(SocialProvider provider, String label) async {
     setState(() => _busy = true);
     try {
-      await ref.read(socialAuthServiceProvider).signIn(provider);
+      final nonce = await ref.read(authRepositoryProvider).prepareSocial(provider);
+      await ref.read(socialAuthServiceProvider).signIn(provider, nonce: nonce);
       if (!mounted) return;
       showToast(context, '인증했어요. 계정 정보는 $label에서 바꿀 수 있어요.');
       Navigator.of(context).pop();

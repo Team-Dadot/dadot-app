@@ -24,9 +24,9 @@ void main() {
   });
 
   group('비밀번호', () {
-    test('영문·숫자 포함 8~64자 (서버 규칙)', () {
+    test('영문·숫자·특수문자 포함 8~20자 (서버 규칙)', () {
       expect(AppPolicy.isValidPassword('abcd1234!'), isTrue);
-      expect(AppPolicy.isValidPassword('abcd1234'), isTrue);
+      expect(AppPolicy.isValidPassword('abcd1234'), isFalse);
       expect(AppPolicy.isValidPassword('abcdefgh!'), isFalse);
       expect(AppPolicy.isValidPassword('ab12!'), isFalse);
       expect(AppPolicy.isValidPassword('abcd 1234'), isFalse);

@@ -11,17 +11,7 @@ import 'package:swipe/data/models/catalog.dart';
 import 'package:swipe/data/models/interview.dart';
 import 'package:swipe/data/remote/remote_repositories.dart';
 
-class _MemTokens implements TokenStorage {
-  String? access;
-  @override
-  Future<String?> readAccessToken() async => access;
-  @override
-  Future<String?> readRefreshToken() async => null;
-  @override
-  Future<void> save({required String accessToken, String? refreshToken}) async => access = accessToken;
-  @override
-  Future<void> clear() async => access = null;
-}
+class _MemTokens extends InMemoryTokenStorage {}
 
 typedef _Handler = Object? Function(RequestOptions o);
 

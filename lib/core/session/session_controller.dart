@@ -166,7 +166,8 @@ class SessionController extends Notifier<SessionState> {
   /// 토큰 갱신까지 실패 → 로그인 화면으로
   Future<void> _expire() async {
     if (state.status == SessionStatus.unauthenticated) return;
-    await ref.read(tokenStorageProvider).clear();
+    // 실패한 옛 세션의 이벤트가 새 로그인까지 지우지 않도록 확인한다.
+    if (await ref.read(tokenStorageProvider).readAccessToken() != null) return;
     if (!ref.mounted) return;
     state = const SessionState(status: SessionStatus.unauthenticated);
   }

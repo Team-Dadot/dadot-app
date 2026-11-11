@@ -344,7 +344,7 @@ class RemoteAuthRepository implements AuthRepository {
 
   @override
   Future<String> verifyEmailCode({required String verificationId, required String code}) async {
-    final data = _obj(await _api.post(ApiPaths.emailVerify(verificationId), body: {'code': code.trim()}, auth: false, idempotencyKey: _idem()));
+    final data = _obj(await _api.post(ApiPaths.emailVerify(verificationId), body: {'code': code.trim()}, auth: verificationId == _passwordVerificationId, idempotencyKey: _idem()));
     final token = _str(data, ['verificationToken']);
     if (token == null) throw const AppException(AppErrorKind.server);
     return token;
@@ -406,7 +406,7 @@ class RemoteAuthRepository implements AuthRepository {
         onboardingCompleted: onboarded ?? false,
       );
     }
-    return AuthSession(accessToken: token, refreshToken: null, user: user, isNewUser: !user.onboardingCompleted);
+    return AuthSession(accessToken: token, refreshToken: _str(data, ['refreshToken']), user: user, isNewUser: !user.onboardingCompleted);
   }
 
   @override

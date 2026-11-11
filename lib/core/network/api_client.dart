@@ -21,7 +21,7 @@ class AuthEvents {
 /// 다닷 서버(https://api.dadot.store) 공통 클라이언트. 계약: 기능별 API 명세 "공통 요청·응답 계약"
 /// - 경로는 `/v1` 아래 (baseUrl 에 붙여 둔다). ApiPaths 에는 `/v1` 뒤 부분만 적는다.
 /// - 인증: `Authorization: Bearer {accessToken}` (로그인 응답 data.accessToken, 1시간 만료)
-/// - 토큰 재발급 API 가 없다 → 401 이면 바로 로그아웃(AuthEvents) 하고 다시 로그인하게 한다
+/// - 401: 갱신 요청을 합쳐 처리한 뒤 원 요청을 한 번 재시도한다
 /// - 응답 봉투: 성공 {success:true, data, error:null} → data 만 돌려준다 / 실패 {success:false, data:null, error:{code,message}}
 /// - 204 는 본문이 없다 → null
 /// - Idempotency-Key 가 필요한 API 는 [post] 의 idempotencyKey 로 논리 요청마다 UUID 를 넣는다
@@ -31,7 +31,8 @@ class ApiClient {
     required TokenStorage tokenStorage,
     required AuthEvents authEvents,
     Dio? dio,
-  })  : _tokens = tokenStorage,
+  })  : _authEvents = authEvents,
+        _tokens = tokenStorage,
         _dio = dio ??
             Dio(BaseOptions(
               baseUrl: '${baseUrl.replaceAll(RegExp(r'/+$'), '')}${ApiPaths.basePath}',
@@ -56,30 +57,133 @@ class ApiClient {
     }
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        // bearer 를 직접 넘긴 요청 (로그인 직후 내 정보 조회)은 저장된 토큰을 쓰지 않는다
-        final token = options.extra['bearer'] as String? ?? await _tokens.readAccessToken();
-        if (token != null && options.extra['skipAuth'] != true) {
-          options.headers['Authorization'] = 'Bearer $token';
+        try {
+          if (options.extra['skipAuth'] == true) {
+            options.headers.remove('Authorization');
+            handler.next(options);
+            return;
+          }
+          final bearer = options.extra['bearer'] as String?;
+          if (bearer != null) {
+            options.headers['Authorization'] = 'Bearer $bearer';
+            handler.next(options);
+            return;
+          }
+          final session = await _tokens.readSession();
+          final bound = options.extra['authSessionId'] as String?;
+          if (bound != null && bound != session?.sessionId) {
+            handler.reject(DioException(requestOptions: options, type: DioExceptionType.cancel));
+            return;
+          }
+          if (session != null) {
+            options.extra['authSessionId'] = session.sessionId;
+            options.extra['authAccessToken'] = session.accessToken;
+            options.headers['Authorization'] = 'Bearer ${session.accessToken}';
+          } else {
+            options.headers.remove('Authorization');
+          }
+          handler.next(options);
+        } catch (e) {
+          handler.reject(DioException(requestOptions: options, error: e));
         }
-        handler.next(options);
       },
-      onError: (error, handler) {
-        // 재발급 API 없음: 인증이 필요한 요청이 401 이면 세션을 끝낸다
-        if (error.response?.statusCode == 401 && error.requestOptions.extra['skipAuth'] != true) {
-          authEvents.emitUnauthorized();
+      onError: (error, handler) async {
+        if (error.response?.statusCode != 401 ||
+            error.requestOptions.extra['skipAuth'] == true ||
+            error.requestOptions.extra['bearer'] != null) {
+          handler.next(error);
+          return;
         }
-        handler.next(error);
+        try {
+          final recovered = await _recoverUnauthorized(error);
+          if (recovered == null) {
+            handler.next(error);
+          } else {
+            handler.resolve(recovered);
+          }
+        } on DioException catch (e) {
+          handler.reject(e);
+        } catch (e) {
+          handler.reject(DioException(requestOptions: error.requestOptions, error: e));
+        }
       },
     ));
   }
 
   final Dio _dio;
+  final AuthEvents _authEvents;
+  final Map<String, Future<void>> _refreshing = {};
+
+  Future<void> _expire(AuthTokenState expected) async {
+    if (await _tokens.clearIfCurrent(expected)) _authEvents.emitUnauthorized();
+  }
+
+  Future<Response<dynamic>?> _recoverUnauthorized(DioException error) async {
+    final request = error.requestOptions;
+    final session = await _tokens.readSession();
+    if (session == null || session.sessionId != request.extra['authSessionId']) return null;
+    if (request.extra['authRetried'] == true) {
+      if (session.accessToken == request.extra['authAccessToken']) await _expire(session);
+      return null;
+    }
+    if (session.accessToken == request.extra['authAccessToken']) {
+      if (session.refreshToken == null || session.refreshToken!.isEmpty) {
+        await _expire(session);
+        return null;
+      }
+      final active = _refreshing[session.sessionId];
+      if (active != null) {
+        await active;
+      } else {
+        final task = _rotate(session);
+        _refreshing[session.sessionId] = task;
+        try {
+          await task;
+        } finally {
+          if (identical(_refreshing[session.sessionId], task)) _refreshing.remove(session.sessionId);
+        }
+      }
+    }
+    final latest = await _tokens.readSession();
+    if (latest == null || latest.sessionId != session.sessionId) return null;
+    // 본문과 Idempotency-Key를 보존한 원 요청을 한 번만 재전송한다.
+    request.extra['authRetried'] = true;
+    return _dio.fetch<dynamic>(request);
+  }
+
+  Future<void> _rotate(AuthTokenState session) async {
+    final pending = await _tokens.prepareRefresh(session.sessionId, newIdempotencyKey());
+    if (pending == null) return;
+    try {
+      final response = await _dio.post<dynamic>(
+        '/auth/refresh',
+        data: {'refreshToken': pending.refreshToken},
+        options: Options(
+          extra: {'skipAuth': true},
+          headers: {'Idempotency-Key': pending.refreshKey},
+        ),
+      );
+      final data = unwrap(response.statusCode, response.data);
+      if (data is! Map || data['accessToken'] is! String || data['refreshToken'] is! String ||
+          (data['accessToken'] as String).isEmpty || (data['refreshToken'] as String).isEmpty) {
+        throw const AppException(AppErrorKind.server, message: '로그인 갱신 응답을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.');
+      }
+      await _tokens.completeRefresh(pending, data['accessToken'] as String, data['refreshToken'] as String);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) await _expire(pending);
+      // 네트워크·429·503은 토큰과 저장된 갱신 키를 유지한다.
+      rethrow;
+    } on AppException catch (e) {
+      if (e.kind == AppErrorKind.unauthorized) await _expire(pending);
+      rethrow;
+    }
+  }
   final TokenStorage _tokens;
 
   /// 로그용 응답 (accessToken · registrationToken · verificationToken 은 가린다)
   static String _short(Object? data) {
     var text = data is String ? data : jsonEncode(data);
-    text = text.replaceAllMapped(RegExp(r'"(accessToken|registrationToken|verificationToken|identityToken)"\s*:\s*"[^"]*"'), (m) => '"${m[1]}":"***"');
+    text = text.replaceAllMapped(RegExp(r'"(accessToken|refreshToken|registrationToken|verificationToken|identityToken|authorizationCode|nonce)"\s*:\s*"[^"]*"'), (m) => '"${m[1]}":"***"');
     return text.length > 4000 ? '${text.substring(0, 4000)}…' : text;
   }
 

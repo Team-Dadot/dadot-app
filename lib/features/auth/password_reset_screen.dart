@@ -176,7 +176,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
             AppTextField(
               controller: _password,
               bordered: true,
-              hint: '영문, 숫자 포함 8자 이상',
+              hint: AppPolicy.passwordHint,
               obscureText: true,
               errorText: _passwordError,
               onChanged: (_) => setState(() {}),

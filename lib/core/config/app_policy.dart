@@ -57,19 +57,29 @@ class AppPolicy {
   /// 문의 내용 길이
   static const int maxInquiryLength = 1000;
 
-  /// 비밀번호 (6-12 "영문·숫자 포함 8자 이상")
+  /// 서버 가입·비밀번호 변경·재설정 정책. 기존 계정 로그인 검증에는 쓰지 않는다.
   static const int minPasswordLength = 8;
-  static const int maxPasswordLength = 64;
+  static const int maxPasswordLength = 20;
+  static const String passwordHint = '8~20자, 영문·숫자·특수문자 포함';
+  static const String passwordRule = '8~20자, 영문·숫자·특수문자를 포함하고 공백·제어문자는 사용할 수 없어요.';
 
-  /// 피그마 이메일 가입 (1164:6153 "영문, 숫자 포함 8자 이상") · 서버 규칙: 영문·숫자 포함 8~64자, 공백 없음
-  static bool isValidPassword(String v) =>
-      v.length >= minPasswordLength &&
-      v.length <= maxPasswordLength &&
-      RegExp('[A-Za-z]').hasMatch(v) &&
-      RegExp(r'\d').hasMatch(v) &&
-      !RegExp(r'\s').hasMatch(v);
+  static String? passwordProblem(String value) {
+    if (value.length < minPasswordLength || value.length > maxPasswordLength) {
+      return '비밀번호는 8~20자로 입력해 주세요.';
+    }
+    // Java PasswordPolicy의 Unicode Z(공백 구분자)·C(제어/형식 등) 제외와 맞춘다.
+    if (RegExp(r'[\s\p{Z}\p{C}]', unicode: true).hasMatch(value)) {
+      return '비밀번호에 공백·제어문자를 사용할 수 없어요.';
+    }
+    if (!RegExp(r'[A-Za-z]').hasMatch(value) ||
+        !RegExp(r'[0-9]').hasMatch(value) ||
+        !RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+      return '영문·숫자·특수문자를 모두 포함해 주세요.';
+    }
+    return null;
+  }
 
-  static const String passwordRule = '영문, 숫자를 포함한 8자 이상으로 입력해 주세요';
+  static bool isValidPassword(String value) => passwordProblem(value) == null;
 
   static bool isValidEmail(String v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim());
 

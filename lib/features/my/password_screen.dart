@@ -44,7 +44,7 @@ class _PasswordScreenState extends ConsumerState<PasswordScreen> {
   String? get _problem {
     if (_code.text.trim().length != 6) return '본인 확인 코드 6자리를 입력해 주세요.';
     if (!AppPolicy.isValidPassword(_password.text)) {
-      return '새 비밀번호는 영문, 숫자를 포함한 8자 이상이에요.';
+      return AppPolicy.passwordProblem(_password.text);
     }
     if (_password.text != _confirm.text) return '새 비밀번호가 서로 달라요.';
     return null;
@@ -126,7 +126,7 @@ class _PasswordScreenState extends ConsumerState<PasswordScreen> {
           const SizedBox(height: AppSpacing.xs),
           AppTextField(
             controller: _password,
-            hint: '영문, 숫자 포함 8자 이상',
+            hint: AppPolicy.passwordHint,
             obscureText: true,
             onChanged: (_) => setState(() {}),
           ),
