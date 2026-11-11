@@ -160,6 +160,8 @@ class SessionController extends Notifier<SessionState> {
   Future<void> _clearLocal() async {
     ref.read(profileRepositoryProvider).clearCache();
     await ref.read(tokenStorageProvider).clear();
+    // 캐시와 진행 중 제출을 먼저 종료해 이전 응답이 개인 데이터를 다시 저장하지 않게 한다.
+    ref.invalidate(interviewRepositoryProvider);
     await ref.read(localStoreProvider).clearUserData();
     try {
       await ref.read(socialAuthServiceProvider).signOut();
@@ -174,6 +176,7 @@ class SessionController extends Notifier<SessionState> {
     // 실패한 옛 세션의 이벤트가 새 로그인까지 지우지 않도록 확인한다.
     if (await ref.read(tokenStorageProvider).readAccessToken() != null) return;
     if (!ref.mounted) return;
+    ref.invalidate(interviewRepositoryProvider);
     state = const SessionState(status: SessionStatus.unauthenticated);
   }
 

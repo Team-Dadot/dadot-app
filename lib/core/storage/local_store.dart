@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,20 @@ class LocalStore {
   LocalStore(this._prefs);
 
   final SharedPreferences _prefs;
+  Future<void> _submissionWrites = Future<void>.value();
+
+  /// 제출 기록 쓰기와 로그아웃 삭제가 역전되지 않도록 순서를 유지한다.
+  Future<T> _serializeSubmissionWrite<T>(Future<T> Function() action) async {
+    final previous = _submissionWrites;
+    final done = Completer<void>();
+    _submissionWrites = done.future;
+    await previous;
+    try {
+      return await action();
+    } finally {
+      done.complete();
+    }
+  }
 
   static const _draftPrefix = 'draft.answer.';
   static const pendingInterviewPrefix = 'submission.interview.';
@@ -35,12 +50,12 @@ class LocalStore {
   Future<void> clearDraft(String questionId) => _prefs.remove('$_draftPrefix$questionId');
 
   /// 네트워크 전송 전에 제출 상태를 기기에 기록한다.
-  Future<void> savePendingSubmission(String key, Map<String, dynamic> value) async {
+  Future<void> savePendingSubmission(String key, Map<String, dynamic> value) => _serializeSubmissionWrite(() async {
     final saved = await _prefs.setString(key, jsonEncode(value));
     if (!saved) {
       throw const AppException(AppErrorKind.unknown, message: '제출 상태를 기기에 저장하지 못했어요. 다시 시도해 주세요.');
     }
-  }
+  });
 
   // ---- 홈 기본 기업 ----
   String? get lastCompanyId => _prefs.getString(_lastCompanyKey);
@@ -71,13 +86,18 @@ class LocalStore {
 
   Future<void> writeJson(String key, Map<String, dynamic> value) => _prefs.setString(key, jsonEncode(value));
 
-  Future<void> remove(String key) => _prefs.remove(key);
+  Future<void> remove(String key) => _serializeSubmissionWrite(() async {
+    final removed = await _prefs.remove(key);
+    if (!removed) {
+      throw const AppException(AppErrorKind.unknown, message: '제출 상태 정리를 완료하지 못했어요. 다시 확인해 주세요.');
+    }
+  });
 
   /// 로그아웃·탈퇴 시 기기에 남은 개인 데이터 삭제
-  Future<void> clearUserData() async {
+  Future<void> clearUserData() => _serializeSubmissionWrite(() async {
     final keys = _prefs.getKeys().where((k) => k.startsWith(_draftPrefix) || k.startsWith(pendingInterviewPrefix) || k == _lastCompanyKey || k == _onboardingStepKey);
     for (final k in keys.toList()) {
       await _prefs.remove(k);
     }
-  }
+  });
 }
