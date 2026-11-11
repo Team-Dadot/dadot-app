@@ -1021,6 +1021,21 @@ class RemoteInterviewRepository implements InterviewRepository {
   final String? Function()? _ownerId;
   final Map<String, PendingInterviewSubmission> _pending = {};
   final Map<String, Future<String>> _submitting = {};
+  final Set<String> _draftsToReload = {};
+  bool _disposed = false;
+
+  /// 로그아웃·세션 종료 시 이전 요청의 결과가 캐시나 기기에 반영되지 않게 한다.
+  void dispose() {
+    _disposed = true;
+    _pending.clear();
+    _submitting.clear();
+    _drafts.clear();
+    _draftsToReload.clear();
+  }
+
+  void _requireActive() {
+    if (_disposed) throw const AppException(AppErrorKind.unauthorized);
+  }
 
   String _submissionKey(String questionId) {
     final owner = _ownerId?.call() ?? (_store == null ? 'memory' : null);
@@ -1029,24 +1044,36 @@ class RemoteInterviewRepository implements InterviewRepository {
   }
 
   @override
-  PendingInterviewSubmission? pendingSubmission(String questionId) => _readPending(_submissionKey(questionId));
+  PendingInterviewSubmission? pendingSubmission(String questionId) =>
+      _disposed ? null : _readPending(_submissionKey(questionId));
 
   PendingInterviewSubmission? _readPending(String key) {
-    if (_pending.containsKey(key)) return _pending[key];
-    final saved = _store?.readJson(key);
-    if (saved == null) return null;
+    if (_disposed) return null;
+    final store = _store;
+    if (store == null) return _pending[key];
+    final saved = store.readJson(key);
+    if (saved == null) {
+      _pending.remove(key);
+      return null;
+    }
+    final cached = _pending[key];
+    if (cached != null && cached.idempotencyKey == saved['idempotencyKey']) return cached;
     final pending = PendingInterviewSubmission.fromJson(saved);
     _pending[key] = pending;
     return pending;
   }
 
   Future<void> _remember(String key, PendingInterviewSubmission pending) async {
+    _requireActive();
     _pending[key] = pending;
     final store = _store;
     if (store != null) await store.savePendingSubmission(key, pending.toJson());
+    _requireActive();
+    _pending[key] = pending;
   }
 
   Future<void> _forget(String key) async {
+    _requireActive();
     final store = _store;
     if (store != null) await store.remove(key);
     _pending.remove(key);
@@ -1064,6 +1091,7 @@ class RemoteInterviewRepository implements InterviewRepository {
     required String content,
     required AnswerInputType inputType,
   }) async {
+    _requireActive();
     final key = _submissionKey(questionId);
     final active = _submitting[key];
     if (active != null) return active;
@@ -1077,9 +1105,19 @@ class RemoteInterviewRepository implements InterviewRepository {
   }
 
   Future<String> _acceptAnswer(String key, String questionId, String content) async {
+    _requireActive();
     var pending = _readPending(key);
     if (pending?.attemptId != null) return pending!.attemptId!;
     if (pending == null) {
+      if (_draftsToReload.contains(questionId)) {
+        final latest = await fetchQuestion(questionId);
+        _requireActive();
+        if (latest.blocked) {
+          throw AppException(AppException.kindFromCode(latest.effectiveBlockedReason, 409),
+            code: latest.effectiveBlockedReason, message: latest.blockedMessage, statusCode: 409);
+        }
+        _draftsToReload.remove(questionId);
+      }
       final version = _drafts[questionId]?.version;
       pending = PendingInterviewSubmission(
         idempotencyKey: _idem(),
@@ -1094,6 +1132,7 @@ class RemoteInterviewRepository implements InterviewRepository {
         body: pending.body,
         idempotencyKey: pending.idempotencyKey,
       ));
+      _requireActive();
       final attemptId = _str(accepted, ['attemptId']);
       if (attemptId == null) {
         throw const AppException(AppErrorKind.server, message: '답변 접수 결과를 확인하지 못했어요. 같은 답변으로 다시 확인해 주세요.');
@@ -1109,7 +1148,13 @@ class RemoteInterviewRepository implements InterviewRepository {
         'VERSION_CONFLICT',
       };
       // 접수되지 않았음이 명확한 경우만 새 작성·제출을 허용한다.
-      if (pending.attemptId == null && rejected.contains(e.code)) await _forget(key);
+      if (pending?.attemptId == null && rejected.contains(e.code)) {
+        if (e.code == 'VERSION_CONFLICT') {
+          _drafts.remove(questionId);
+          _draftsToReload.add(questionId);
+        }
+        await _forget(key);
+      }
       rethrow;
     }
   }
@@ -1173,7 +1218,11 @@ class RemoteInterviewRepository implements InterviewRepository {
     // InterviewGeneration.Detail: {questionId, company, jobSnapshot, question, evidence, draft, latestAttempt, usage}
     final jobName = _str(_map(d['jobSnapshot']), ['jobName']) ?? _str(_map(d['job']), ['jobName']);
     final draft = _map(d['draft']);
-    if (draft != null) _drafts[questionId] = (text: _str(draft, ['text']) ?? '', version: _int(draft, ['version']));
+    if (draft != null) {
+      _drafts[questionId] = (text: _str(draft, ['text']) ?? '', version: _int(draft, ['version']));
+    } else {
+      _drafts.remove(questionId);
+    }
     return InterviewQuestion(
       id: _str(d, ['questionId', 'id']) ?? questionId,
       companyId: companyId,

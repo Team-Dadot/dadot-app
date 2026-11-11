@@ -77,13 +77,16 @@ final quizRepositoryProvider = Provider<QuizRepository>((ref) => _mock(ref)
     ? MockQuizRepository(ref.watch(mockBackendProvider))
     : RemoteQuizRepository(ref.watch(apiClientProvider)));
 
-final interviewRepositoryProvider = Provider<InterviewRepository>((ref) => _mock(ref)
-    ? MockInterviewRepository(ref.watch(mockBackendProvider))
-    : RemoteInterviewRepository(
-        ref.watch(apiClientProvider),
-        store: ref.watch(localStoreProvider),
-        ownerId: () => ref.read(sessionProvider).user?.id,
-      ));
+final interviewRepositoryProvider = Provider<InterviewRepository>((ref) {
+  if (_mock(ref)) return MockInterviewRepository(ref.watch(mockBackendProvider));
+  final repository = RemoteInterviewRepository(
+    ref.watch(apiClientProvider),
+    store: ref.watch(localStoreProvider),
+    ownerId: () => ref.read(sessionProvider).user?.id,
+  );
+  ref.onDispose(repository.dispose);
+  return repository;
+});
 
 final recordsRepositoryProvider = Provider<RecordsRepository>((ref) => _mock(ref)
     ? MockRecordsRepository(ref.watch(mockBackendProvider))

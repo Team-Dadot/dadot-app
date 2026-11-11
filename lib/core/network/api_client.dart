@@ -88,7 +88,7 @@ class ApiClient {
         }
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode != 401 ||
+        if (!_isSessionUnauthorized(error) ||
             error.requestOptions.extra['skipAuth'] == true ||
             error.requestOptions.extra['bearer'] != null) {
           handler.next(error);
@@ -108,6 +108,19 @@ class ApiClient {
         }
       },
     ));
+  }
+
+  /// 401 중 서비스 로그인 자체의 인증 실패만 갱신한다.
+  /// 탈퇴 비밀번호·소셜 자격증명·이메일 인증 실패는 현재 세션을 유지한다.
+  static bool _isSessionUnauthorized(DioException error) {
+    if (error.response?.statusCode != 401) return false;
+    final body = error.response?.data;
+    String? code;
+    if (body is Map) {
+      final detail = body['error'];
+      code = (detail is Map ? detail['code'] : body['code'])?.toString();
+    }
+    return code == null || code == 'UNAUTHENTICATED';
   }
 
   final Dio _dio;
