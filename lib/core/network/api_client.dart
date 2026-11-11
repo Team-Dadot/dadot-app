@@ -170,7 +170,14 @@ class ApiClient {
       }
       await _tokens.completeRefresh(pending, data['accessToken'] as String, data['refreshToken'] as String);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) await _expire(pending);
+      // 다닷 서버는 만료·무효 refreshToken 을 401 이 아니라 400 으로도 돌려준다.
+      // 401 만 보던 탓에 못 쓰는 토큰이 그대로 남아, 앱을 켤 때마다
+      // "불러오지 못했어요 / 요청 입력값을 확인해 주세요" 에서 빠져나오지 못했다.
+      // → 다시 시도해도 소용없는 4xx 는 모두 로그아웃으로 본다 (408·429 는 제외).
+      final status = e.response?.statusCode ?? 0;
+      if (status >= 400 && status < 500 && status != 408 && status != 429) {
+        await _expire(pending);
+      }
       // 네트워크·429·503은 토큰과 저장된 갱신 키를 유지한다.
       rethrow;
     } on AppException catch (e) {

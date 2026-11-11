@@ -62,11 +62,16 @@ class SessionController extends Notifier<SessionState> {
       if (user.onboardingCompleted) unawaited(_registerPushToken());
     } on AppException catch (e) {
       if (!ref.mounted) return;
-      if (e.kind == AppErrorKind.unauthorized) {
-        await tokens.clear();
-        state = const SessionState(status: SessionStatus.unauthenticated);
-      } else {
+      // 잠깐 못 닿는 것뿐이면(인터넷·서버 장애) 스플래시에서 "다시 시도" 로 두고,
+      // 저장된 로그인이 더는 못 쓰는 것이면(401 · 400 · 403 · 404) 지우고 로그인 화면으로 보낸다.
+      // (토큰 갱신이 400 으로 막히면 매번 "불러오지 못했어요" 에서 갇히던 문제)
+      const retryable = {AppErrorKind.network, AppErrorKind.timeout, AppErrorKind.server, AppErrorKind.unknown};
+      if (retryable.contains(e.kind)) {
         state = SessionState(status: SessionStatus.unknown, bootstrapError: e);
+      } else {
+        await tokens.clear();
+        if (!ref.mounted) return;
+        state = const SessionState(status: SessionStatus.unauthenticated);
       }
     }
   }
