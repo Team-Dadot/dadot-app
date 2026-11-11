@@ -571,9 +571,9 @@ class MockBackend {
     if (_retryRemaining(questionId) <= 0) {
       throw const AppException(
         AppErrorKind.feedbackQuotaExceeded,
-        code: 'FEEDBACK_QUOTA_EXCEEDED',
-        statusCode: 429,
-        message: '오늘 이 질문에는 모두 답했어요. 내일 다시 도전해 주세요.',
+        code: 'QUESTION_LIMIT_EXCEEDED',
+        statusCode: 409,
+        message: '이 질문의 답변 기회를 모두 사용했어요.',
       );
     }
     _attemptsToday[questionId] = (_attemptsToday[questionId] ?? 0) + 1;
@@ -667,6 +667,8 @@ class MockBackend {
         metCount: last?.metCount,
         lastAt: last?.submittedAt,
         retryRemaining: _retryRemaining(id),
+        // 서버처럼 질문을 받은 날 (QA 1520:9620: 작성 중 카드에 날짜가 비어 있었다)
+        createdAt: attempts.firstOrNull?.submittedAt ?? _now(),
       ));
     }
     records.sort((a, b) => (b.lastAt ?? _now()).compareTo(a.lastAt ?? _now()));

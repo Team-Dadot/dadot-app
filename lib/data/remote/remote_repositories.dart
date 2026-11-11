@@ -119,6 +119,22 @@ List<String> _texts(dynamic v) {
 
 const _letters = ['A', 'B', 'C', 'D', 'E', 'F'];
 
+/// 평가 상태: SUCCEEDED 이고 점수가 있는 결과가 있을 때만 [EvaluationState.done]
+EvaluationState _evaluationState(Map<String, dynamic> evaluation, [Map<String, dynamic>? attempt]) {
+  final status = (_str(evaluation, ['status', 'evaluationStatus']) ??
+          _str(_map(evaluation['task']), ['status']) ??
+          _str(attempt, ['evaluationStatus']) ??
+          '')
+      .toUpperCase();
+  final result = _map(evaluation['result']);
+  final scored = result != null && _int(result, ['scorePercent', 'totalScore', 'score']) != null;
+  if (_isFailed(status)) return EvaluationState.failed;
+  if (scored && (status.isEmpty || status.contains('SUCCE') || status.contains('DONE') || status.contains('COMPLET'))) {
+    return EvaluationState.done;
+  }
+  return EvaluationState.processing;
+}
+
 bool _isFailed(String status) => status.contains('FAIL') || status.contains('CANCEL') || status.contains('ERROR');
 
 bool _isRunning(String status) =>
@@ -1075,6 +1091,9 @@ class RemoteInterviewRepository implements InterviewRepository {
     );
   }
 
+  /// 응답을 못 받은 답변 제출의 Idempotency-Key (질문별). 같은 글을 다시 보내면 같은 키를 쓴다.
+  final Map<String, ({String key, String text})> _pendingSubmits = {};
+
   /// 답변 제출 (202 접수) → 평가가 끝날 때까지 조회 → 피드백
   @override
   Future<AnswerFeedback> submitAnswer({
@@ -1083,15 +1102,37 @@ class RemoteInterviewRepository implements InterviewRepository {
     required AnswerInputType inputType,
   }) async {
     final version = _drafts[questionId]?.version;
-    final accepted = _obj(await _api.post(
-      ApiPaths.interviewAttempts(questionId),
-      body: {'text': content, 'draftVersion': ?version},
-      idempotencyKey: _idem(),
-    ));
+    // 같은 질문·같은 글을 다시 보내면(응답이 중간에 끊겼던 경우) 같은 Idempotency-Key 를 써서
+    // 서버가 새 시도를 만들지 않고 처음 접수한 시도를 돌려주게 한다
+    final pending = _pendingSubmits[questionId];
+    final key = pending != null && pending.text == content ? pending.key : _idem();
+    _pendingSubmits[questionId] = (key: key, text: content);
+    final Map<String, dynamic> accepted;
+    try {
+      accepted = _obj(await _api.post(
+        ApiPaths.interviewAttempts(questionId),
+        body: {'text': content, 'draftVersion': ?version},
+        idempotencyKey: key,
+      ));
+    } on AppException catch (e) {
+      // 네트워크·시간 초과면 접수됐을 수도 있으니 키를 남겨 둔다. 서버가 분명히 거절했으면 버린다.
+      if (!e.isRetryable || e.code == 'IDEMPOTENCY_KEY_EXPIRED') _pendingSubmits.remove(questionId);
+      rethrow;
+    }
+    _pendingSubmits.remove(questionId);
     final attemptId = _str(accepted, ['attemptId']);
     if (attemptId == null) throw const AppException(AppErrorKind.server);
     _drafts.remove(questionId);
-    final evaluation = await _waitForEvaluation(attemptId);
+    // 여기부터는 접수 완료. 평가 조회가 실패해도 제출 실패가 아니다 → AnswerAccepted (다시 제출하지 않고 결과만 다시 조회)
+    final Map<String, dynamic> evaluation;
+    try {
+      evaluation = await _waitForEvaluation(attemptId);
+    } on EvaluationFailed {
+      rethrow;
+    } on AppException catch (e) {
+      if (e.kind == AppErrorKind.unauthorized) rethrow;
+      throw AnswerAccepted(answerId: attemptId, cause: e);
+    }
     return _feedback(
       attemptId: attemptId,
       evaluation: evaluation,
@@ -1274,12 +1315,16 @@ class RemoteRecordsRepository implements RecordsRepository {
     final attempts = await Future.wait(_content(results[1]).map((a) async {
       final id = _str(a, ['attemptId', 'id']) ?? '';
       Map<String, dynamic> evaluation = const {};
+      EvaluationState? state;
       try {
         evaluation = _obj(await _api.get(ApiPaths.attemptEvaluation(id)));
       } on AppException catch (e) {
         if (e.kind == AppErrorKind.unauthorized) rethrow;
+        // QA: 조회 실패를 0점·보완필요로 바꾸지 않는다. 평가가 아직 없으면(404) 평가 중으로 본다.
+        state = e.kind == AppErrorKind.notFound ? EvaluationState.processing : EvaluationState.unavailable;
       }
-      return _feedback(attemptId: id, evaluation: evaluation, attempt: a, questionId: questionId);
+      final f = _feedback(attemptId: id, evaluation: evaluation, attempt: a, questionId: questionId);
+      return f.copyWith(evaluation: state ?? _evaluationState(evaluation, a));
     }));
     attempts.sort((a, b) => a.attempt.compareTo(b.attempt));
     return InterviewRecordDetail(question: question, attempts: attempts);

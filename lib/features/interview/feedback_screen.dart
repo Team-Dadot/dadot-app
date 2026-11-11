@@ -66,7 +66,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 // 피그마 1335: 채점 실패 화면
                 title: failed ? '일시적인 오류가 발생했어요' : null,
                 description: failed ? '다시 시도해 주세요' : null,
-                retryLabel: failed ? '다시 시도하기' : '다시 시도',
+                // 답변은 이미 접수됨 → 다시 제출하지 않고 같은 답변의 결과만 다시 조회
+                retryLabel: failed ? '다시 시도하기' : '결과 다시 확인',
                 onRetry: failed
                     ? _retryEvaluation
                     : () => ref.invalidate(feedbackProvider(widget.answerId)),
@@ -101,7 +102,9 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 Expanded(
                   child: RetryAnswerButton(
                     prefix: '재답변',
-                    remaining: fb.retryRemaining,
+                    remaining: question?.retryRemaining ?? fb.retryRemaining,
+                    // 서버 usage(canSubmit · blockedReason) 기준 — 일일 한도 · 평가 중 · 기업 비활성도 막는다
+                    blockReason: question?.blockReason,
                     onRetry: () => context.pushReplacement(
                       Routes.interviewAnswer(fb.questionId),
                     ),

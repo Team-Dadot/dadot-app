@@ -23,9 +23,10 @@ class QuestionScreen extends ConsumerWidget {
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(interviewQuestionProvider(questionId))),
         data: (q) => ListView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.xl),
+          // 피그마 1520:9632: 내비 아래 24 에 질문, 36 아래 근거 카드
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
           children: [
-            QuestionCard(question: q),
+            QuestionHeadline(q.text),
             if (q.evidence.isNotEmpty) ...[
               const SizedBox(height: 36),
               for (var i = 0; i < q.evidence.length; i++) ...[

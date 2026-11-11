@@ -74,14 +74,12 @@ class _JobPickerScreenState extends ConsumerState<_JobPickerScreen> {
         .pop(picked.id.isEmpty && known != null ? known : picked);
   }
 
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+  /// 묶음 이름 (16 Medium #9A9DA4, 줄 140%). [gap] 은 아래 내용까지 거리 (피그마 1529:10657: 11 · 16 · 8)
+  Widget _label(String text, {required double gap}) => Padding(
+    padding: EdgeInsets.only(bottom: gap),
     child: Text(
       text,
-      style: AppTypography.body1Medium.copyWith(
-        fontSize: 16,
-        color: AppColors.textGuide,
-      ),
+      style: AppTypography.rowTitle.copyWith(color: AppColors.textGuide),
     ),
   );
 
@@ -118,16 +116,19 @@ class _JobPickerScreenState extends ConsumerState<_JobPickerScreen> {
               AppSpacing.xl,
             ),
             children: [
-              _label('직접 입력'),
+              _label('직접 입력', gap: 11),
               _CustomJobField(
                 controller: _custom,
                 onChanged: () => setState(() {}),
               ),
-              const SizedBox(height: AppSpacing.xl),
-              _label('자주 찾는 직무'),
+              // 피그마 1529:10669: 입력칸 아래 16 · 1px 선(#E9EBED) · 16
+              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: 1, width: double.infinity, child: ColoredBox(color: Color(0xFFE9EBED))),
+              const SizedBox(height: AppSpacing.md),
+              _label('자주 찾는 직무', gap: AppSpacing.md),
               Wrap(
                 spacing: 13,
-                runSpacing: 10,
+                runSpacing: 12,
                 children: [
                   for (final j in _popularJobs(c))
                     _JobPill(
@@ -138,10 +139,11 @@ class _JobPickerScreenState extends ConsumerState<_JobPickerScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xl),
-              _label('전체 직무'),
+              const SizedBox(height: AppSpacing.xxl),
+              _label('전체 직무', gap: AppSpacing.xs),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                // 카드 위아래 12, 줄마다 위아래 16 + 0.5 선
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
@@ -184,7 +186,8 @@ class _JobPickerScreenState extends ConsumerState<_JobPickerScreen> {
   }
 }
 
-/// 직접 입력 칸: 흰 바탕 · 회색 테두리 · 모서리 16 · 오른쪽 ✕
+/// 직접 입력 칸 (피그마 1529:10666): 흰 바탕 · #E9EBED 테두리 · 모서리 16 · 높이 52 · 좌우 14.
+/// 비어 있으면 오른쪽에 연필(20.5), 글자가 있으면 회색 원 ✕(16) — 누르면 지운다 (1529:10898).
 class _CustomJobField extends StatelessWidget {
   const _CustomJobField({required this.controller, required this.onChanged});
 
@@ -193,9 +196,10 @@ class _CustomJobField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = AppTypography.rowTitle.copyWith(color: const Color(0xFF303137));
     return Container(
       height: 52,
-      padding: const EdgeInsets.only(left: 15, right: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -209,33 +213,32 @@ class _CustomJobField extends StatelessWidget {
               onChanged: (_) => onChanged(),
               maxLength: AppPolicy.jobNameMaxLength,
               textInputAction: TextInputAction.done,
-              style: AppTypography.body1Medium.copyWith(
-                fontSize: 16,
-                color: AppColors.textStrong,
-              ),
+              style: style,
+              cursorColor: AppColors.primary,
               decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
                 counterText: '',
-                hintText: '직무를 입력하세요',
-                hintStyle: AppTypography.body1Medium.copyWith(
-                  fontSize: 16,
-                  color: AppColors.textGuide,
-                ),
+                hintText: '직무명을 입력해 주세요',
+                hintStyle: style.copyWith(color: AppColors.textGuide),
               ),
             ),
           ),
-          // 피그마 1212:7788: 비어 있어도 ✕ 를 보여 준다 (누르면 지우기)
-          IconButton(
-              tooltip: '지우기',
-              onPressed: () {
-                controller.clear();
-                onChanged();
-              },
-              icon: const Icon(
-                Icons.close_rounded,
-                size: 22,
-                color: AppColors.textSub,
+          const SizedBox(width: AppSpacing.xs),
+          if (controller.text.isEmpty)
+            ExcludeSemantics(child: Image.asset('assets/images/icons/field_pencil.png', width: 20.5, height: 20.5))
+          else
+            Semantics(
+              button: true,
+              label: '지우기',
+              excludeSemantics: true,
+              child: InkResponse(
+                radius: 20,
+                onTap: () {
+                  controller.clear();
+                  onChanged();
+                },
+                child: const Padding(padding: EdgeInsets.all(2.25), child: ClearCircleIcon()),
               ),
             ),
         ],
@@ -244,7 +247,7 @@ class _CustomJobField extends StatelessWidget {
   }
 }
 
-/// 전체 직무 한 줄: "경영·기획 ⌄" — 누르면 펼쳐서 직무 태그 (펼친 줄 위 16 · 태그 아래 17)
+/// 전체 직무 한 줄: "경영·기획 ⌄" — 누르면 펼쳐서 직무 태그 (피그마 1529:10698: 줄 위아래 16 · 이름과 태그 사이 12 · 아래 0.5 선)
 class _CategoryRow extends StatelessWidget {
   const _CategoryRow({
     required this.category,
@@ -266,9 +269,7 @@ class _CategoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: last
-            ? null
-            : const Border(bottom: BorderSide(color: AppColors.fillMuted)),
+        border: last ? null : const Border(bottom: BorderSide(color: AppColors.fillMuted, width: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -278,18 +279,12 @@ class _CategoryRow extends StatelessWidget {
             expanded: open,
             child: InkWell(
               onTap: onToggle,
-              child: SizedBox(
-                height: 56,
+              child: Padding(
+                padding: EdgeInsets.only(top: AppSpacing.md, bottom: open ? AppSpacing.sm : AppSpacing.md),
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        category.name,
-                        style: AppTypography.body1Medium.copyWith(
-                          fontSize: 16,
-                          color: Colors.black,
-                        ),
-                      ),
+                      child: Text(category.name, style: AppTypography.rowTitle.copyWith(color: Colors.black)),
                     ),
                     // 접힘 ⌄ · 펼침 ⌃
                     AnimatedRotation(
@@ -304,7 +299,7 @@ class _CategoryRow extends StatelessWidget {
           ),
           if (open)
             Padding(
-              padding: const EdgeInsets.only(bottom: 17),
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: Wrap(
                 spacing: 13,
                 runSpacing: 12,
@@ -325,7 +320,8 @@ class _CategoryRow extends StatelessWidget {
   }
 }
 
-/// 직무 칩. 자주 찾는 직무는 흰 알약, 전체 직무 태그는 회색 테두리. 고르면 진한 차콜 + 흰 글자.
+/// 직무 칩 (피그마 1529:10675 · Job tag 1154:5884): 좌우 12 · 위아래 7 · 14 Medium (줄 140%).
+/// 자주 찾는 직무는 흰 알약(높이 34), 전체 직무 태그는 #DCE0E7 테두리(높이 36). 고르면 #303137 바탕 + 흰 글자.
 class _JobPill extends StatelessWidget {
   const _JobPill({
     required this.label,
@@ -350,24 +346,15 @@ class _JobPill extends StatelessWidget {
         onTap: onTap,
         // 글자 폭만큼만 (alignment 를 주면 Wrap 안에서 한 줄을 꽉 채워 버린다)
         child: Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: selected ? AppColors.textStrong : AppColors.surface,
+            color: selected ? const Color(0xFF303137) : AppColors.surface,
             borderRadius: BorderRadius.circular(999),
-            border: outlined
-                ? Border.all(
-                    color: selected
-                        ? AppColors.textStrong
-                        : AppColors.fillMuted,
-                  )
-                : null,
+            border: outlined ? Border.all(color: selected ? const Color(0xFF303137) : AppColors.fillMuted) : null,
           ),
           child: Text(
             label,
-            style: AppTypography.body2Medium.copyWith(
-              color: selected ? AppColors.white : AppColors.textGuide,
-            ),
+            style: AppTypography.body2Medium.copyWith(color: selected ? AppColors.white : AppColors.textGuide, height: 1.4),
           ),
         ),
       ),
@@ -790,9 +777,10 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
           Expanded(
             child: ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              // 피그마 1529:10523: 내비 아래 27 에 검색창
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
-                AppSpacing.sm,
+                27,
                 AppSpacing.screenH,
                 AppSpacing.xl,
               ),
@@ -800,6 +788,7 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
                 SearchField(
                   controller: _search,
                   hint: '기업 이름을 검색해보세요',
+                  outlined: true,
                   // QA: 키보드는 칸을 눌렀을 때만 (자동으로 올리지 않는다)
                   onChanged: _onQuery,
                 ),
@@ -846,8 +835,8 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
                         .toList();
                     if (shown.isEmpty) {
                       return Padding(
-                        // 피그마 1514:9656: 검색창 아래 151 에 그림, 그 아래 제목 (위 간격 16 포함)
-                        padding: const EdgeInsets.only(top: 135),
+                        // 피그마 1529:10575: 제목이 화면 y 430 (검색창 아래 238) — 그림은 그 위 (간격 16 포함)
+                        padding: EdgeInsets.only(top: 238 - 16 - StateGraphic.search.height),
                         child: _query.isEmpty
                             ? const StatusMessage(
                                 title: '더 추가할 기업이 없어요',
@@ -864,13 +853,14 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         for (var i = 0; i < shown.length; i++) ...[
-                          if (i > 0) const SizedBox(height: AppSpacing.sm),
+                          if (i > 0) const SizedBox(height: AppSpacing.xs),
                           () {
                             final c = shown[i];
                             final isAdded = addedIds.contains(c.id);
-                            return CompanyTile(
+                            return _CompanyResultTile(
                               name: c.name,
                               subtitle: c.industry,
+                              added: isAdded,
                               onTap: isAdded
                                   ? null
                                   : () {
@@ -880,14 +870,6 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
                                         Navigator.of(context).pop(c);
                                       }
                                     },
-                              trailing: Text(
-                                isAdded ? '추가됨' : '추가',
-                                style: AppTypography.caption.copyWith(
-                                  color: isAdded
-                                      ? AppColors.textStrong
-                                      : AppColors.textCaption,
-                                ),
-                              ),
                             );
                           }(),
                         ],
@@ -908,6 +890,61 @@ class _CompanySearchScreenState extends ConsumerState<CompanySearchScreen> {
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// 검색 결과 한 줄 (피그마 1529:10536): 흰 카드 · 모서리 16 · 높이 80 · 안쪽 20.
+/// 로고 44(테두리 #E9EBED) · 16 · 이름 16 SemiBold #303137 / 4 / 업종 14 Medium #9A9DA4 · 오른쪽 "추가" 14 Medium #9A9DA4
+class _CompanyResultTile extends StatelessWidget {
+  const _CompanyResultTile({required this.name, required this.added, this.subtitle, this.onTap});
+
+  final String name;
+  final String? subtitle;
+  final bool added;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadius.button);
+    final sub = AppTypography.body2Medium.copyWith(color: AppColors.textGuide, height: 1.4);
+    return Semantics(
+      button: onTap != null,
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 80),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 17),
+              child: Row(
+                children: [
+                  CompanyLogo(name: name, bordered: true),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: const Color(0xFF303137), height: 1.4)),
+                        if ((subtitle ?? '').isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis, style: sub),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(added ? '추가됨' : '추가', style: sub.copyWith(color: added ? const Color(0xFF303137) : AppColors.textGuide)),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

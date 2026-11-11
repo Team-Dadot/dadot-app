@@ -55,6 +55,9 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   bool _savingDraft = false;
   bool _leaving = false;
 
+  /// 답변이 서버에 접수됨 → 더는 초안으로 저장하지 않는다
+  bool _submitted = false;
+
   /// 말로 답하기를 시작하기 전 글 (다시 녹음하면 여기로 되돌린다)
   String _beforeVoice = '';
 
@@ -89,7 +92,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   @override
   void dispose() {
     _draftTimer?.cancel();
-    _saveLocalDraft();
+    if (!_submitted) _saveLocalDraft();
     _text.dispose();
     _speech?.dispose();
     super.dispose();
@@ -232,23 +235,45 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     }
   }
 
-  /// 기회를 다 쓴 질문: 안내만 띄우고 질문 화면(또는 복습)으로 돌려보낸다. 화면에 갇히지 않게.
-  Future<void> _leaveBlocked(String message) async {
-    await _store.clearDraft(widget.questionId);
+  /// 답할 수 없는 질문: 이유별 안내만 띄우고 질문 화면(또는 복습)으로 돌려보낸다. 화면에 갇히지 않게.
+  /// [reason] 은 서버 코드 (QUESTION_LIMIT_EXCEEDED · DAILY_LIMIT_EXCEEDED · TASK_PROCESSING …)
+  Future<void> _leaveBlocked(String? reason) async {
+    // 기회를 다 쓴 질문의 글은 더 낼 수 없으니 지운다. 평가 중·기업 비활성 등은 나중에 낼 수 있게 남긴다.
+    final exhausted = reason == null || reason == 'QUESTION_LIMIT_EXCEEDED' || reason == 'DAILY_LIMIT_EXCEEDED';
+    if (exhausted) {
+      _stopDraftSaving();
+      await _store.clearDraft(widget.questionId);
+    }
     ref.invalidate(interviewQuestionProvider(widget.questionId));
     ref.invalidate(interviewRecordsProvider);
     invalidateProgress(ref);
     if (!mounted) return;
-    await showNoticeDialog(context, title: message, message: '내일 다시 도전해보세요!', buttonLabel: '확인');
+    final info = AppException.submitBlockText(reason);
+    await showNoticeDialog(context, title: info.title, message: info.message, buttonLabel: '확인');
     if (!mounted) return;
     _leaving = true;
     Navigator.of(context).pop();
   }
 
+  /// 제출이 끝난(서버 접수) 답변: 자동 저장을 멈추고 입력·초안을 비운다.
+  /// (QA: 평가 실패 뒤 화면을 닫을 때 dispose 가 입력칸 글을 다시 초안으로 저장해, 낸 답변이 "작성 중" 으로 되살아났다)
+  Future<void> _finishSubmitted() async {
+    _stopDraftSaving();
+    _text.clear();
+    await _store.clearDraft(widget.questionId);
+  }
+
+  /// 자동 임시 저장(입력 감시 · 타이머 · 화면 닫을 때 저장)을 끈다
+  void _stopDraftSaving() {
+    _draftTimer?.cancel();
+    _text.removeListener(_scheduleDraftSave);
+    _submitted = true;
+  }
+
   Future<void> _submit() async {
     final question = ref.read(interviewQuestionProvider(widget.questionId)).asData?.value;
     if (question != null && question.blocked) {
-      await _leaveBlocked(question.blockedMessage);
+      await _leaveBlocked(question.blockReason);
       return;
     }
     if (_length < AppPolicy.minAnswerLength) {
@@ -271,9 +296,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
                 ? AnswerInputType.voice
                 : AnswerInputType.text,
           );
-      await _store.clearDraft(widget.questionId);
-      _text.removeListener(_scheduleDraftSave);
-      _text.clear();
+      await _finishSubmitted();
       invalidateProgress(ref);
       ref.invalidate(interviewQuestionProvider(widget.questionId));
       if (mounted) {
@@ -282,21 +305,31 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       }
     } on EvaluationFailed catch (e) {
       // 답변은 제출됐고 평가만 실패 → 결과 화면에서 "다시 시도하기" (피그마 4-E4)
-      await _store.clearDraft(widget.questionId);
-      invalidateProgress(ref);
-      if (mounted) {
-        _leaving = true;
-        context.pushReplacement(Routes.feedback(e.answerId));
-      }
+      await _goSubmitted(e.answerId);
+    } on AnswerAccepted catch (e) {
+      // 답변은 접수됐는데 평가 결과 조회만 실패 → 작성 화면으로 돌아가지 않는다(다시 내면 기회가 또 준다).
+      // 결과 화면에서 같은 답변의 결과만 다시 조회한다.
+      await _goSubmitted(e.answerId);
     } catch (e) {
       if (!mounted) return;
       setState(() => _mode = _Mode.writing);
       final err = asAppException(e);
-      if (err.kind == AppErrorKind.feedbackQuotaExceeded) {
-        await _leaveBlocked('이 질문의 답변 기회를 모두 사용했어요');
+      if (err.kind == AppErrorKind.feedbackQuotaExceeded || err.kind == AppErrorKind.submitBlocked) {
+        await _leaveBlocked(err.code);
         return;
       }
       showErrorToast(context, err);
+    }
+  }
+
+  /// 접수된 답변의 결과 화면으로 (평가 실패 · 결과 조회 실패 공통)
+  Future<void> _goSubmitted(String answerId) async {
+    await _finishSubmitted();
+    invalidateProgress(ref);
+    ref.invalidate(interviewQuestionProvider(widget.questionId));
+    if (mounted) {
+      _leaving = true;
+      context.pushReplacement(Routes.feedback(answerId));
     }
   }
 

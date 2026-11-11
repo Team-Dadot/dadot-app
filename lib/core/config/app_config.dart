@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
+
 /// 실행 환경 설정. 빌드할 때 --dart-define 으로 바꾼다.
 ///
 /// 예) 백엔드 붙이기:
 ///   flutter run --dart-define=USE_MOCK=false   (기본 서버 https://api.dadot.store)
 ///
-/// 기본값은 Mock 모드라서 백엔드 없이도 앱 전체 흐름을 돌려볼 수 있다.
+/// USE_MOCK 을 안 넣으면: 디버그 실행은 Mock (백엔드 없이 흐름 확인), 릴리스 빌드(TestFlight · 스토어)는 실서버.
+/// → Xcode Archive 처럼 dart-define 이 빠지기 쉬운 빌드도 실서버로 나간다. 릴리스에서 Mock 이 필요하면 USE_MOCK=true.
 class AppConfig {
   const AppConfig({
     required this.useMock,
@@ -17,7 +20,8 @@ class AppConfig {
   });
 
   factory AppConfig.fromEnvironment() {
-    const useMock = bool.fromEnvironment('USE_MOCK', defaultValue: true);
+    const mockDefine = String.fromEnvironment('USE_MOCK');
+    const useMock = mockDefine == '' ? !kReleaseMode : mockDefine == 'true';
     // 다닷 서버. 경로는 Swagger 의 /v1/... 를 그대로 붙인다 (ApiPaths.basePath)
     const baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.dadot.store');
     // 약관 · 개인정보 원문 (노션). 가입 화면 "보기" 와 마이 > 약관 링크가 이 주소로 열린다.

@@ -7,7 +7,7 @@ import '../tokens/app_colors.dart';
 import '../tokens/app_spacing.dart';
 import '../tokens/app_typography.dart';
 
-/// 확인 팝업 (피그마 최종 3-E6 · 6-E6): 흰 카드 모서리 16, 라임 ⚠, 가운데 제목 20 · 설명 16, 버튼 두 개(높이 48, 모서리 12).
+/// 확인 팝업 (피그마 최종 3-E6 · 6-E6 1393:12542): 흰 카드 모서리 16, 라임 ⚠, 가운데 제목 20 · 설명 16, 버튼 두 개(높이 52, 모서리 12, 글자 18).
 /// 확인을 누르면 true. [warning] 이면 위에 ⚠ 아이콘.
 Future<bool> showConfirmDialog(
   BuildContext context, {
@@ -38,20 +38,8 @@ Future<bool?> showChoiceDialog(
   String cancelLabel = '취소',
   bool warning = false,
 }) {
-  Widget button(String label, {required bool primary, required VoidCallback onTap}) => SizedBox(
-        height: AppSizes.buttonHeightDialog,
-        child: TextButton(
-          onPressed: onTap,
-          style: TextButton.styleFrom(
-            backgroundColor: primary ? AppColors.ink : AppColors.fillMuted,
-            foregroundColor: primary ? AppColors.white : AppColors.textSub,
-            textStyle: AppTypography.buttonSmall.copyWith(fontWeight: primary ? AppTypography.bold : AppTypography.semibold),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialogButton)),
-            splashFactory: NoSplash.splashFactory,
-          ),
-          child: Text(label),
-        ),
-      );
+  Widget button(String label, {required bool primary, required VoidCallback onTap}) =>
+      _DialogButton(label: label, primary: primary, onTap: onTap);
 
   return showDialog<bool>(
     context: context,
@@ -72,14 +60,10 @@ Future<bool?> showChoiceDialog(
               Image.asset('assets/images/icons/warning.png', width: 48, height: 48, excludeFromSemantics: true),
               const SizedBox(height: AppSpacing.md),
             ],
-            Text(title, textAlign: TextAlign.center, style: AppTypography.title4.copyWith(color: AppColors.ink)),
+            Text(title, textAlign: TextAlign.center, style: _dialogTitle),
             if (message != null) ...[
               const SizedBox(height: AppSpacing.xxs),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: AppColors.textSub),
-              ),
+              Text(message, textAlign: TextAlign.center, style: _dialogMessage),
             ],
             const SizedBox(height: 28),
             Row(
@@ -94,6 +78,39 @@ Future<bool?> showChoiceDialog(
       ),
     ),
   );
+}
+
+/// 팝업 글자 (피그마 Title/Section 20 SemiBold #15171B · Body/Default 16 Medium #55565A, 줄 140% · 자간 -3%)
+final TextStyle _dialogTitle = AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4, letterSpacing: -0.6);
+final TextStyle _dialogMessage =
+    AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: AppColors.textSub, height: 1.4, letterSpacing: -0.48);
+
+/// 팝업 버튼 (피그마 1393:12549 · 1273:11620): 높이 52 · 모서리 12 · Button/Large 18 SemiBold (자간 -0.54).
+/// 주 버튼은 #15171B 바탕 흰 글자, 보조 버튼은 #DCE0E7 바탕 #55565A 글자.
+/// (QA 763:17902: 글자가 14 로 나와 디자인보다 작았다)
+class _DialogButton extends StatelessWidget {
+  const _DialogButton({required this.label, required this.primary, required this.onTap});
+
+  final String label;
+  final bool primary;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 52,
+        child: TextButton(
+          onPressed: onTap,
+          style: TextButton.styleFrom(
+            backgroundColor: primary ? AppColors.ink : AppColors.fillMuted,
+            foregroundColor: primary ? AppColors.white : AppColors.textSub,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            textStyle: AppTypography.button.copyWith(letterSpacing: -0.54),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialogButton)),
+            splashFactory: NoSplash.splashFactory,
+          ),
+          child: Text(label, maxLines: 1),
+        ),
+      );
 }
 
 /// 버튼 하나짜리 안내 팝업 (피그마 1-E3 "준비 기업 5개를 모두 채웠어요 · 닫기")
@@ -123,30 +140,13 @@ Future<void> showNoticeDialog(
               Image.asset('assets/images/icons/warning.png', width: 48, height: 48, excludeFromSemantics: true),
               const SizedBox(height: AppSpacing.md),
             ],
-            Text(title, textAlign: TextAlign.center, style: AppTypography.title4.copyWith(color: AppColors.ink)),
+            Text(title, textAlign: TextAlign.center, style: _dialogTitle),
             if (message != null) ...[
               const SizedBox(height: AppSpacing.xxs),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: AppColors.textSub),
-              ),
+              Text(message, textAlign: TextAlign.center, style: _dialogMessage),
             ],
             const SizedBox(height: 28),
-            SizedBox(
-              height: AppSizes.buttonHeightDialog,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  backgroundColor: AppColors.ink,
-                  foregroundColor: AppColors.white,
-                  textStyle: AppTypography.buttonSmall.copyWith(fontWeight: AppTypography.bold),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialogButton)),
-                  splashFactory: NoSplash.splashFactory,
-                ),
-                child: Text(buttonLabel),
-              ),
-            ),
+            _DialogButton(label: buttonLabel, primary: true, onTap: () => Navigator.of(context).pop()),
           ],
         ),
       ),

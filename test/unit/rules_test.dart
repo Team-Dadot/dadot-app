@@ -24,13 +24,15 @@ void main() {
   });
 
   group('비밀번호', () {
-    test('영문·숫자 포함 8~64자 (서버 규칙)', () {
+    test('영문·숫자·특수문자 포함 8~20자 (서버 규칙)', () {
       expect(AppPolicy.isValidPassword('abcd1234!'), isTrue);
-      expect(AppPolicy.isValidPassword('abcd1234'), isTrue);
+      expect(AppPolicy.isValidPassword('abcd1234'), isFalse);
+      expect(AppPolicy.passwordProblem('abcd1234'), '특수문자를 1개 이상 포함해 주세요');
       expect(AppPolicy.isValidPassword('abcdefgh!'), isFalse);
       expect(AppPolicy.isValidPassword('ab12!'), isFalse);
-      expect(AppPolicy.isValidPassword('abcd 1234'), isFalse);
-      expect(AppPolicy.isValidPassword('a1${'b' * 63}'), isFalse);
+      expect(AppPolicy.isValidPassword('abcd 1234!'), isFalse);
+      expect(AppPolicy.isValidPassword('a1!${'b' * 17}'), isTrue); // 20자
+      expect(AppPolicy.passwordProblem('a1!${'b' * 18}'), '20자 이하로 입력해 주세요'); // 21자
       expect(AppPolicy.isValidEmail('jimin@kakao.com'), isTrue);
       expect(AppPolicy.isValidEmail('12351390@gmail'), isFalse);
     });
@@ -46,8 +48,15 @@ void main() {
       expect(AppException.kindFromCode(null, 404), AppErrorKind.notFound);
       expect(AppException.kindFromCode(null, 422), AppErrorKind.validation);
       expect(AppException.kindFromCode(null, 503), AppErrorKind.server);
-      // 다닷 서버: 한도 소진 409, 트래픽 제한 429
-      expect(AppException.kindFromCode(null, 409), AppErrorKind.feedbackQuotaExceeded);
+      // 다닷 서버: 한도·제출 불가는 코드로 구분, 코드 없는 409 는 충돌, 트래픽 제한 429
+      expect(AppException.kindFromCode('QUESTION_LIMIT_EXCEEDED', 409), AppErrorKind.feedbackQuotaExceeded);
+      expect(AppException.kindFromCode('DAILY_LIMIT_EXCEEDED', 409), AppErrorKind.feedbackQuotaExceeded);
+      expect(AppException.kindFromCode('TASK_PROCESSING', 409), AppErrorKind.submitBlocked);
+      expect(AppException.kindFromCode(null, 409), AppErrorKind.conflict);
+      expect(
+        const AppException(AppErrorKind.feedbackQuotaExceeded, code: 'QUESTION_LIMIT_EXCEEDED').userMessage,
+        '이 질문의 답변 기회를 모두 사용했어요',
+      );
       expect(AppException.kindFromCode('RATE_LIMIT_EXCEEDED', 429), AppErrorKind.server);
       expect(AppException.kindFromCode('INVALID_INPUT', 400), AppErrorKind.validation);
     });

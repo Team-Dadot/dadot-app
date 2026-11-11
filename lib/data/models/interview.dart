@@ -1,6 +1,7 @@
 /// 면접 질문 · 답변 · AI 피드백 모델
 library;
 
+import '../../core/error/app_exception.dart';
 import 'quiz.dart';
 
 enum AnswerInputType {
@@ -68,14 +69,11 @@ class InterviewQuestion {
   /// 기회를 다 써서 더 답할 수 없음
   bool get blocked => !canSubmit || retryRemaining == 0;
 
-  /// 막힌 이유 안내 문구
-  String get blockedMessage => switch (blockedReason) {
-        'DAILY_LIMIT_EXCEEDED' => '오늘 답변할 수 있는 횟수를 모두 사용했어요',
-        'COMPANY_INACTIVE' => '준비 기업에서 빠진 기업이라 답변할 수 없어요',
-        'CONTENT_UNAVAILABLE' => '지금은 이 질문에 답변할 수 없어요',
-        'TASK_PROCESSING' => '이전 답변을 평가하고 있어요. 잠시 후 다시 시도해 주세요',
-        _ => '이 질문의 답변 기회를 모두 사용했어요',
-      };
+  /// 막힌 이유 (서버 코드). 서버가 이유 없이 0회만 줬으면 질문별 소진으로 본다.
+  String? get blockReason => !blocked ? null : (blockedReason ?? 'QUESTION_LIMIT_EXCEEDED');
+
+  /// 답할 수 없을 때 안내 한 줄
+  String get blockedMessage => AppException.submitBlockText(blockReason).title;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -186,6 +184,7 @@ class AnswerFeedback {
     this.relatedExperience,
     this.summary,
     this.overall,
+    this.evaluation = EvaluationState.done,
   });
 
   factory AnswerFeedback.fromJson(Map<String, dynamic> json) => AnswerFeedback(
@@ -238,6 +237,9 @@ class AnswerFeedback {
   /// 서버 총평 (result.overallFeedback, 300자)
   final String? overall;
 
+  /// 평가 상태. [EvaluationState.done] 이 아니면 [score] 등은 의미 없다 (0점으로 보여주지 않는다).
+  final EvaluationState evaluation;
+
   Map<String, dynamic> toJson() => {
         'answerId': answerId,
         'questionId': questionId,
@@ -257,7 +259,7 @@ class AnswerFeedback {
         'overall': overall,
       };
 
-  AnswerFeedback copyWith({int? retryRemaining}) => AnswerFeedback(
+  AnswerFeedback copyWith({int? retryRemaining, EvaluationState? evaluation}) => AnswerFeedback(
         answerId: answerId,
         questionId: questionId,
         content: content,
@@ -274,7 +276,23 @@ class AnswerFeedback {
         relatedExperience: relatedExperience,
         summary: summary,
         overall: overall,
+        evaluation: evaluation ?? this.evaluation,
       );
+}
+
+/// 답변 평가 상태 (서버 evaluation status). 점수 화면은 [done] 일 때만 보여준다.
+enum EvaluationState {
+  /// SUCCEEDED + 결과 있음
+  done,
+
+  /// PROCESSING · 아직 평가 전
+  processing,
+
+  /// FAILED · CANCELLED
+  failed,
+
+  /// 평가 조회 자체가 통신 오류로 실패 (0점이 아니라 "다시 불러오기")
+  unavailable,
 }
 
 /// 답변 평가(AI)가 실패했을 때. 결과 화면이 "일시적인 오류가 발생했어요 · 다시 시도하기" 를 보여준다 (피그마 4-E4 1335:8179).
@@ -283,4 +301,13 @@ class EvaluationFailed implements Exception {
 
   final String answerId;
   final String? message;
+}
+
+/// 답변은 서버에 접수됐는데 평가 결과를 아직 못 받았을 때 (조회 통신 오류·시간 초과).
+/// 다시 제출하면 기회가 또 줄어드니 작성 화면으로 돌아가지 말고 [answerId] 결과만 다시 조회한다.
+class AnswerAccepted implements Exception {
+  const AnswerAccepted({required this.answerId, required this.cause});
+
+  final String answerId;
+  final Object cause;
 }

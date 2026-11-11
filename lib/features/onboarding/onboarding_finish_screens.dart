@@ -113,23 +113,45 @@ class _OnboardingDoneScreenState extends ConsumerState<OnboardingDoneScreen> {
   @override
   Widget build(BuildContext context) {
     final preps = ref.watch(onboardingPrepsProvider).asData?.value ?? const <Preparation>[];
+    final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
       backgroundColor: AppColors.background,
-      // 피그마 1468:9563: 라임 번개 무늬 + 폴더(O/X) 그림 위 "준비가 모두 끝났어요 / 퀴즈 5문제로 가볍게 시작해볼까요?"
-      // (글자가 그림 위에 겹쳐 있어 함께 이미지로, 읽어 주기는 문구로)
-      body: SafeArea(
-        bottom: false,
-        child: Semantics(
-          header: true,
-          label: '준비가 모두 끝났어요. 퀴즈 5문제로 가볍게 시작해볼까요?',
-          excludeSemantics: true,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Image.asset('assets/images/onboarding_done.png', width: double.infinity, fit: BoxFit.contain, alignment: Alignment.topCenter),
+      // 피그마 1468:9563. QA: 글자·번개·폴더를 한 장 그림으로 넣어 화면 비율이 다른 폰에서 번개가 중간에 잘려 보였다
+      // → 번개 무늬는 화면 전체를 덮는 배경(버튼 뒤까지), 글자는 진짜 글자, 폴더(O/X) 그림은 따로 가운데에 둔다
+      extendBody: true,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset('assets/images/onboarding_done_bg.png', fit: BoxFit.cover, excludeFromSemantics: true),
           ),
-        ),
+          Positioned.fill(
+            child: SingleChildScrollView(
+              // 상태 바 아래 106 에 제목 (피그마 y 167), 81 아래 그림 (266×163)
+              padding: EdgeInsets.fromLTRB(AppSpacing.screenH, top + 106, AppSpacing.screenH, 200),
+              child: Column(
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      '준비가 모두 끝났어요',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.display.copyWith(color: const Color(0xFF303137), height: 1.6, letterSpacing: -0.72),
+                    ),
+                  ),
+                  Text(
+                    '퀴즈 5문제로 가볍게 시작해볼까요?',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.rowTitle.copyWith(fontSize: 18, color: const Color(0xFF303137), height: 1.8, letterSpacing: -0.72),
+                  ),
+                  const SizedBox(height: 79),
+                  Image.asset('assets/images/onboarding_done_graphic.png', width: 266, height: 163, excludeFromSemantics: true),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
-      bottomNavigationBar: BottomCta(children: [
+      bottomNavigationBar: BottomCta(color: Colors.transparent, children: [
         AppButton(label: '오늘의 학습 시작하기', loading: _starting, onPressed: _starting ? null : () => _finish(preps, startQuiz: true)),
         AppButton(
           label: '홈화면 둘러보기',

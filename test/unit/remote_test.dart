@@ -406,4 +406,79 @@ void main() {
     expect(_body(adapter.calls.last), {'confirm': true, 'socialCredential': {'accessToken': 'k'}});
     expect(adapter.calls.last.headers['Idempotency-Key'], isNotNull);
   });
+
+  group('면접 제출 (QA 코드 분석 2·5번)', () {
+    Never netFail(RequestOptions o) => throw DioException(requestOptions: o, type: DioExceptionType.connectionError);
+
+    test('접수 후 평가 조회만 실패하면 AnswerAccepted (다시 제출하지 않는다)', () async {
+      var posts = 0;
+      final (api, _, _) = _client({
+        'POST /v1/interview-questions/8/attempts': (_) {
+          posts++;
+          return {'attemptId': 77, 'attemptNumber': 1, 'usage': {'questionRemaining': 2, 'canSubmit': true}};
+        },
+        'GET /v1/interview-attempts/77/evaluation': netFail,
+      });
+      final repo = RemoteInterviewRepository(api);
+      await expectLater(
+        repo.submitAnswer(questionId: '8', content: '답변', inputType: AnswerInputType.text),
+        throwsA(isA<AnswerAccepted>().having((e) => e.answerId, 'answerId', '77')),
+      );
+      expect(posts, 1);
+    });
+
+    test('POST 응답이 끊기면 같은 글은 같은 Idempotency-Key 로 다시 보낸다', () async {
+      var fail = true;
+      final (api, adapter, _) = _client({
+        'POST /v1/interview-questions/8/attempts': (o) {
+          if (fail) {
+            fail = false;
+            netFail(o);
+          }
+          return {'attemptId': 77, 'attemptNumber': 1};
+        },
+        'GET /v1/interview-attempts/77/evaluation': (_) => {
+              'status': 'SUCCEEDED',
+              'result': {'scorePercent': 50, 'criteria': []},
+            },
+      });
+      final repo = RemoteInterviewRepository(api);
+      await expectLater(repo.submitAnswer(questionId: '8', content: '답변', inputType: AnswerInputType.text), throwsA(anything));
+      await repo.submitAnswer(questionId: '8', content: '답변', inputType: AnswerInputType.text);
+      final keys = adapter.calls
+          .where((c) => c.method == 'POST')
+          .map((c) => c.headers['Idempotency-Key'])
+          .toSet();
+      expect(keys.length, 1);
+    });
+
+    test('복습 상세: 평가 중 · 실패 · 조회 오류는 0점이 아니라 상태로', () async {
+      final (api, _, _) = _client({
+        'GET /v1/interview-questions/8': (_) => {'questionId': 8, 'question': '질문', 'companyId': 1},
+        'GET /v1/interview-questions/8/attempts': (_) => {
+              'content': [
+                {'attemptId': 1, 'attemptNumber': 1, 'text': 'a'},
+                {'attemptId': 2, 'attemptNumber': 2, 'text': 'b'},
+                {'attemptId': 3, 'attemptNumber': 3, 'text': 'c'},
+                {'attemptId': 4, 'attemptNumber': 4, 'text': 'd'},
+              ],
+            },
+        'GET /v1/interview-attempts/1/evaluation': (_) => {'status': 'PROCESSING', 'result': null},
+        'GET /v1/interview-attempts/2/evaluation': (_) => {'status': 'FAILED', 'result': null},
+        'GET /v1/interview-attempts/3/evaluation': netFail,
+        'GET /v1/interview-attempts/4/evaluation': (_) => {
+              'status': 'SUCCEEDED',
+              'result': {'scorePercent': 0, 'criteria': []},
+            },
+      });
+      final d = await RemoteRecordsRepository(api).fetchInterviewRecord('8');
+      expect(d.attempts.map((a) => a.evaluation).toList(), [
+        EvaluationState.processing,
+        EvaluationState.failed,
+        EvaluationState.unavailable,
+        EvaluationState.done,
+      ]);
+      expect(d.attempts.last.score, 0);
+    });
+  });
 }

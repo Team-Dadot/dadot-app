@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 8+ 적응형 아이콘: 피그마 1300:8204 앱 아이콘 그림 전체를 배경 층에 둔다 (런처가 원·둥근 사각으로 자른다) -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@android:color/transparent" />
+</adaptive-icon>

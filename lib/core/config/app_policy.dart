@@ -57,19 +57,31 @@ class AppPolicy {
   /// 문의 내용 길이
   static const int maxInquiryLength = 1000;
 
-  /// 비밀번호 (6-12 "영문·숫자 포함 8자 이상")
+  /// 비밀번호 — 서버 규칙(가입·변경·재설정 공통, 2026-11 api.dadot.store 스웨거):
+  /// 8~20자 · 영문·숫자·특수문자(영문·숫자 외 글자) 모두 포함 · 공백·제어문자 금지.
+  /// 로그인에는 이 규칙을 쓰지 않는다 (예전 규칙으로 가입한 계정도 그대로 로그인).
   static const int minPasswordLength = 8;
-  static const int maxPasswordLength = 64;
+  static const int maxPasswordLength = 20;
 
-  /// 피그마 이메일 가입 (1164:6153 "영문, 숫자 포함 8자 이상") · 서버 규칙: 영문·숫자 포함 8~64자, 공백 없음
-  static bool isValidPassword(String v) =>
-      v.length >= minPasswordLength &&
-      v.length <= maxPasswordLength &&
-      RegExp('[A-Za-z]').hasMatch(v) &&
-      RegExp(r'\d').hasMatch(v) &&
-      !RegExp(r'\s').hasMatch(v);
+  static bool isValidPassword(String v) => passwordProblem(v) == null;
 
-  static const String passwordRule = '영문, 숫자를 포함한 8자 이상으로 입력해 주세요';
+  /// 비밀번호가 규칙에 안 맞으면 고칠 점 한 줄, 맞으면 null
+  static String? passwordProblem(String v) {
+    if (RegExp(r'[\s\p{Z}\p{C}]', unicode: true).hasMatch(v)) return '공백 없이 입력해 주세요';
+    if (v.length < minPasswordLength) return '$minPasswordLength자 이상으로 입력해 주세요';
+    if (v.length > maxPasswordLength) return '$maxPasswordLength자 이하로 입력해 주세요';
+    final letter = RegExp('[A-Za-z]').hasMatch(v);
+    final digit = RegExp('[0-9]').hasMatch(v);
+    final special = RegExp('[^A-Za-z0-9]').hasMatch(v);
+    if (letter && digit && special) return null;
+    if (letter && digit) return '특수문자를 1개 이상 포함해 주세요';
+    return passwordRule;
+  }
+
+  static const String passwordRule = '영문, 숫자, 특수문자를 포함해 8~20자로 입력해 주세요';
+
+  /// 비밀번호 입력칸 안내 글자
+  static const String passwordHint = '영문, 숫자, 특수문자 포함 8~20자';
 
   static bool isValidEmail(String v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim());
 

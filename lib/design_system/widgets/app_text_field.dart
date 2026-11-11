@@ -145,7 +145,8 @@ class AppTextField extends StatelessWidget {
         decoration: BoxDecoration(
           color: readOnly ? AppColors.surfaceMuted : AppColors.surface,
           borderRadius: BorderRadius.circular(bordered ? 12 : (multiline ? AppRadius.lg : AppRadius.md)),
-          border: bordered ? Border.all(color: redBorder ? AppColors.destructive : const Color(0xFFE9EBED)) : null,
+          // QA 1529:12777: 기본 입력창은 외곽선 없이 (틀렸을 때만 빨간 테두리). 자리는 그대로 두어 높이가 변하지 않게 투명 선
+          border: bordered ? Border.all(color: redBorder ? AppColors.destructive : Colors.transparent) : null,
         ),
         alignment: multiline ? null : Alignment.centerLeft,
         child: maxLength == null
@@ -236,7 +237,11 @@ class SearchField extends StatelessWidget {
     this.onTap,
     this.autofocus = false,
     this.focusNode,
+    this.outlined = false,
   });
+
+  /// 피그마 1529:10528 SearchField: #E9EBED 1px 테두리 · 좌우 14 · 글자 16 Medium #303137 · 지우기는 회색 원 ✕(16)
+  final bool outlined;
 
   /// [onTap] 으로 쓰면 없어도 된다
   final TextEditingController? controller;
@@ -276,6 +281,58 @@ class SearchField extends StatelessWidget {
       );
     }
     final controller = this.controller!;
+    if (outlined) {
+      final style = AppTypography.rowTitle.copyWith(color: const Color(0xFF303137));
+      return Container(
+        height: AppSizes.inputHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: const Color(0xFFE9EBED)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                autofocus: autofocus,
+                onChanged: onChanged,
+                textInputAction: TextInputAction.search,
+                style: style,
+                cursorColor: AppColors.primary,
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  border: InputBorder.none,
+                  hintText: hint,
+                  hintStyle: style.copyWith(color: AppColors.textGuide),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: controller,
+              builder: (_, value, _) => value.text.isEmpty
+                  ? const ExcludeSemantics(child: Icon(Icons.search_rounded, size: 22, color: AppColors.textCaption))
+                  : Semantics(
+                      button: true,
+                      label: '검색어 지우기',
+                      excludeSemantics: true,
+                      child: InkResponse(
+                        radius: 20,
+                        onTap: () {
+                          controller.clear();
+                          onChanged?.call('');
+                        },
+                        child: const Padding(padding: EdgeInsets.all(3), child: ClearCircleIcon()),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      );
+    }
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
       builder: (_, value, _) => AppTextField(

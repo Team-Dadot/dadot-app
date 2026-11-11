@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/error/app_exception.dart';
 import '../../core/providers.dart';
 import '../../core/router/app_router.dart';
 import '../../data/models/quiz.dart';
@@ -64,8 +65,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   String? get _answer => _selected;
 
+  /// 답은 서버에 저장됐는데 다음 문항을 못 받아 온 상태 — 이때 "다음" 은 다시 제출하지 않고 다음 문항만 다시 받는다
+  bool _needsResync = false;
+
   /// 답을 제출(채점은 서버)하고 바로 다음 문제로. 마지막 문제면 결과로.
+  /// QA: 제출과 다음 문항 조회를 따로 처리한다. 조회만 실패했는데 같은 문항을 다시 내면 서버가
+  /// ANSWER_ALREADY_SUBMITTED 로 거절해 진행이 막혔다.
   Future<void> _submitAndNext() async {
+    if (_needsResync) {
+      setState(() => _submitting = true);
+      await _resync();
+      if (mounted) setState(() => _submitting = false);
+      return;
+    }
     final answer = _answer;
     if (answer == null) return;
     FocusScope.of(context).unfocus();
@@ -78,37 +90,56 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             questionId: _question.id,
             answer: answer,
           );
-      invalidateProgress(ref);
-      if (!mounted) return;
-      if (_index + 1 >= _set!.questions.length) {
-        context.pushReplacement(Routes.quizResult(_set!.id));
-        return;
-      }
-      // 다닷 서버는 다음 문항을 제출한 뒤에 준다 → 세트를 다시 불러와 다음 문항을 받는다
-      if (_set!.questions[_index + 1].isPlaceholder) {
-        final next = await ref
-            .read(quizRepositoryProvider)
-            .fetchTodaySet(widget.companyId);
-        if (!mounted) return;
-        if (next.isCompleted) {
-          context.pushReplacement(Routes.quizResult(next.id));
-          return;
+    } catch (e) {
+      final err = asAppException(e);
+      // 이미 저장된 답 (응답이 끊겼다가 다시 낸 경우 등) → 서버 진행 상태로 맞춘다
+      if (err.code != 'ANSWER_ALREADY_SUBMITTED') {
+        if (mounted) {
+          showErrorToast(context, e);
+          setState(() => _submitting = false);
         }
-        setState(() {
-          _set = next;
-          _index = next.nextIndex;
-          _selected = null;
-        });
         return;
       }
+    }
+    invalidateProgress(ref);
+    if (!mounted) return;
+    if (_index + 1 >= _set!.questions.length) {
+      context.pushReplacement(Routes.quizResult(_set!.id));
+      return;
+    }
+    if (_set!.questions[_index + 1].isPlaceholder) {
+      // 다닷 서버는 다음 문항을 제출한 뒤에 준다 → 세트를 다시 불러와 다음 문항을 받는다
+      await _resync();
+    } else {
       setState(() {
         _index += 1;
         _selected = null;
       });
+    }
+    if (mounted) setState(() => _submitting = false);
+  }
+
+  /// 서버의 지금 진행 상태(다음 문항 · 완료)로 화면을 맞춘다. 실패하면 [_needsResync] 를 켜 두고 다시 누르게 한다.
+  Future<void> _resync() async {
+    try {
+      final next = await ref
+          .read(quizRepositoryProvider)
+          .fetchTodaySet(widget.companyId);
+      if (!mounted) return;
+      if (next.isCompleted) {
+        context.pushReplacement(Routes.quizResult(next.id));
+        return;
+      }
+      setState(() {
+        _needsResync = false;
+        _set = next;
+        _index = next.nextIndex;
+        _selected = null;
+      });
     } catch (e) {
-      if (mounted) showErrorToast(context, e);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (!mounted) return;
+      setState(() => _needsResync = true);
+      showErrorToast(context, e);
     }
   }
 

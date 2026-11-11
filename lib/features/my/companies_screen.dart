@@ -113,7 +113,8 @@ class CompaniesScreen extends ConsumerWidget {
                   subtitle: '퀴즈 ${p.quizCount}문제 · 면접 답변 ${p.answerCount}개',
                   trailing: TextLink(
                     label: '추가',
-                    style: AppTypography.body2Strong.copyWith(color: AppColors.ink),
+                    // QA 1529:9898: "빼기"(12)와 글자 크기를 맞춘다 (추가가 14 로 더 컸다)
+                    style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: AppTypography.semibold),
                     onTap: () => _add(context, ref, p.company, list.length),
                   ),
                 ),
