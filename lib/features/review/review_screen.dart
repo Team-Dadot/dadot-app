@@ -78,6 +78,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
             onRefresh: () async {
               ref.invalidate(quizReviewProvider(companyId));
               ref.invalidate(interviewRecordsProvider(companyId));
+              ref.invalidate(interviewQuestionProvider);
             },
             child: ListView(
               padding: const EdgeInsets.only(
@@ -572,7 +573,7 @@ class _InterviewReviewState extends ConsumerState<_InterviewReview> {
   }
 }
 
-class _InterviewRecordCard extends StatelessWidget {
+class _InterviewRecordCard extends ConsumerWidget {
   const _InterviewRecordCard({required this.record, required this.onDelete});
 
   final InterviewRecord record;
@@ -581,13 +582,20 @@ class _InterviewRecordCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final r = record;
-    final draft = r.status == AnswerStatus.draft;
-    final (String status, ReviewTone tone) = switch (r.status) {
-      AnswerStatus.needsWork => ('보완필요', ReviewTone.warn),
-      AnswerStatus.draft => ('작성 중', ReviewTone.draft),
-      AnswerStatus.complete => ('완성 답변', ReviewTone.done),
+    final question = ref.watch(interviewQuestionProvider(r.questionId)).asData?.value;
+    final canAnswer = question != null && !question.blocked;
+    final hasDraft = r.hasDraft || r.status == AnswerStatus.draft;
+    final evaluation = EvaluationStatus.fromWire(r.evaluationStatus, hasResult: r.score != null);
+    final (String status, ReviewTone tone) = switch ((r.status, evaluation)) {
+      (_, EvaluationStatus.processing) when !hasDraft => ('평가 중', ReviewTone.draft),
+      (_, EvaluationStatus.failed) when !hasDraft => ('평가 실패', ReviewTone.warn),
+      (_, EvaluationStatus.cancelled) when !hasDraft => ('평가 취소', ReviewTone.warn),
+      (_, EvaluationStatus.unknown) when r.hasAnswer && !hasDraft => ('평가 확인 필요', ReviewTone.warn),
+      (AnswerStatus.needsWork, _) => ('보완필요', ReviewTone.warn),
+      (AnswerStatus.draft, _) => ('작성 중', ReviewTone.draft),
+      (AnswerStatus.complete, _) => ('완성 답변', ReviewTone.done),
     };
     return Semantics(
       customSemanticsActions: {
@@ -603,18 +611,26 @@ class _InterviewRecordCard extends StatelessWidget {
         status: status,
         tone: tone,
         title: r.questionText,
-        // 피그마: 보완 필요 = 평가 보기 + 다시 답변하기 / 작성 중 = 이어서 답변하기 / 완성 답변 = 평가 보기
-        secondaryLabel: draft ? null : '평가 보기',
-        onSecondary: draft
-            ? null
-            : () => context.push(Routes.answerView(r.questionId)),
-        // QA: 오늘 기회를 다 쓴 질문은 "다시 답변하기" 를 숨기고 평가 보기만
-        primaryLabel: switch (r.status) {
-          AnswerStatus.draft => '이어서 답변하기',
-          AnswerStatus.needsWork when (r.retryRemaining ?? 1) > 0 => '다시 답변하기',
-          _ => null,
+        secondaryLabel: r.hasAnswer ? '평가 보기' : null,
+        onSecondary: r.hasAnswer ? () => context.push(Routes.answerView(r.questionId)) : null,
+        primaryLabel: !canAnswer ? null
+            : hasDraft || !r.hasAnswer ? '이어서 답변하기'
+            : r.status == AnswerStatus.needsWork ? '다시 답변하기' : null,
+        onPrimary: () async {
+          try {
+            final latest = await ref.read(interviewRepositoryProvider).fetchQuestion(r.questionId);
+            if (!context.mounted) return;
+            ref.invalidate(interviewQuestionProvider(r.questionId));
+            if (latest.blocked) {
+              await showNoticeDialog(context, title: latest.blockedMessage,
+                message: latest.blockedHelp, buttonLabel: '확인');
+            } else {
+              context.push(Routes.interviewAnswer(r.questionId));
+            }
+          } catch (e) {
+            if (context.mounted) showErrorToast(context, e);
+          }
         },
-        onPrimary: () => context.push(Routes.interviewAnswer(r.questionId)),
         onLongPress: onDelete,
       ),
     );

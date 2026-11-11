@@ -239,6 +239,13 @@ CriterionScore _criterion(Map<String, dynamic> j) => CriterionScore(
       max: _int(j, ['maxScore', 'max', 'fullScore']) ?? 25,
     );
 
+EvaluationStatus _evaluationStatus(Map<String, dynamic> evaluation, {Map<String, dynamic>? attempt}) {
+  final result = _map(evaluation['result']) ?? evaluation;
+  final status = _str(evaluation, ['status', 'evaluationStatus']) ??
+      _str(_map(evaluation['task']), ['status']) ?? _str(attempt, ['evaluationStatus']);
+  return EvaluationStatus.fromWire(status, hasResult: _int(result, ['scorePercent', 'totalScore', 'score']) != null);
+}
+
 /// 평가 결과 (INT-08) → 피드백 화면 모델. [attempt] 는 시도 정보 (text, attemptNumber, submittedAt).
 AnswerFeedback _feedback({
   required String attemptId,
@@ -250,7 +257,15 @@ AnswerFeedback _feedback({
 }) {
   final a = attempt ?? _map(evaluation['attempt']) ?? const <String, dynamic>{};
   final r = _map(evaluation['result']) ?? evaluation;
-  final score = _int(r, ['scorePercent', 'totalScore', 'score']) ?? 0;
+  final score = _int(r, ['scorePercent', 'totalScore', 'score']);
+  final evaluationStatus = _evaluationStatus(evaluation, attempt: a);
+  if (evaluationStatus == EvaluationStatus.failed || evaluationStatus == EvaluationStatus.cancelled) {
+    throw EvaluationFailed(answerId: attemptId, status: evaluationStatus,
+      message: _str(_map(evaluation['error']), ['message']));
+  }
+  if (evaluationStatus != EvaluationStatus.succeeded || score == null) {
+    throw const AppException(AppErrorKind.server, message: '아직 완료된 평가 결과가 없어요. 잠시 후 다시 확인해 주세요.');
+  }
   final criteria = _list(r['criteria']).map(_criterion).toList();
   final met = criteria.where((c) => c.max > 0 && c.score * 100 / c.max >= 80).length;
   final complete = _bool(r, ['completionDecision']) ?? score >= AppPolicy.completeScore;
@@ -1168,7 +1183,7 @@ class RemoteInterviewRepository implements InterviewRepository {
       evidence: _list(d['evidence'] ?? d['references'] ?? d['disclosures']).map(_evidence).toList(),
       retryRemaining: _int(_map(d['usage']), ['questionRemaining']),
       // 서버 usage.canSubmit · blockedReason 기준으로 "답변하기" 버튼 상태를 정한다
-      canSubmit: _bool(_map(d['usage']), ['canSubmit']) ?? true,
+      canSubmit: _bool(_map(d['usage']), ['canSubmit']) ?? false,
       blockedReason: _str(_map(d['usage']), ['blockedReason']),
       latestAnswerId: _str(_map(d['latestAttempt']), ['attemptId']),
     );
@@ -1207,13 +1222,20 @@ class RemoteInterviewRepository implements InterviewRepository {
         if (e.kind != AppErrorKind.notFound || i > 5) rethrow;
       }
       if (v != null) {
-        final status = (_str(v, ['status', 'evaluationStatus']) ?? _str(_map(v['task']), ['status']) ?? '').toUpperCase();
-        final result = _map(v['result']);
-        if (_isFailed(status)) {
-          throw EvaluationFailed(answerId: attemptId, message: _str(_map(v['error']), ['message']));
+        final status = _evaluationStatus(v);
+        if (status == EvaluationStatus.failed || status == EvaluationStatus.cancelled) {
+          throw EvaluationFailed(answerId: attemptId, status: status, message: _str(_map(v['error']), ['message']));
         }
-        if (result != null && _int(result, ['scorePercent', 'totalScore', 'score']) != null) return v;
-        if (status.isNotEmpty && !_isRunning(status) && result != null) return v;
+        if (status == EvaluationStatus.succeeded) {
+          final result = _map(v['result']) ?? v;
+          if (_int(result, ['scorePercent', 'totalScore', 'score']) == null) {
+            throw const AppException(AppErrorKind.server, message: '완료된 평가의 점수를 불러오지 못했어요. 다시 확인해 주세요.');
+          }
+          return v;
+        }
+        if (status == EvaluationStatus.unknown) {
+          throw const AppException(AppErrorKind.server, message: '평가 상태를 확인하지 못했어요. 다시 확인해 주세요.');
+        }
       }
       await Future<void>.delayed(_poll);
     }
@@ -1351,6 +1373,9 @@ class RemoteRecordsRepository implements RecordsRepository {
             companyId: _str(j, ['companyId']) ?? companyId,
             questionText: _str(j, ['question', 'questionText', 'text']) ?? '',
             status: status,
+            hasDraft: j['hasDraft'] == true,
+            hasAnswer: latest != null,
+            evaluationStatus: _str(latest, ['evaluationStatus', 'status']),
             attempts: attempts,
             score: score,
             lastAt: _date(j['lastSubmittedAt'] ?? j['lastAnsweredAt'] ?? j['updatedAt'] ?? latest?['submittedAt']),
@@ -1368,18 +1393,36 @@ class RemoteRecordsRepository implements RecordsRepository {
       _api.get(ApiPaths.interviewAttempts(questionId), query: {'page': 0, 'size': 20}),
     ]);
     final question = results[0] as InterviewQuestion;
-    final attempts = await Future.wait(_content(results[1]).map((a) async {
+    final evaluations = await Future.wait(_content(results[1]).map((a) async {
       final id = _str(a, ['attemptId', 'id']) ?? '';
-      Map<String, dynamic> evaluation = const {};
+      final number = _int(a, ['attemptNumber']) ?? 1;
+      if (id.isEmpty) throw const AppException(AppErrorKind.server);
       try {
-        evaluation = _obj(await _api.get(ApiPaths.attemptEvaluation(id)));
+        final evaluation = _obj(await _api.get(ApiPaths.attemptEvaluation(id)));
+        final status = _evaluationStatus(evaluation, attempt: a);
+        if (status == EvaluationStatus.succeeded) {
+          return InterviewAttemptEvaluation(answerId: id, attempt: number, status: status,
+            feedback: _feedback(attemptId: id, evaluation: evaluation, attempt: a, questionId: questionId));
+        }
+        final error = status == EvaluationStatus.failed || status == EvaluationStatus.cancelled
+            ? EvaluationFailed(answerId: id, status: status, message: _str(_map(evaluation['error']), ['message']))
+            : status == EvaluationStatus.unknown
+                ? const AppException(AppErrorKind.server, message: '평가 상태를 확인하지 못했어요.') : null;
+        return InterviewAttemptEvaluation(answerId: id, attempt: number, status: status, error: error);
+      } on EvaluationFailed catch (e) {
+        return InterviewAttemptEvaluation(answerId: id, attempt: number, status: e.status, error: e);
       } on AppException catch (e) {
         if (e.kind == AppErrorKind.unauthorized) rethrow;
+        final processing = e.kind == AppErrorKind.notFound &&
+            EvaluationStatus.fromWire(_str(a, ['evaluationStatus'])) == EvaluationStatus.processing;
+        return InterviewAttemptEvaluation(answerId: id, attempt: number,
+          status: processing ? EvaluationStatus.processing : EvaluationStatus.unknown, error: processing ? null : e);
       }
-      return _feedback(attemptId: id, evaluation: evaluation, attempt: a, questionId: questionId);
     }));
-    attempts.sort((a, b) => a.attempt.compareTo(b.attempt));
-    return InterviewRecordDetail(question: question, attempts: attempts);
+    evaluations.sort((a, b) => a.attempt.compareTo(b.attempt));
+    return InterviewRecordDetail(question: question,
+      attempts: [for (final entry in evaluations) if (entry.feedback != null) entry.feedback!],
+      evaluations: evaluations);
   }
 
   @override

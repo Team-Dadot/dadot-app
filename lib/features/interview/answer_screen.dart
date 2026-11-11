@@ -288,7 +288,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   }
 
   /// 기회를 다 쓴 질문: 안내만 띄우고 질문 화면(또는 복습)으로 돌려보낸다. 화면에 갇히지 않게.
-  Future<void> _leaveBlocked(String message) async {
+  Future<void> _leaveBlocked(String message, {String? reason}) async {
     _hasSubmissionRequest = true;
     _draftTimer?.cancel();
     await _draftSave;
@@ -297,7 +297,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     ref.invalidate(interviewRecordsProvider);
     invalidateProgress(ref);
     if (!mounted) return;
-    await showNoticeDialog(context, title: message, message: '내일 다시 도전해보세요!', buttonLabel: '확인');
+    await showNoticeDialog(context, title: message, message: AppException.submissionHelp(reason), buttonLabel: '확인');
     if (!mounted) return;
     _leaving = true;
     Navigator.of(context).pop();
@@ -310,7 +310,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     final question = ref.read(interviewQuestionProvider(widget.questionId)).asData?.value;
     // 응답 유실 복구는 새 제출이 아니다. 소진·처리 중이어도 같은 키로 결과를 확인한다.
     if (pending == null && question != null && question.blocked) {
-      await _leaveBlocked(question.blockedMessage);
+      await _leaveBlocked(question.blockedMessage, reason: question.effectiveBlockedReason);
       return;
     }
     if (_length < AppPolicy.minAnswerLength) {
@@ -341,9 +341,10 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       setState(() => _mode = _Mode.writing);
       final err = asAppException(e);
       if (current != null) {
-        showToast(context, '접수 여부를 확인하지 못했어요. 다시 제출하면 기존 요청으로 확인해요.');
+        showToast(context, AppException.submissionMessage(err.code) ??
+            '접수 여부를 확인하지 못했어요. 다시 제출하면 기존 요청으로 확인해요.');
       } else if (err.kind == AppErrorKind.feedbackQuotaExceeded) {
-        await _leaveBlocked('이 질문의 답변 기회를 모두 사용했어요');
+        await _leaveBlocked(err.userMessage, reason: err.code);
       } else {
         showErrorToast(context, err);
       }

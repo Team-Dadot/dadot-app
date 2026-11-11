@@ -47,7 +47,7 @@ void main() {
       expect(AppException.kindFromCode(null, 422), AppErrorKind.validation);
       expect(AppException.kindFromCode(null, 503), AppErrorKind.server);
       // 다닷 서버: 한도 소진 409, 트래픽 제한 429
-      expect(AppException.kindFromCode(null, 409), AppErrorKind.feedbackQuotaExceeded);
+      expect(AppException.kindFromCode(null, 409), AppErrorKind.conflict);
       expect(AppException.kindFromCode('RATE_LIMIT_EXCEEDED', 429), AppErrorKind.server);
       expect(AppException.kindFromCode('INVALID_INPUT', 400), AppErrorKind.validation);
     });

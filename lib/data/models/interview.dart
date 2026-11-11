@@ -2,6 +2,7 @@
 library;
 
 import 'quiz.dart';
+import '../../core/error/app_exception.dart';
 
 enum AnswerInputType {
   text('TEXT'),
@@ -53,7 +54,7 @@ class InterviewQuestion {
   /// 답변에 활용할 정보
   final List<Evidence> evidence;
 
-  /// 오늘 이 질문에 더 답할 수 있는 횟수
+  /// 이 질문에 남은 누적 답변 횟수
   final int? retryRemaining;
 
   /// 지금 답변을 제출할 수 있는지 (서버 usage.canSubmit). false 면 "답변하기" 를 숨긴다.
@@ -68,14 +69,12 @@ class InterviewQuestion {
   /// 기회를 다 써서 더 답할 수 없음
   bool get blocked => !canSubmit || retryRemaining == 0;
 
-  /// 막힌 이유 안내 문구
-  String get blockedMessage => switch (blockedReason) {
-        'DAILY_LIMIT_EXCEEDED' => '오늘 답변할 수 있는 횟수를 모두 사용했어요',
-        'COMPANY_INACTIVE' => '준비 기업에서 빠진 기업이라 답변할 수 없어요',
-        'CONTENT_UNAVAILABLE' => '지금은 이 질문에 답변할 수 없어요',
-        'TASK_PROCESSING' => '이전 답변을 평가하고 있어요. 잠시 후 다시 시도해 주세요',
-        _ => '이 질문의 답변 기회를 모두 사용했어요',
-      };
+  /// 질문별 누적 소진과 일일 한도 등을 구분한다.
+  String get effectiveBlockedReason => blockedReason ??
+      (retryRemaining == 0 ? 'QUESTION_LIMIT_EXCEEDED' : 'UNKNOWN');
+  String get blockedMessage => AppException.submissionMessage(effectiveBlockedReason) ??
+      '현재 이 질문에 답변할 수 없어요.';
+  String get blockedHelp => AppException.submissionHelp(effectiveBlockedReason);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -228,7 +227,7 @@ class AnswerFeedback {
   final String goodPoint;
   final String improvement;
 
-  /// 오늘 같은 질문에 더 답할 수 있는 횟수
+  /// 같은 질문에 남은 누적 답변 횟수
   final int retryRemaining;
   final RelatedExperience? relatedExperience;
 
@@ -279,8 +278,28 @@ class AnswerFeedback {
 
 /// 답변 평가(AI)가 실패했을 때. 결과 화면이 "일시적인 오류가 발생했어요 · 다시 시도하기" 를 보여준다 (피그마 4-E4 1335:8179).
 class EvaluationFailed implements Exception {
-  const EvaluationFailed({required this.answerId, this.message});
+  const EvaluationFailed({required this.answerId, this.message, this.status = EvaluationStatus.failed});
 
   final String answerId;
   final String? message;
+  final EvaluationStatus status;
+
+  @override
+  String toString() => message ?? (status == EvaluationStatus.cancelled ? '평가가 취소됐어요.' : '평가를 완료하지 못했어요.');
+}
+
+/// 평가 상태를 점수와 분리한다. 0점은 성공한 평가의 실제 점수일 때만 표시한다.
+enum EvaluationStatus {
+  processing, failed, cancelled, succeeded, unknown;
+
+  static EvaluationStatus fromWire(String? raw, {bool hasResult = false}) {
+    final value = (raw ?? '').toUpperCase();
+    if (value == 'SUCCEEDED') return succeeded;
+    if (value == 'FAILED') return failed;
+    if (value == 'CANCELLED' || value == 'CANCELED') return cancelled;
+    if (const {'PROCESSING', 'PENDING', 'QUEUED', 'RUNNING', 'ACCEPTED', 'REQUESTED', 'IN_PROGRESS'}.contains(value)) return processing;
+    // 구형 응답의 명시적인 점수 결과는 읽되 빈 응답을 성공으로 만들지는 않는다.
+    if (value.isEmpty && hasResult) return succeeded;
+    return unknown;
+  }
 }

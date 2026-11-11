@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers.dart';
+import '../../core/error/app_exception.dart';
 import '../../core/router/app_router.dart';
 import '../../data/models/interview.dart';
 import '../../design_system/design_system.dart';
@@ -24,10 +25,11 @@ class FeedbackScreen extends ConsumerStatefulWidget {
 
 class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   bool _retrying = false;
+  bool _resultRefreshed = false;
 
   /// 채점 실패 → 서버에 다시 채점을 맡기고 결과를 다시 불러온다
   Future<void> _retryEvaluation() async {
-    setState(() => _retrying = true);
+    setState(() { _retrying = true; _resultRefreshed = false; });
     try {
       await ref
           .read(interviewRepositoryProvider)
@@ -55,17 +57,19 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
     final async = ref.watch(feedbackProvider(widget.answerId));
     final fb = async.asData?.value;
     if (fb == null) {
-      final failed = async.error is EvaluationFailed;
+      final error = unwrapAppError(async.error ?? '');
+      final cancelled = error is EvaluationFailed && error.status == EvaluationStatus.cancelled;
+      final failed = error is EvaluationFailed && !cancelled;
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppNavBar(title: '면접 피드백', onBack: _back),
         body: async.isLoading || _retrying
             ? const LoadingView()
             : ErrorView(
-                error: async.error ?? '',
+                error: error,
                 // 피그마 1335: 채점 실패 화면
-                title: failed ? '일시적인 오류가 발생했어요' : null,
-                description: failed ? '다시 시도해 주세요' : null,
+                title: cancelled ? '평가가 취소됐어요' : failed ? '일시적인 오류가 발생했어요' : null,
+                description: cancelled ? '현재 질문의 자료와 답변 상태를 확인해 주세요.' : failed ? '다시 시도해 주세요' : null,
                 retryLabel: failed ? '다시 시도하기' : '다시 시도',
                 onRetry: failed
                     ? _retryEvaluation
@@ -73,10 +77,16 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
               ),
       );
     }
-    final question = ref
-        .watch(interviewQuestionProvider(fb.questionId))
-        .asData
-        ?.value;
+    if (!_resultRefreshed) {
+      _resultRefreshed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        invalidateProgress(ref);
+        ref.invalidate(interviewQuestionProvider(fb.questionId));
+      });
+    }
+    final questionAsync = ref.watch(interviewQuestionProvider(fb.questionId));
+    final question = questionAsync.asData?.value;
     final company = question == null
         ? null
         : ref.watch(homeProvider).asData?.value.byId(question.companyId);
@@ -101,7 +111,11 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 Expanded(
                   child: RetryAnswerButton(
                     prefix: '재답변',
-                    remaining: fb.retryRemaining,
+                    remaining: question?.retryRemaining ?? fb.retryRemaining,
+                    canSubmit: question != null && !question.blocked,
+                    blockedMessage: question?.blockedMessage ?? (questionAsync.hasError
+                        ? '제출 가능 상태를 확인하지 못했어요. 다시 확인해 주세요.' : '제출 가능 상태를 불러오고 있어요.'),
+                    blockedHelp: question?.blockedHelp ?? '잠시 후 화면을 다시 확인해 주세요.',
                     onRetry: () => context.pushReplacement(
                       Routes.interviewAnswer(fb.questionId),
                     ),

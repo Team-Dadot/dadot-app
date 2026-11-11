@@ -75,6 +75,9 @@ class InterviewRecord {
     this.lastAt,
     this.retryRemaining,
     this.createdAt,
+    this.hasDraft = false,
+    this.hasAnswer = false,
+    this.evaluationStatus,
   });
 
   factory InterviewRecord.fromJson(Map<String, dynamic> json) => InterviewRecord(
@@ -88,14 +91,20 @@ class InterviewRecord {
         lastAt: json['lastAt'] == null ? null : DateTime.parse(json['lastAt'] as String),
         retryRemaining: json['retryRemaining'] as int?,
         createdAt: json['createdAt'] == null ? null : DateTime.parse(json['createdAt'] as String),
+        hasDraft: json['hasDraft'] as bool? ?? json['status'] == 'DRAFT',
+        hasAnswer: json['hasAnswer'] as bool? ?? (json['attempts'] as int? ?? 0) > 0,
+        evaluationStatus: json['evaluationStatus'] as String?,
       );
 
   final String questionId;
   final String companyId;
   final String questionText;
   final AnswerStatus status;
+  final bool hasDraft;
+  final bool hasAnswer;
+  final String? evaluationStatus;
 
-  /// 오늘 이 질문에 더 답할 수 있는 횟수 (서버 questionRemaining). 0 이면 "다시 답변하기" 숨김
+  /// 이 질문에 남은 누적 답변 횟수 (서버 questionRemaining). 0 이면 "다시 답변하기" 숨김
   final int? retryRemaining;
   final int attempts;
 
@@ -110,7 +119,7 @@ class InterviewRecord {
 
 /// 답변 보기 (5-3): 질문 + 시도 목록
 class InterviewRecordDetail {
-  const InterviewRecordDetail({required this.question, required this.attempts});
+  const InterviewRecordDetail({required this.question, required this.attempts, this.evaluations = const []});
 
   factory InterviewRecordDetail.fromJson(Map<String, dynamic> json) => InterviewRecordDetail(
         question: InterviewQuestion.fromJson((json['question'] as Map).cast<String, dynamic>()),
@@ -122,4 +131,22 @@ class InterviewRecordDetail {
 
   /// 시도 1, 시도 2 … 순서
   final List<AnswerFeedback> attempts;
+  final List<InterviewAttemptEvaluation> evaluations;
+
+  /// 기존 Mock·저장 데이터에는 완료된 피드백 목록만 있어도 호환한다.
+  List<InterviewAttemptEvaluation> get evaluationEntries => evaluations.isNotEmpty ? evaluations : [
+    for (final feedback in attempts)
+      InterviewAttemptEvaluation(answerId: feedback.answerId, attempt: feedback.attempt,
+        status: EvaluationStatus.succeeded, feedback: feedback),
+  ];
+}
+
+class InterviewAttemptEvaluation {
+  const InterviewAttemptEvaluation({required this.answerId, required this.attempt, required this.status,
+    this.feedback, this.error});
+  final String answerId;
+  final int attempt;
+  final EvaluationStatus status;
+  final AnswerFeedback? feedback;
+  final Object? error;
 }

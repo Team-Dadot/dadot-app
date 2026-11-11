@@ -588,7 +588,7 @@ class EvidenceFolderCard extends StatelessWidget {
   }
 }
 
-/// "재답변 (2/3)" 회색 버튼 (남은 기회 / 하루 최대). 기회가 0 이면 더 흐리게 보이고,
+/// "재답변 (2/3)" 회색 버튼 (남은 기회 / 질문별 누적 최대). 제출 불가면 더 흐리게 보이고,
 /// 눌러도 다시 답하지 않고 "답변 기회가 모두 소진되었어요" 안내만 띄운다 (피그마 1335:8520).
 class RetryAnswerButton extends StatelessWidget {
   const RetryAnswerButton({
@@ -596,20 +596,26 @@ class RetryAnswerButton extends StatelessWidget {
     required this.prefix,
     required this.remaining,
     required this.onRetry,
+    this.canSubmit = true,
+    this.blockedMessage,
+    this.blockedHelp,
   });
 
   final String prefix;
   final int remaining;
   final VoidCallback onRetry;
+  final bool canSubmit;
+  final String? blockedMessage;
+  final String? blockedHelp;
 
   @override
   Widget build(BuildContext context) {
     final left = remaining.clamp(0, AppPolicy.retryPerQuestionDaily);
-    final out = left <= 0;
+    final out = left <= 0 || !canSubmit;
     final label = '$prefix ($left/${AppPolicy.retryPerQuestionDaily})';
     return Semantics(
       button: true,
-      label: out ? '$label, 오늘 답변 기회를 모두 썼어요' : label,
+      label: out ? '$label, ${blockedMessage ?? '현재 답변할 수 없어요'}' : label,
       excludeSemantics: true,
       child: Material(
         color: out ? const Color(0xFFE9EBED) : AppColors.fillMuted,
@@ -620,8 +626,8 @@ class RetryAnswerButton extends StatelessWidget {
           onTap: out
               ? () => showNoticeDialog(
                   context,
-                  title: '답변 기회가 모두 소진되었어요',
-                  message: '내일 다시 도전해보세요!',
+                  title: blockedMessage ?? '이 질문의 답변 기회를 모두 사용했어요',
+                  message: blockedHelp ?? '같은 질문에는 누적 최대 3회 답변할 수 있고 다음 날 초기화되지 않아요.',
                   buttonLabel: '확인',
                 )
               : onRetry,

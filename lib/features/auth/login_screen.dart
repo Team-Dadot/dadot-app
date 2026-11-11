@@ -58,15 +58,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  /// 사용자에게 보여줄 실패 이유. 서버 메시지가 있으면 그것, 카카오·Apple SDK 오류면 코드까지.
-  String _describe(Object e) {
-    if (e is AppException) {
-      final code = e.code == null ? '' : ' (${e.code}${e.statusCode == null ? '' : ' · ${e.statusCode}'})';
-      return '${e.userMessage}$code';
+  /// 상세 SDK 오류는 디버그 로그로만 남기고 화면에는 한글 안내를 보여준다.
+  String _describe(Object error) {
+    final cause = unwrapAppError(error);
+    if (cause is AppException) return cause.userMessage;
+    if (cause is PlatformException) {
+      final code = cause.code.toLowerCase();
+      if (code.contains('network') || code.contains('connection')) {
+        return '인터넷 연결을 확인한 뒤 다시 로그인해 주세요.';
+      }
+      return '로그인하지 못했어요. 잠시 후 다시 시도해 주세요.';
     }
-    if (e is PlatformException) return '로그인 앱 오류: ${e.code} ${e.message ?? ''}'.trim();
-    final text = e.toString();
-    return text.length > 160 ? '${text.substring(0, 160)}…' : text;
+    return '로그인하지 못했어요. 잠시 후 다시 시도해 주세요.';
   }
 
   Future<void> _completeSignup(SocialSignUpRequired pending) async {
