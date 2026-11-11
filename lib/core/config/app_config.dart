@@ -3,7 +3,7 @@
 /// 예) 백엔드 붙이기:
 ///   flutter run --dart-define=USE_MOCK=false   (기본 서버 https://api.dadot.store)
 ///
-/// 기본값은 Mock 모드라서 백엔드 없이도 앱 전체 흐름을 돌려볼 수 있다.
+/// 기본값은 실제 서버 모드다. Mock은 --dart-define=USE_MOCK=true로 명시한다.
 class AppConfig {
   const AppConfig({
     required this.useMock,
@@ -17,7 +17,7 @@ class AppConfig {
   });
 
   factory AppConfig.fromEnvironment() {
-    const useMock = bool.fromEnvironment('USE_MOCK', defaultValue: true);
+    const useMock = bool.fromEnvironment('USE_MOCK', defaultValue: false);
     // 다닷 서버. 경로는 Swagger 의 /v1/... 를 그대로 붙인다 (ApiPaths.basePath)
     const baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.dadot.store');
     // 약관 · 개인정보 원문 (노션). 가입 화면 "보기" 와 마이 > 약관 링크가 이 주소로 열린다.
