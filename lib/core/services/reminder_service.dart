@@ -68,6 +68,23 @@ class ReminderService {
     }
   }
 
+  /// 지금 OS 알림 권한이 켜져 있는지 (묻지 않고 확인만). 알 수 없으면 null.
+  Future<bool?> hasPermission() async {
+    if (!await _init()) return null;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return await _plugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+            ?.areNotificationsEnabled();
+      }
+      final p = await _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()?.checkPermissions();
+      return p?.isEnabled;
+    } catch (e) {
+      debugPrint('[Reminder] permission check failed: $e');
+      return null;
+    }
+  }
+
   /// 매일 [hour]:[minute] 학습 알림 (이미 있으면 바꿔 끼운다)
   Future<void> scheduleDaily({required int hour, required int minute}) async {
     if (!await _init()) return;
