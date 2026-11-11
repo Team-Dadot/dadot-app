@@ -245,6 +245,25 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       showToast(context, '3분이 지나 녹음을 마쳤어요.');
       return;
     }
+    // 녹음을 누른 뒤에 기기가 못 듣겠다고 알려 오는 경우 (iOS 시뮬레이터 등):
+    // 녹음 중 화면에 갇히지 않게 바로 빠져나온다
+    if (_mode == _Mode.recording) {
+      if (s.status == SpeechStatus.unavailable) {
+        setState(() => _mode = _Mode.writing);
+        showToast(context, '이 기기에서는 음성 인식을 쓸 수 없어요. 텍스트로 작성해 주세요.');
+        return;
+      }
+      if (s.status == SpeechStatus.permissionDenied) {
+        setState(() => _mode = _Mode.voiceReady);
+        _askMicPermission();
+        return;
+      }
+      // 서비스가 스스로 듣기를 멈춘 경우 (실패가 이어져 포기) → 멈춤 화면으로
+      if (s.status == SpeechStatus.stopped) {
+        _stopRecording();
+        return;
+      }
+    }
     setState(() {});
   }
 
