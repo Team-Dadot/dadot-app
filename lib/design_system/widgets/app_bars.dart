@@ -10,6 +10,7 @@ class AppNavBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     this.onBack,
+    this.onClose,
     this.showBack = true,
     this.actions,
     this.divider = false,
@@ -21,6 +22,9 @@ class AppNavBar extends StatelessWidget implements PreferredSizeWidget {
   /// 바탕색 (퀴즈 화면은 흰색)
   final Color color;
   final VoidCallback? onBack;
+
+  /// 피그마 1540: 오른쪽 위 ✕ (24×24, 선 2, 오른쪽에서 20). 흐름을 닫고 나갈 때
+  final VoidCallback? onClose;
   final bool showBack;
   final List<Widget>? actions;
   final bool divider;
@@ -76,6 +80,27 @@ class AppNavBar extends StatelessWidget implements PreferredSizeWidget {
                               padding: EdgeInsets.only(left: 12),
                               child: Align(alignment: Alignment.centerLeft, child: BackChevron()),
                             ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (onClose != null)
+                    Positioned(
+                      right: AppSpacing.screenH - 10,
+                      top: 0,
+                      bottom: 0,
+                      child: Semantics(
+                        button: true,
+                        label: '닫기',
+                        excludeSemantics: true,
+                        child: InkResponse(
+                          key: const ValueKey('nav-close'),
+                          onTap: onClose,
+                          radius: 22,
+                          child: const SizedBox(
+                            width: AppSizes.minTouch,
+                            height: AppSizes.navBarHeight,
+                            child: Center(child: CustomPaint(size: Size(24, 24), painter: _ClosePainter())),
                           ),
                         ),
                       ),
@@ -261,4 +286,22 @@ class _ChevronPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ChevronPainter old) => old.color != color;
+}
+
+class _ClosePainter extends CustomPainter {
+  const _ClosePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = const Color(0xFF303137)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(const Offset(4, 4), const Offset(20, 20), p);
+    canvas.drawLine(const Offset(20, 4), const Offset(4, 20), p);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }

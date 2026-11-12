@@ -430,20 +430,29 @@ class _MyAnswerState extends State<_MyAnswer> {
   }
 }
 
-/// 평가 항목: 이름 · 막대(120) · 16/25. 가장 낮은 항목 막대는 검정, 나머지는 라임.
+/// 평가 항목: 이름 · 막대(120) · 16/25.
+/// 규칙(QA): 항목 점수가 10점 이하면 막대를 검정으로, 그 위는 라임으로 그린다.
+/// 점수가 너무 낮아 막대가 거의 안 보이지 않게, 막대 길이는 최소 10점 분량으로 그린다 (오른쪽 숫자는 실제 점수 그대로).
 class CriteriaList extends StatelessWidget {
   const CriteriaList({super.key, required this.criteria});
 
+  /// 이 점수 이하면 검정 막대 · 막대 최소 길이 기준 점수
+  static const int lowScore = 10;
+
   final List<CriterionScore> criteria;
+
+  /// 막대가 채워지는 비율 (최소 [lowScore] 점 분량)
+  static double fillRatio(CriterionScore c) {
+    if (c.max <= 0) return 0;
+    final shown = c.score < lowScore ? lowScore : c.score;
+    return (shown / c.max).clamp(0.0, 1.0);
+  }
+
+  /// 검정 막대 여부
+  static bool isLow(CriterionScore c) => c.score <= lowScore;
 
   @override
   Widget build(BuildContext context) {
-    double ratio(CriterionScore c) =>
-        c.max == 0 ? 0 : (c.score / c.max).clamp(0.0, 1.0);
-    final lowest = criteria.isEmpty
-        ? null
-        : criteria.reduce((a, b) => ratio(a) <= ratio(b) ? a : b);
-    final allSame = criteria.every((c) => ratio(c) == ratio(criteria.first));
     final text = AppTypography.subheading.copyWith(
       fontWeight: AppTypography.medium,
       color: AppColors.textSub,
@@ -468,11 +477,11 @@ class CriteriaList extends StatelessWidget {
                     color: AppColors.barTrack,
                     alignment: Alignment.centerLeft,
                     child: FractionallySizedBox(
-                      widthFactor: ratio(criteria[i]),
+                      widthFactor: fillRatio(criteria[i]),
                       heightFactor: 1,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: !allSame && identical(criteria[i], lowest)
+                          color: isLow(criteria[i])
                               ? Colors.black
                               : AppColors.point,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -557,7 +566,8 @@ class EvidenceFolderCard extends StatelessWidget {
               // 피그마 1520:11310: 내용 16 / #404147 1px 선 / 내용 … 사이를 모두 16 으로 띄운다
               for (var i = 0; i < evidence.length; i++) ...[
                 if (i > 0) ...[
-                  const SizedBox(height: AppSpacing.md),
+                  // 피그마 1540:11471: 선은 높이 0 칸 위에 1px 로 그려져 위 15 · 아래 16 (글 사이 합 32)
+                  const SizedBox(height: AppSpacing.md - 1),
                   const Divider(height: 1, thickness: 1, color: Color(0xFF404147)),
                   const SizedBox(height: AppSpacing.md),
                 ],

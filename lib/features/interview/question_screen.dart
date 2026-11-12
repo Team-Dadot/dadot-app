@@ -18,7 +18,7 @@ class QuestionScreen extends ConsumerWidget {
     final q = ref.watch(interviewQuestionProvider(questionId));
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppNavBar(title: '면접 질문'),
+      appBar: AppNavBar(title: '면접 질문', onClose: () => context.go(Routes.home)),
       body: q.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(interviewQuestionProvider(questionId))),

@@ -13,12 +13,16 @@ class InlineAction extends StatelessWidget {
     required this.onTap,
     this.loading = false,
     this.accent = false,
+    this.outlined = false,
   });
 
   final String label;
   final VoidCallback? onTap;
   final bool loading;
   final bool accent;
+
+  /// 피그마 1526:9502 "재요청": 흰 바탕 + 옅은 선 + 진한 글자
+  final bool outlined;
 
   /// 피그마 Button/Small 회색(#E9EBED) · 글자 #303137
   static const Color _mutedFill = Color(0xFFE9EBED);
@@ -45,14 +49,15 @@ class InlineAction extends StatelessWidget {
       height: 32,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: accent ? AppColors.point : (enabled ? AppColors.ink : _mutedFill),
+        color: outlined ? AppColors.surface : (accent ? AppColors.point : (enabled ? AppColors.ink : _mutedFill)),
         borderRadius: BorderRadius.circular(8),
+        border: outlined ? Border.all(color: const Color(0xFFDEDFE1)) : null,
       ),
       child: Text(
         label,
         maxLines: 1,
         style: AppTypography.captionStrong.copyWith(
-          color: accent ? AppColors.ink : (enabled ? AppColors.white : _mutedLabel),
+          color: outlined ? _mutedLabel : (accent ? AppColors.ink : (enabled ? AppColors.white : _mutedLabel)),
           letterSpacing: -0.36,
         ),
       ),

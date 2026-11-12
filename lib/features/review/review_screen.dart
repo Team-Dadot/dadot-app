@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -220,96 +221,139 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
     final body = AppTypography.body1.copyWith(fontSize: 16, height: 1.6, letterSpacing: -0.48, color: const Color(0xFF727479));
     final meta = AppTypography.body1.copyWith(fontSize: 13, height: 1.4, letterSpacing: -0.39, color: AppColors.textGuide);
     final url = ev?.url;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            // 시트 헤더 아래 24 에 문제, 24 아래 해설 카드
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    // 피그마 1520:11373: 시트는 내용 높이만큼 (위 24 · 머리 24 · 24 · 문제 · 24 · 해설 카드 · 24 · 버튼 · 아래 36).
+    // 내용이 화면보다 길면 문제~카드만 스크롤하고 버튼은 아래에 남는다.
+    // 머리 줄은 누르기 쉽게 44 높이로 두고, 위·아래 여백을 10씩 줄여 글자 위치는 피그마(24 + 12)와 같게 맞춘다.
+    final bottom = math.max(36.0, MediaQuery.paddingOf(context).bottom);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(AppSpacing.screenH, 14, AppSpacing.screenH, bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 44,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Text(item.question.prompt, style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4)),
-                const SizedBox(height: AppSpacing.xl),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.button)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // 정답 영역: 아래 12 띄우고 #DCE0E7 선
-                      Container(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        decoration: const BoxDecoration(
-                          border: Border(bottom: BorderSide(color: AppColors.fillMuted)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (correct != null) ...[
-                              Text('정답 : $correct', style: head),
-                              const SizedBox(height: AppSpacing.xs),
-                            ],
-                            Text(item.explanation, style: body),
-                          ],
+                Semantics(
+                  header: true,
+                  child: Text(
+                    '문제 해설',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.subheading.copyWith(color: const Color(0xFF303137), height: 1.4),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Semantics(
+                    button: true,
+                    label: '닫기',
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => Navigator.of(context).pop(),
+                      // 아이콘 18, 오른쪽에서 3 (피그마 899:3565) — 누르는 칸은 44
+                      child: const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Align(
+                          alignment: Alignment(0.86, 0),
+                          child: Icon(Icons.close_rounded, size: 27, color: AppColors.cardDark),
                         ),
                       ),
-                      if (ev != null) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Text('공시 근거', style: head),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(ev.excerpt, style: body),
-                        const SizedBox(height: AppSpacing.xs),
-                        Row(
-                          children: [
-                            if (ev.publishedAt != null) ...[
-                              Text(ev.publishedAt!, style: meta),
-                              Container(width: 1, height: 10, margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs), color: AppColors.textGuide),
-                            ],
-                            Expanded(child: Text(ev.title, style: meta)),
-                          ],
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        BottomCta(
-          color: AppColors.sheet,
-          children: [
-            if (url != null)
-              AppButton(label: 'DART 원문보기', onPressed: () => unawaited(ref.read(linkServiceProvider).open(url))),
-            Semantics(
-              button: true,
-              label: '오류 제보하기',
-              excludeSemantics: true,
-              child: InkWell(
-                onTap: _reporting ? null : _report,
-                child: SizedBox(
-                  height: AppSizes.ctaHeight,
-                  child: Center(
-                    child: _reporting
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.textCaption))
-                        : Text(
-                            '오류 제보하기',
-                            style: AppTypography.subheading.copyWith(
-                              color: const Color(0xFF65666B),
-                              height: 1.4,
-                              decoration: TextDecoration.underline,
-                              decorationColor: const Color(0xFF65666B),
-                            ),
+          const SizedBox(height: 14),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(item.question.prompt, style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4)),
+                  const SizedBox(height: AppSpacing.xl),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.button)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 정답 영역: 아래 12 띄우고 #DCE0E7 선
+                        Container(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          decoration: const BoxDecoration(
+                            border: Border(bottom: BorderSide(color: AppColors.fillMuted)),
                           ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (correct != null) ...[
+                                Text('정답 : $correct', style: head),
+                                const SizedBox(height: AppSpacing.xs),
+                              ],
+                              Text(item.explanation, style: body),
+                            ],
+                          ),
+                        ),
+                        if (ev != null) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Text('공시 근거', style: head),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(ev.excerpt, style: body),
+                          const SizedBox(height: AppSpacing.xs),
+                          Row(
+                            children: [
+                              if (ev.publishedAt != null) ...[
+                                Text(ev.publishedAt!, style: meta),
+                                // 피그마 1520:11386: 세로 구분선 1×10 #BCBFC5
+                                Container(width: 1, height: 10, margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs), color: const Color(0xFFBCBFC5)),
+                              ],
+                              Expanded(child: Text(ev.title, style: meta)),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          if (url != null) ...[
+            AppButton(label: 'DART 원문보기', onPressed: () => unawaited(ref.read(linkServiceProvider).open(url))),
+            const SizedBox(height: AppSpacing.ctaGap),
+          ],
+          Semantics(
+            button: true,
+            label: '오류 제보하기',
+            excludeSemantics: true,
+            child: InkWell(
+              onTap: _reporting ? null : _report,
+              child: SizedBox(
+                height: AppSizes.ctaHeight,
+                child: Center(
+                  child: _reporting
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.textCaption))
+                      : Text(
+                          '오류 제보하기',
+                          style: AppTypography.subheading.copyWith(
+                            color: const Color(0xFF65666B),
+                            height: 1.4,
+                            decoration: TextDecoration.underline,
+                            decorationColor: const Color(0xFF65666B),
+                          ),
+                        ),
                 ),
               ),
             ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -322,12 +366,10 @@ class _QuizReviewCard extends StatelessWidget {
   /// 피그마 1520:11333 "문제 해설" 시트: 문제 · 흰 카드(정답 : ○○ / 해설 — 선 — 공시 근거 / 인용 / 공시일 | 보고서)
   /// · DART 원문보기 + 밑줄 "오류 제보하기"
   void _showExplanation(BuildContext context) {
-    showAppSheet<void>(
+    // 시트 바탕은 페이지 바탕(#F3F5F7), 높이는 내용만큼 (피그마 1520:11373)
+    showBareSheet<void>(
       context,
-      title: '문제 해설',
-      expand: true,
-      // 피그마 1337:10093: 시트 높이 665 / 874
-      heightFactor: SheetHeights.explain,
+      color: AppColors.background,
       builder: (_) => _ExplanationSheet(item: item),
     );
   }

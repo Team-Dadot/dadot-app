@@ -86,6 +86,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final providers = AppInfo.isIOS ? AppPolicy.loginProvidersIos : AppPolicy.loginProvidersAndroid;
+    // SafeArea 안쪽에서는 위·아래 안전 영역이 이미 빠져 있어서, 바깥(이 build)에서 먼저 잰다
+    final inset = MediaQuery.paddingOf(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -96,12 +98,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Expanded(
               child: _failed
                   ? Center(child: StatusMessage(title: '일시적인 오류가 발생했어요', description: _reason ?? '잠시 후 다시 시도해 주세요'))
-                  // 피그마 1300:8036: 로고 윗선이 화면 높이의 339/874 (가운데보다 조금 위쪽 선에서 시작).
+                  // 피그마 1622:10552: 로고 윗선이 화면 높이의 357/874 (1300:8036 의 339 에서 아래로 내림).
                   // QA: 버튼 위 남은 칸 한가운데에 둬서 디자인보다 위에 있었다 → 버튼 개수와 상관없이 같은 높이에 둔다
                   : LayoutBuilder(
                       builder: (context, box) {
-                        final media = MediaQuery.of(context);
-                        final top = media.size.height * 339 / 874 - media.padding.top;
+                        // 로고 윗선 = 화면 전체 높이의 357/874. 안전 영역(상태 표시줄)만큼은 SafeArea 가 이미 내려 준다.
+                        final top = MediaQuery.sizeOf(context).height * 357 / 874 - inset.top;
                         const block = 80.0;
                         final max = box.maxHeight - block;
                         return Align(
@@ -115,7 +117,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.sm),
+              // 피그마 1622:10555: 버튼 묶음 아래가 화면 아래에서 36 (홈 인디케이터 영역 포함)
+              padding: EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, (36 - inset.bottom).clamp(0.0, 36.0)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -151,12 +154,19 @@ class _Intro extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // 피그마 1337:11993 로고 170×36.75, 17 아래 한 줄 소개 (1300:8047: 16 SemiBold #303137)
-        Image.asset('assets/images/dadot_wordmark_login.png', width: 170.2, height: 36.75, semanticLabel: 'Dadot'),
+        // 피그마 1622:10564 · 1622:10563: 로고는 가운데에서 왼쪽으로 1.89, 소개 글은 2 치우쳐 있다
+        Transform.translate(
+          offset: const Offset(-1.89, 0),
+          child: Image.asset('assets/images/dadot_wordmark_login.png', width: 170.2, height: 36.75, semanticLabel: 'Dadot'),
+        ),
         const SizedBox(height: 17.25),
-        Text(
-          '공시 기반 핵심들로 준비하는 기업 분석',
-          textAlign: TextAlign.center,
-          style: AppTypography.subheading.copyWith(color: const Color(0xFF303137), height: 1.4, letterSpacing: -0.48),
+        Transform.translate(
+          offset: const Offset(-2, 0),
+          child: Text(
+            '공시 기반 핵심들로 준비하는 기업 분석',
+            textAlign: TextAlign.center,
+            style: AppTypography.subheading.copyWith(color: const Color(0xFF303137), height: 1.4, letterSpacing: -0.48),
+          ),
         ),
       ],
     );

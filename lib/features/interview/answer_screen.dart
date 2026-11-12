@@ -404,6 +404,28 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     if (leave && mounted) await _saveDraft(leave: true);
   }
 
+  /// ✕: 면접 흐름을 닫고 홈으로. 녹음 중이면 먼저 멈추고, 쓴 글이 있으면 같은 확인을 거친다.
+  Future<void> _closeFlow() async {
+    if (_mode == _Mode.recording) await _stopRecording();
+    if (!mounted) return;
+    if (_hasSubmissionRequest || _answerAccepted || _text.text.trim().isEmpty) {
+      _leaving = true;
+      context.go(Routes.home);
+      return;
+    }
+    final leave = await showConfirmDialog(
+      context,
+      warning: true,
+      title: '답변을 그만할까요?',
+      message: '지금까지 작성한 내용은 임시 저장돼요',
+      cancelLabel: '계속 진행하기',
+      confirmLabel: '나가기',
+    );
+    if (leave && mounted) {
+      await _saveDraft(leave: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final q = ref.watch(interviewQuestionProvider(widget.questionId));
@@ -443,7 +465,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
           _mode == _Mode.voiceStopped) {
         // 피그마 1540:11882 · 1540:11963 · 1540:11748: 내비 아래 23 에 질문(26 Bold),
         // 16 아래 "답변은 최대 3분" 카드, 그 아래 90 에 녹음 버튼
-        body = Padding(
+        body = SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.screenH,
             23,
@@ -453,36 +475,39 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              q.when(
-                loading: () => const SizedBox(height: 80, child: LoadingView()),
-                error: (e, _) => ErrorView(
-                  error: e,
-                  compact: true,
-                  onRetry: () => ref.invalidate(interviewQuestionProvider(widget.questionId)),
-                ),
-                data: (q) => QuestionHeadline(q.text),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const _VoiceTip(),
-              // QA: 녹음 전·중·멈춤·다시 녹음 어느 상태에서도 마이크 버튼이 같은 자리에 있도록
-              // 가운데 정렬 대신 위에서부터 고정 간격으로 둔다 (아래 버튼이 생겨도 움직이지 않게)
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 90),
-                  child: _VoicePanel(
-                    speech: _speech,
-                    priorElapsed: _priorElapsed,
-                    state: switch (_mode) {
-                      _Mode.recording => _VoiceState.recording,
-                      _Mode.voiceStopped => _VoiceState.stopped,
-                      _ => _VoiceState.ready,
-                    },
-                    onTap: () => _mode == _Mode.recording
-                        ? _stopRecording()
-                        : _startRecording(),
-                  ),
+              // 피그마: 녹음 영역은 질문 길이와 상관없이 내비 아래 289 에서 시작 (위 여백 23 + 266)
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 266),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    q.when(
+                      loading: () => const SizedBox(height: 80, child: LoadingView()),
+                      error: (e, _) => ErrorView(
+                        error: e,
+                        compact: true,
+                        onRetry: () => ref.invalidate(interviewQuestionProvider(widget.questionId)),
+                      ),
+                      data: (q) => QuestionHeadline(q.text),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    const _VoiceTip(),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
                 ),
               ),
+              _VoicePanel(
+                speech: _speech,
+                priorElapsed: _priorElapsed,
+                state: switch (_mode) {
+                  _Mode.recording => _VoiceState.recording,
+                  _Mode.voiceStopped => _VoiceState.stopped,
+                  _ => _VoiceState.ready,
+                },
+                onTap: () => _mode == _Mode.recording ? _stopRecording() : _startRecording(),
+              ),
+              // 멈춤 상태에서 아래 버튼 뒤 흰 그라데이션에 가려지지 않게 여유
+              const SizedBox(height: 120),
             ],
           ),
         );
@@ -554,7 +579,12 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
         backgroundColor: AppColors.background,
         appBar: _mode == _Mode.analyzing || _mode == _Mode.converting
             ? null
-            : AppNavBar(title: title, onBack: _confirmLeave),
+            : AppNavBar(
+                title: title,
+                onBack: _confirmLeave,
+                // 피그마 1540: 말로 답하기 오른쪽 위 ✕
+                onClose: voice ? _closeFlow : null,
+              ),
         // 피그마 4-3 작성 완료 (763:19912): 임시 저장 / 제출하기 버튼은 키보드가 내려간 전체 화면일 때만 보인다.
         // 글을 쓰는 동안(키보드가 올라와 있을 때)은 버튼을 숨기고, 입력칸 밖을 누르거나 쓸어내리면 키보드가 내려가며 버튼이 나온다.
         body: _mode == _Mode.analyzing || _mode == _Mode.converting
@@ -563,14 +593,40 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
                 // 입력칸 밖을 누르면 키보드를 내린다
                 behavior: HitTestBehavior.translucent,
                 onTap: () => FocusScope.of(context).unfocus(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: body),
-                    if (bottom != null && !keyboardOpen)
-                      BottomCta(children: bottom),
-                  ],
-                ),
+                child: _mode == _Mode.voiceStopped && bottom != null
+                    // 피그마 1540:11651: 버튼 뒤로 위쪽이 투명한 흰 그라데이션 (본문이 그 아래로 지나간다)
+                    ? Stack(
+                        children: [
+                          Positioned.fill(child: body),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: DecoratedBox(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [Color(0x00FFFFFF), Colors.white],
+                                  stops: [0.0954, 0.368],
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 60),
+                                child: BottomCta(color: Colors.transparent, children: bottom),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: body),
+                          if (bottom != null && !keyboardOpen)
+                            BottomCta(children: bottom),
+                        ],
+                      ),
               ),
       ),
     );
@@ -794,9 +850,12 @@ class _VoicePanel extends StatelessWidget {
     final starting =
         recording &&
         (speech == null || speech!.status == SpeechStatus.initializing);
-    // 피그마 1540:11767 · 1540:11966: 녹음 전 링 136.8 / 녹음 중·멈춤 링 119.7,
-    // 링 선 #DCE0E7 2.4, 안쪽 원은 녹음 중 라임 · 그 외 #27282C
-    final ring = ready ? 136.8 : 119.7;
+    // 피그마 1540:12125 · 12018 · 11651: 링은 박스 밖으로 선이 그려진다
+    // 바깥 지름 녹음 전 141.6 (선 2.4 #DCE0E7) / 녹음 중 123.9 (선 2.1 #BCBFC5) / 멈춤 124.5 (선 2.4 #DCE0E7)
+    final box = ready ? 136.8 : 119.7;
+    final stroke = ready ? 2.4 : (recording ? 2.1 : 2.4);
+    final ringColor = recording ? const Color(0xFFBCBFC5) : AppColors.fillMuted;
+    final outer = box + 2 * stroke;
     final inner = ready ? 125.6 : 109.9;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -808,29 +867,30 @@ class _VoicePanel extends StatelessWidget {
           child: GestureDetector(
             onTap: starting ? null : onTap,
             child: SizedBox(
-              width: ring,
-              height: ring,
-              child: Center(
-                child: Container(
-                  width: ring,
-                  height: ring,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.fillMuted, width: 2.4),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: inner,
-                      height: inner,
-                      decoration: BoxDecoration(
-                        color: recording ? AppColors.point : const Color(0xFF27282C),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: recording ? const _Waveform() : const _MicIcon(),
+              width: outer,
+              height: outer,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: outer,
+                    height: outer,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: ringColor, width: stroke),
                     ),
                   ),
-                ),
+                  Container(
+                    width: inner,
+                    height: inner,
+                    decoration: BoxDecoration(
+                      color: recording ? AppColors.point : const Color(0xFF27282C),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: recording ? const _Waveform() : const _MicIcon(),
+                  ),
+                ],
               ),
             ),
           ),
@@ -841,7 +901,7 @@ class _VoicePanel extends StatelessWidget {
             '버튼을 눌러\n답변을 시작하세요',
             textAlign: TextAlign.center,
             // 피그마 1541:12599: 20 SemiBold · 줄 140% · #15171B
-            style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4, letterSpacing: -0.6),
+            style: AppTypography.title4.copyWith(color: AppColors.textSub, height: 1.4, letterSpacing: -0.6),
           )
         else ...[
           Semantics(
@@ -933,6 +993,8 @@ class _WaveformState extends State<_Waveform>
 
   @override
   Widget build(BuildContext context) {
+    // 피그마 Burger: 막대 5개 · 두께 3 · 둥근 끝 · #27282C, 높이 [18.4, 12.6, 26.5, 18.4, 12.6] 가운데 정렬
+    const base = [18.435, 12.555, 26.52, 18.435, 12.555];
     return ExcludeSemantics(
       child: SizedBox(
         height: 38.28,
@@ -946,14 +1008,8 @@ class _WaveformState extends State<_Waveform>
               for (var i = 0; i < 5; i++)
                 Container(
                   width: 3,
-                  height:
-                      10 +
-                      26 *
-                          ([0.5, 0.9, 0.6, 1.0, 0.45][i] *
-                              (0.5 +
-                                  0.5 * (i.isEven ? _c.value : 1 - _c.value))),
+                  height: base[i] * (0.65 + 0.35 * (i.isEven ? _c.value : 1 - _c.value)),
                   decoration: BoxDecoration(
-                    // 피그마 1540:11970: 막대 5개 · 두께 3 · 둥근 끝 · #27282C
                     color: const Color(0xFF27282C),
                     borderRadius: BorderRadius.circular(1.5),
                   ),

@@ -140,8 +140,8 @@ class AppTextField extends StatelessWidget {
       label: semanticLabel,
       textField: true,
       child: Container(
-        constraints: BoxConstraints(minHeight: multiline ? 0 : (bordered ? 52 : AppSizes.inputHeight)),
-        padding: EdgeInsets.symmetric(horizontal: bordered ? 15 : AppSpacing.lg, vertical: multiline ? AppSpacing.lg : AppSpacing.sm),
+        constraints: BoxConstraints(minHeight: multiline ? 0 : (bordered ? 50 : AppSizes.inputHeight)),
+        padding: EdgeInsets.symmetric(horizontal: bordered ? 15 : AppSpacing.lg, vertical: multiline ? AppSpacing.lg : (bordered ? 8 : AppSpacing.sm)),
         decoration: BoxDecoration(
           color: readOnly ? AppColors.surfaceMuted : AppColors.surface,
           borderRadius: BorderRadius.circular(bordered ? 12 : (multiline ? AppRadius.lg : AppRadius.md)),

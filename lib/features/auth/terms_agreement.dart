@@ -110,7 +110,7 @@ class TermsChecklist extends ConsumerWidget {
               // 원문은 앱 설정의 노션 주소로 연다 (이용약관 · 개인정보 수집 및 이용)
               onOpen: () => unawaited(ref.read(linkServiceProvider).open(termDocumentUrl(ref, t))),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 15),
         ],
       ),
     );
@@ -168,9 +168,8 @@ class AgreeRow extends StatelessWidget {
                     child: Text(
                       '보기',
                       style: AppTypography.body2.copyWith(
+                        // 피그마 1526:9502: 밑줄 없이 회색 글자
                         color: AppColors.textGuide,
-                        decoration: TextDecoration.underline,
-                        decorationColor: AppColors.textGuide,
                       ),
                     ),
                   ),

@@ -238,6 +238,7 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
                 else
                   InlineAction(
                     label: _codeSent ? '재요청' : '인증 요청',
+                    outlined: _codeSent,
                     loading: _sending,
                     onTap: AppPolicy.isValidEmail(_email.text)
                         ? _sendCode
