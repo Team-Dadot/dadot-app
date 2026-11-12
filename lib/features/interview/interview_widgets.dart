@@ -441,15 +441,15 @@ class CriteriaList extends StatelessWidget {
 
   final List<CriterionScore> criteria;
 
-  /// 막대가 채워지는 비율 (최소 [lowScore] 점 분량)
+  /// 막대가 채워지는 비율 (1~10점은 [lowScore] 점 분량, 0점은 막대 없음)
   static double fillRatio(CriterionScore c) {
-    if (c.max <= 0) return 0;
+    if (c.max <= 0 || c.score <= 0) return 0;
     final shown = c.score < lowScore ? lowScore : c.score;
     return (shown / c.max).clamp(0.0, 1.0);
   }
 
-  /// 검정 막대 여부
-  static bool isLow(CriterionScore c) => c.score <= lowScore;
+  /// 검정 막대 여부 (1~10점. 0점은 막대 자체를 그리지 않는다)
+  static bool isLow(CriterionScore c) => c.score > 0 && c.score <= lowScore;
 
   @override
   Widget build(BuildContext context) {
@@ -521,9 +521,21 @@ class EvidenceFolderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final first = evidence.first;
+    // 피그마 1520:11296: 공시 정보 칸은 맨 아래 하나. 첫 근거에 날짜가 없으면 다음 근거에서 가져온다
+    // (QA: 근거 2개일 때 첫 근거만 보다가 공시일 · 대상 기간이 통째로 사라졌다)
+    String? firstOf(String? Function(Evidence e) pick) {
+      for (final e in evidence) {
+        final v = pick(e)?.trim();
+        if (v != null && v.isNotEmpty) return v;
+      }
+      return null;
+    }
+
+    final published = firstOf((e) => e.publishedAt);
+    final period = firstOf((e) => e.period);
     final meta = [
-      if (first.publishedAt != null) '공시일 ㅣ ${first.publishedAt}',
-      if (first.period != null) '대상 기간 ㅣ ${first.period}',
+      if (published != null) '공시일 ㅣ $published',
+      if (period != null) '대상 기간 ㅣ $period',
     ];
     final title = Text(
       first.title,
@@ -619,8 +631,11 @@ class RetryAnswerButton extends StatelessWidget {
     this.canSubmit = true,
     this.blockedMessage,
     this.blockedHelp,
+    this.primary = false,
   });
 
+  /// 피그마 1653:10895: 복습 화면의 단독 버튼은 진한 바탕 (횟수가 없으면 회색)
+  final bool primary;
   final String prefix;
   final int remaining;
   final VoidCallback onRetry;
@@ -638,7 +653,7 @@ class RetryAnswerButton extends StatelessWidget {
       label: out ? '$label, ${blockedMessage ?? '현재 답변할 수 없어요'}' : label,
       excludeSemantics: true,
       child: Material(
-        color: out ? const Color(0xFFE9EBED) : AppColors.fillMuted,
+        color: out ? const Color(0xFFE9EBED) : (primary ? AppColors.ink : AppColors.fillMuted),
         borderRadius: BorderRadius.circular(AppRadius.button),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.button),
@@ -660,7 +675,7 @@ class RetryAnswerButton extends StatelessWidget {
                   label,
                   maxLines: 1,
                   style: AppTypography.button.copyWith(
-                    color: out ? AppColors.textGuide : AppColors.textSub,
+                    color: out ? AppColors.textGuide : (primary ? AppColors.white : AppColors.textSub),
                   ),
                 ),
               ),
@@ -678,4 +693,41 @@ void goNextInterviewQuestion(BuildContext context, String companyId) {
   final router = GoRouter.of(context);
   router.go(Routes.home);
   WidgetsBinding.instance.addPostFrameCallback((_) => router.push(Routes.todayInterview(companyId)));
+}
+
+/// 피그마 1653:10983 "하단 페이드" (152 높이, 9.5% 지점에서 투명 → 36.8% 에서 흰색) 위의 하단 버튼.
+/// Scaffold 의 extendBody 와 함께 써서 내용이 이 아래로 지나가게 한다.
+class FadedBottomCta extends StatelessWidget {
+  const FadedBottomCta({super.key, required this.children});
+
+  final List<Widget> children;
+
+  /// 목록 맨 아래 여백 (마지막 내용이 버튼에 가리지 않게)
+  static const double listPadding = 100;
+
+  @override
+  Widget build(BuildContext context) {
+    // 버튼 묶음(위 8 + 버튼 56 + 아래 안전 영역)이 152 보다 낮으면 위를 투명하게 채워 152 를 맞춘다.
+    // (Container 에 alignment 를 주면 bottomNavigationBar 가 화면 전체로 늘어나 흰 막이 덮인다)
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final own = AppSpacing.xs + 56.0 * children.length + (children.length - 1) * AppSpacing.ctaGap + (bottom > AppSpacing.sm ? bottom : AppSpacing.sm);
+    final top = own >= 152 ? 0.0 : 152 - own;
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x00FFFFFF), Colors.white],
+          stops: [0.09539, 0.36842],
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: top),
+          BottomCta(color: Colors.transparent, children: children),
+        ],
+      ),
+    );
+  }
 }

@@ -180,32 +180,36 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: _editing
-                  ? Row(
-                      children: [
-                        Semantics(
-                          checked: allSelected,
-                          button: true,
-                          child: InkWell(
-                            onTap: () => setState(() {
-                              if (allSelected) {
-                                _selected.clear();
-                              } else {
-                                _selected
-                                  ..clear()
-                                  ..addAll(items.map((e) => e.id));
-                              }
-                            }),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                CheckMark(checked: allSelected),
-                                const SizedBox(width: 10),
-                                Text('전체 선택', style: label),
-                              ],
+                  // 피그마 1612:10732: 편집 중에는 전체 선택 줄이 내비 아래 8 더 내려온다
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          Semantics(
+                            checked: allSelected,
+                            button: true,
+                            child: InkWell(
+                              onTap: () => setState(() {
+                                if (allSelected) {
+                                  _selected.clear();
+                                } else {
+                                  _selected
+                                    ..clear()
+                                    ..addAll(items.map((e) => e.id));
+                                }
+                              }),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CheckMark(checked: allSelected),
+                                  const SizedBox(width: 10),
+                                  Text('전체 선택', style: label),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     )
                   : Row(
                       children: [
@@ -278,7 +282,7 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
   }
 }
 
-/// 경험 카드: 제목 + ⌄ / 한 줄 미리보기. 편집 중이면 앞에 체크, 고르면 진한 테두리.
+/// 경험 카드: 제목 한 줄 / 한 줄 미리보기. 편집 중이면 앞에 체크, 고르면 진한 테두리.
 class _ExperienceCard extends StatelessWidget {
   const _ExperienceCard({
     required this.experience,
@@ -307,22 +311,16 @@ class _ExperienceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    e.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.cardTitle.copyWith(
-                      fontSize: 18,
-                      color: AppColors.textStrong,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                const Chevron(),
-              ],
+            // 피그마 1612:10732 · QA: 옆 화살표 없이 제목 한 줄
+            Text(
+              e.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.cardTitle.copyWith(
+                fontSize: 18,
+                height: 1.4,
+                color: AppColors.textStrong,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -331,6 +329,7 @@ class _ExperienceCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: AppTypography.body1.copyWith(
                 fontSize: 16,
+                height: 1.4,
                 color: AppColors.textCaption,
               ),
             ),
@@ -424,8 +423,13 @@ class _DeleteButton extends StatelessWidget {
           minimumSize: const Size(double.infinity, AppSizes.buttonHeight),
           backgroundColor: AppColors.destructive,
           foregroundColor: AppColors.white,
-          disabledBackgroundColor: AppColors.destructive.withValues(alpha: 0.4),
-          disabledForegroundColor: AppColors.white,
+          // 피그마 1612:10732: 0개를 고르면 회색 비활성 (#E9EBED · 글자 #9A9DA4), 처리 중에는 흐린 빨강
+          disabledBackgroundColor: loading
+              ? AppColors.destructive.withValues(alpha: 0.4)
+              : const Color(0xFFE9EBED),
+          disabledForegroundColor: loading
+              ? AppColors.white
+              : AppColors.textGuide,
           textStyle: AppTypography.button,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.button),

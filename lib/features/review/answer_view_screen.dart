@@ -131,30 +131,31 @@ class _AnswerViewScreenState extends ConsumerState<AnswerViewScreen> {
       });
     }
     final remaining = detail?.question.retryRemaining ?? feedback?.retryRemaining ?? 0;
-    final cta = detail == null || (entries.isEmpty && detail.question.blocked)
+    Widget? buildCta({required bool faded}) => detail == null || (entries.isEmpty && detail.question.blocked)
         ? null
-        : BottomCta(children: [
+        : _cta(faded, [
             if (entries.isEmpty)
               AppButton(label: '이어서 답변하기',
-                onPressed: () => context.push(Routes.interviewAnswer(widget.questionId)))
+                onPressed: () => context.push(Routes.interviewAnswer(widget.questionId, fromReview: true)))
             else
-              RetryAnswerButton(prefix: '다시 답변하기', remaining: remaining,
+              RetryAnswerButton(prefix: '다시 답변하기', primary: true, remaining: remaining,
                 canSubmit: !detail.question.blocked,
                 blockedMessage: detail.question.blockedMessage,
                 blockedHelp: detail.question.blockedHelp,
-                onRetry: () => context.push(Routes.interviewAnswer(widget.questionId))),
+                onRetry: () => context.push(Routes.interviewAnswer(widget.questionId, fromReview: true))),
           ]);
     if (detail != null && feedback != null) {
       return AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
         child: Scaffold(
           backgroundColor: AppColors.background,
+          extendBody: buildCta(faded: true) != null,
           body: RefreshIndicator(onRefresh: _refresh,
-            child: ListView(padding: EdgeInsets.zero, physics: const AlwaysScrollableScrollPhysics(), children: [
-              FeedbackHero(feedback: feedback, onBack: () => Navigator.of(context).maybePop()),
+            child: ListView(padding: EdgeInsets.only(bottom: buildCta(faded: true) == null ? 0 : FadedBottomCta.listPadding), physics: const AlwaysScrollableScrollPhysics(), children: [
+              FeedbackHero(feedback: feedback, onBack: () => Navigator.of(context).maybePop(), onClose: () => Navigator.of(context).maybePop()),
               _body(detail),
             ])),
-          bottomNavigationBar: cta,
+          bottomNavigationBar: buildCta(faded: true),
         ),
       );
     }
@@ -169,9 +170,11 @@ class _AnswerViewScreenState extends ConsumerState<AnswerViewScreen> {
         data: (data) => RefreshIndicator(onRefresh: _refresh,
           child: ListView(physics: const AlwaysScrollableScrollPhysics(), children: [_body(data)])),
       ),
-      bottomNavigationBar: cta,
+      bottomNavigationBar: buildCta(faded: false),
     );
   }
+
+  Widget _cta(bool faded, List<Widget> children) => faded ? FadedBottomCta(children: children) : BottomCta(children: children);
 
   Widget? _attemptPicker(InterviewRecordDetail detail, InterviewAttemptEvaluation selected) {
     final entries = detail.evaluationEntries;

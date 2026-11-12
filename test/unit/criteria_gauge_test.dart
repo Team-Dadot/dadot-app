@@ -17,4 +17,9 @@ void main() {
     expect(CriteriaList.fillRatio(c(25)), 1.0);
     expect(CriteriaList.isLow(c(11)), isFalse);
   });
+
+  test('0점은 막대를 그리지 않는다 (검정도 없음)', () {
+    expect(CriteriaList.fillRatio(c(0)), 0);
+    expect(CriteriaList.isLow(c(0)), isFalse);
+  });
 }

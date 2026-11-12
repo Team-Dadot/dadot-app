@@ -728,7 +728,7 @@ class _InterviewRecordCard extends ConsumerWidget {
               await showNoticeDialog(context, title: latest.blockedMessage,
                 message: latest.blockedHelp, buttonLabel: '확인');
             } else {
-              context.push(Routes.interviewAnswer(r.questionId));
+              context.push(Routes.interviewAnswer(r.questionId, fromReview: true));
             }
           } catch (e) {
             if (context.mounted) showErrorToast(context, e);

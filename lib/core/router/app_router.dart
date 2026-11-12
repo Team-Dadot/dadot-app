@@ -71,9 +71,14 @@ class Routes {
   // 면접
   static String todayInterview(String companyId) => '/interview/today/$companyId'; // 4-1
   static String interview(String questionId) => '/interview/$questionId'; // 4-2
-  static String interviewAnswer(String questionId, {bool voice = false}) =>
-      '/interview/$questionId/answer${voice ? '?voice=1' : ''}'; // 4-1 답변 작성 (텍스트 · 말로)
-  static String feedback(String answerId) => '/feedback/$answerId'; // 4-6
+  /// [fromReview]: 복습 탭에서 들어온 답변 → 평가 화면에 "다시 답변하기" 만 보여 준다
+  static String interviewAnswer(String questionId, {bool voice = false, bool fromReview = false}) {
+    final query = [if (voice) 'voice=1', if (fromReview) 'from=review'].join('&');
+    return '/interview/$questionId/answer${query.isEmpty ? '' : '?$query'}'; // 4-1 답변 작성 (텍스트 · 말로)
+  }
+
+  static String feedback(String answerId, {bool fromReview = false}) =>
+      '/feedback/$answerId${fromReview ? '?from=review' : ''}'; // 4-6
 
   // 복습
   static String quizRetry(String itemId, String companyId) => '/review/quiz/$itemId?company=$companyId';
@@ -237,11 +242,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: 'answer',
-            builder: (_, s) => AnswerScreen(questionId: s.pathParameters['questionId']!, startWithVoice: s.uri.queryParameters['voice'] == '1'),
+            builder: (_, s) => AnswerScreen(questionId: s.pathParameters['questionId']!, startWithVoice: s.uri.queryParameters['voice'] == '1', fromReview: s.uri.queryParameters['from'] == 'review'),
           ),
         ],
       ),
-      GoRoute(path: '/feedback/:answerId', builder: (_, s) => FeedbackScreen(answerId: s.pathParameters['answerId']!)),
+      GoRoute(path: '/feedback/:answerId', builder: (_, s) => FeedbackScreen(answerId: s.pathParameters['answerId']!, fromReview: s.uri.queryParameters['from'] == 'review')),
     ],
   );
 });

@@ -15,9 +15,12 @@ import 'interview_widgets.dart';
 /// 진한 히어로(폴더: 배지 · 점수 % · ! 한 줄 요약 · 진행 바 · 불꽃/느낌표) + 회색 카드 목록
 /// → 재답변 (남은/3) · 다음 질문 (오늘 질문을 다 했으면 마무리하기)
 class FeedbackScreen extends ConsumerStatefulWidget {
-  const FeedbackScreen({super.key, required this.answerId});
+  const FeedbackScreen({super.key, required this.answerId, this.fromReview = false});
 
   final String answerId;
+
+  /// 피그마 1653:10895: 복습 탭에서 다시 답변한 뒤에는 "다시 답변하기" 버튼 하나만
+  final bool fromReview;
 
   @override
   ConsumerState<FeedbackScreen> createState() => _FeedbackScreenState();
@@ -96,15 +99,34 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.background,
+        // 복습: 버튼 뒤 흰 페이드 아래로 내용이 지나간다 (피그마 1653:10983)
+        extendBody: widget.fromReview,
         body: ListView(
-          padding: EdgeInsets.zero,
+          padding: EdgeInsets.only(bottom: widget.fromReview ? FadedBottomCta.listPadding : 0),
           children: [
-            // 피그마 1313:7930 · 1313:7717 (레이어 정리본): 내비는 ‹ 뒤로 만 (✕ 없음)
-            FeedbackHero(feedback: fb, onBack: _back),
+            // 피그마 1313:7930 · 1313:7717: 내비는 ‹ 뒤로 만, 복습 리포트(1653:10895)는 오른쪽 ✕ 도 있다
+            FeedbackHero(feedback: fb, onBack: _back, onClose: widget.fromReview ? () => context.go(Routes.review) : null),
             FeedbackContent(feedback: fb, questionText: question?.text),
           ],
         ),
-        bottomNavigationBar: BottomCta(
+        bottomNavigationBar: widget.fromReview
+            ? FadedBottomCta(
+                children: [
+                  RetryAnswerButton(
+                    prefix: '다시 답변하기',
+                    primary: true,
+                    remaining: question?.retryRemaining ?? fb.retryRemaining,
+                    canSubmit: question != null && !question.blocked,
+                    blockedMessage: question?.blockedMessage ?? (questionAsync.hasError
+                        ? '제출 가능 상태를 확인하지 못했어요. 다시 확인해 주세요.' : '제출 가능 상태를 불러오고 있어요.'),
+                    blockedHelp: question?.blockedHelp ?? '잠시 후 화면을 다시 확인해 주세요.',
+                    onRetry: () => context.pushReplacement(
+                      Routes.interviewAnswer(fb.questionId, fromReview: true),
+                    ),
+                  ),
+                ],
+              )
+            : BottomCta(
           children: [
             Row(
               children: [

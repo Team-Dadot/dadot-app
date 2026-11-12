@@ -34,12 +34,16 @@ class AnswerScreen extends ConsumerStatefulWidget {
     super.key,
     required this.questionId,
     this.startWithVoice = false,
+    this.fromReview = false,
   });
 
   final String questionId;
 
   /// 질문 화면 "음성으로 답변하기" 로 들어오면 바로 녹음을 시작한다
   final bool startWithVoice;
+
+  /// 복습 탭에서 들어왔다면 평가 화면에 "다시 답변하기" 만 보인다
+  final bool fromReview;
 
   @override
   ConsumerState<AnswerScreen> createState() => _AnswerScreenState();
@@ -141,7 +145,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     invalidateProgress(ref);
     ref.invalidate(interviewQuestionProvider(widget.questionId));
     _leaving = true;
-    context.pushReplacement(Routes.feedback(attemptId));
+    context.pushReplacement(Routes.feedback(attemptId, fromReview: widget.fromReview));
   }
 
   int get _length => _text.text.trim().characters.length;
