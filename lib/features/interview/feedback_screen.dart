@@ -63,12 +63,22 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
       final error = unwrapAppError(async.error ?? '');
       final cancelled = error is EvaluationFailed && error.status == EvaluationStatus.cancelled;
       final failed = error is EvaluationFailed && !cancelled;
+      // 피그마 1335:8171: 결과를 기다리는 동안은 내비 없이 "답변을 분석하고 있어요" 화면 (그냥 로딩 아이콘이 아니라)
+      if (async.isLoading || _retrying) {
+        return const Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: ProcessingView(
+              title: '답변을 분석하고 있어요',
+              graphic: StateGraphic.analyze,
+            ),
+          ),
+        );
+      }
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppNavBar(title: '면접 피드백', onBack: _back),
-        body: async.isLoading || _retrying
-            ? const LoadingView()
-            : ErrorView(
+        body: ErrorView(
                 error: error,
                 // 피그마 1335: 채점 실패 화면
                 title: cancelled ? '평가가 취소됐어요' : failed ? '일시적인 오류가 발생했어요' : null,

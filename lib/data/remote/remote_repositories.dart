@@ -728,13 +728,15 @@ class RemoteProfileRepository implements ProfileRepository {
     return _merged();
   }
 
-  /// 복습 기업 목록 중 지금 준비하지 않는 기업 (isActive=false)
+  /// 복습 기업 목록 중 지금 준비하지 않는 기업.
+  /// QA: 서버가 isActive 를 안 내려주면(null) 한 곳도 못 걸러 "준비했던 기업" 칸이 통째로 사라졌다
+  /// → isActive 가 true 가 아닌 기업을 모두 후보로 두고, 지금 준비 중인 기업은 화면 쪽에서 뺀다.
   @override
   Future<List<PastPreparation>> fetchPastPreparations() async {
     final data = await _api.get(ApiPaths.reviewCompanies, query: {'page': 0, 'size': 100});
     return [
       for (final j in _content(data))
-        if (j['isActive'] == false)
+        if (j['isActive'] != true)
           () {
             final c = _company(_map(j['company']) ?? j);
             return PastPreparation(

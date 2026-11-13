@@ -33,8 +33,12 @@ final preparationsProvider = FutureProvider<List<Preparation>>((ref) {
 /// 6-2 준비했던 기업. 준비 기업이 바뀌면 다시 불러온다.
 final pastPreparationsProvider = FutureProvider<List<PastPreparation>>((ref) {
   ref.watch(currentUserIdProvider);
-  ref.watch(preparationsProvider);
-  return ref.watch(profileRepositoryProvider).fetchPastPreparations();
+  final current = ref.watch(preparationsProvider).asData?.value ?? const <Preparation>[];
+  final active = {for (final p in current) p.companyId};
+  return ref.watch(profileRepositoryProvider).fetchPastPreparations().then(
+        // 지금 준비 중인 기업은 "준비했던 기업"에 다시 나오지 않는다
+        (list) => [for (final p in list) if (!active.contains(p.companyId)) p],
+      );
 });
 
 final experiencesProvider = FutureProvider<List<Experience>>((ref) {

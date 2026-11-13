@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/router/app_router.dart';
 import '../../data/models/quiz.dart';
 import '../../design_system/design_system.dart';
+import '../../core/config/app_policy.dart';
 import '../common/data_providers.dart';
+import '../interview/interview_widgets.dart';
 import '../common/pickers.dart';
 import '../common/result_hero.dart';
 
@@ -34,6 +36,8 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
     final result = ref.watch(quizResultProvider(widget.setId));
     final r = result.asData?.value;
     void home() => context.go(Routes.home);
+    final homeData = ref.watch(homeProvider).asData?.value;
+    final quizDone = r != null && (homeData?.byId(r.companyId)?.quiz.isDone ?? true);
     if (r == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -65,8 +69,8 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
             return ListView(
               padding: EdgeInsets.zero,
               children: [
-                // 피그마 1313:7620 · 1313:7832: 내비는 ‹ 뒤로 만 (✕ 없음)
-                _Summary(result: r, onBack: home),
+                // 피그마 1332:7867: 내비 ‹ 뒤로 + ✕ 닫기
+                _Summary(result: r, onBack: home, onClose: home),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screenH,
@@ -100,13 +104,38 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
             );
           },
         ),
+        // 피그마 1332:7867: 재답변 (회색) + 다음 질문 (검정). 오늘 퀴즈를 모두 풀었으면 "이어서 면접보기" 1개.
         bottomNavigationBar: BottomCta(
           children: [
-            AppButton(
-              label: '이어서 면접보기',
-              onPressed: () =>
-                  context.pushReplacement(Routes.todayInterview(r.companyId)),
-            ),
+            if (quizDone)
+              AppButton(
+                label: '이어서 면접보기',
+                onPressed: () =>
+                    context.pushReplacement(Routes.todayInterview(r.companyId)),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: RetryAnswerButton(
+                      prefix: '재답변',
+                      remaining: AppPolicy.retryPerQuestionDaily,
+                      canSubmit: false,
+                      blockedMessage: '퀴즈 결과에서는 다시 답변할 수 없어요',
+                      blockedHelp: '다음 질문으로 이어서 진행해 주세요.',
+                      onRetry: () {},
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: AppButton(
+                      label: '다음 질문',
+                      onPressed: () =>
+                          context.pushReplacement(Routes.todayInterview(r.companyId)),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -116,10 +145,11 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
 
 /// 히어로: 절반 이상 맞히면 라임(불꽃), 아니면 주황(느낌표). 진행 바 = 이번 세트 정답 비율.
 class _Summary extends StatelessWidget {
-  const _Summary({required this.result, required this.onBack});
+  const _Summary({required this.result, required this.onBack, required this.onClose});
 
   final QuizResult result;
   final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +174,7 @@ class _Summary extends StatelessWidget {
       quiz: true,
       badge: '퀴즈 결과',
       onBack: onBack,
+      onClose: onClose,
       progress: r.total == 0 ? 0 : r.correctCount / r.total,
       title: Semantics(
         header: true,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../core/config/app_policy.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -130,7 +131,12 @@ class _AnswerViewScreenState extends ConsumerState<AnswerViewScreen> {
         ref.invalidate(interviewQuestionProvider(widget.questionId));
       });
     }
-    final remaining = detail?.question.retryRemaining ?? feedback?.retryRemaining ?? 0;
+    // 서버가 남은 횟수를 안 내려주면 (0/3 으로 잘못 보이지 않게) 시도 기록으로 센다 — 피그마 1684:10672 "다시 답변하기 (2/3)"
+    final attempts = detail?.evaluationEntries.length ?? 0;
+    final remaining = detail?.question.retryRemaining ??
+        (detail == null
+            ? feedback?.retryRemaining ?? 0
+            : (AppPolicy.retryPerQuestionDaily - attempts).clamp(0, AppPolicy.retryPerQuestionDaily));
     Widget? buildCta({required bool faded}) => detail == null || (entries.isEmpty && detail.question.blocked)
         ? null
         : _cta(faded, [

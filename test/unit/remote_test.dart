@@ -230,6 +230,23 @@ void main() {
     expect(c.completionRate, 80);
   });
 
+  test('준비했던 기업: isActive 가 없어도 후보로 읽는다 (지금 준비 중인 기업은 isActive=true)', () async {
+    final (api, _, _) = _client({
+      'GET /v1/reviews/companies': (_) => {
+            'content': [
+              {'company': {'companyId': 10, 'name': '기아'}, 'quizQuestionCount': 30, 'interviewQuestionCount': 4},
+              {'company': {'companyId': 11, 'name': 'LG생활건강'}, 'isActive': true, 'quizQuestionCount': 2, 'interviewQuestionCount': 0},
+              {'company': {'companyId': 12, 'name': '농심'}, 'isActive': false, 'quizQuestionCount': 1, 'interviewQuestionCount': 1},
+            ],
+            'hasNext': false,
+          },
+    });
+    final past = await RemoteProfileRepository(api).fetchPastPreparations();
+    expect(past.map((p) => p.companyName), ['기아', '농심']);
+    expect(past.first.quizCount, 30);
+    expect(past.first.answerCount, 4);
+  });
+
   test('204 로그아웃은 본문이 없다', () async {
     final (api, _, _) = _client({'POST /v1/auth/logout': (_) => null});
     await RemoteAuthRepository(api).signOut();
