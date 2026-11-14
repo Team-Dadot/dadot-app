@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_policy.dart';
 import '../../core/providers.dart';
+import '../../core/session/session_controller.dart';
 import '../../data/models/catalog.dart';
 import '../../design_system/design_system.dart';
 import '../common/data_providers.dart';
@@ -28,6 +29,9 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
 
   /// 방금 지운 경험 (되돌리기용)
   List<Experience> _deleted = const [];
+  List<List<Experience>> _restoreBatches = const [];
+  String? _deletedOwner;
+  bool _undoNeedsRetry = false;
   Timer? _undoTimer;
 
   @override
@@ -36,17 +40,24 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
     super.dispose();
   }
 
-  Future<void> _run(Future<void> Function() body) async {
+  Future<void> _run(Future<void> Function() body, {bool refreshOnError = false}) async {
+    if (!mounted || _busy) return;
     setState(() => _busy = true);
     try {
       await body();
+      if (!mounted) return;
       ref.invalidate(experiencesProvider);
     } catch (e) {
-      if (mounted) showErrorToast(context, e);
+      if (mounted) {
+        if (refreshOnError) ref.invalidate(experiencesProvider);
+        showErrorToast(context, e);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  bool _sameOwner(String? owner) => mounted && ref.read(currentUserIdProvider) == owner;
 
   Future<void> _add(int count) async {
     if (count >= AppPolicy.maxExperiences) {
@@ -90,7 +101,8 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
   }
 
   Future<void> _delete(List<Experience> items) async {
-    if (items.isEmpty) return;
+    if (!mounted || _busy || items.isEmpty) return;
+    final owner = ref.read(currentUserIdProvider);
     // 피그마 1164:6572 삭제 확인 팝업
     final ok = await showConfirmDialog(
       context,
@@ -100,35 +112,77 @@ class _ExperiencesScreenState extends ConsumerState<ExperiencesScreen> {
       cancelLabel: '취소',
       confirmLabel: '삭제',
     );
-    if (!ok || !mounted) return;
+    if (!ok || !_sameOwner(owner) || _busy) return;
+    final deleted = <Experience>[];
     await _run(() async {
       final repo = ref.read(profileRepositoryProvider);
       for (final e in items) {
+        if (!_sameOwner(owner)) return;
         await repo.deleteExperience(e.id);
+        if (!_sameOwner(owner)) return;
+        // 성공 응답을 받은 항목만 되돌리기에 포함한다.
+        deleted.add(e);
       }
-    });
-    if (!mounted) return;
+    }, refreshOnError: true);
+    if (!_sameOwner(owner) || deleted.isEmpty) return;
     _undoTimer?.cancel();
+    final retained = _undoNeedsRetry && _deletedOwner == owner
+        ? _restoreBatches : const <List<Experience>>[];
     setState(() {
-      _deleted = items;
+      _restoreBatches = [...retained, deleted];
+      _deleted = _restoreBatches.expand((batch) => batch).toList();
+      _deletedOwner = owner;
+      _undoNeedsRetry = retained.isNotEmpty;
       _editing = false;
       _selected.clear();
     });
-    _undoTimer = Timer(const Duration(seconds: 6), () {
-      if (mounted) setState(() => _deleted = const []);
-    });
+    if (!_undoNeedsRetry) {
+      _undoTimer = Timer(const Duration(seconds: 6), () {
+        if (mounted) {
+          setState(() {
+            _deleted = const [];
+            _restoreBatches = const [];
+          });
+        }
+      });
+    }
   }
 
   Future<void> _undo() async {
-    final items = _deleted;
+    if (!mounted || _busy || _deleted.isEmpty) return;
     _undoTimer?.cancel();
-    setState(() => _deleted = const []);
-    await _run(
-      () => ref.read(profileRepositoryProvider).addExperiences([
-        for (final e in items)
-          ExperienceDraft(title: e.title, content: e.content),
-      ]),
-    );
+    final owner = _deletedOwner;
+    if (!_sameOwner(owner)) {
+      setState(() {
+        _deleted = const [];
+        _restoreBatches = const [];
+        _undoNeedsRetry = false;
+      });
+      return;
+    }
+    final batches = List<List<Experience>>.of(_restoreBatches);
+    final restored = <List<Experience>>{};
+    await _run(() async {
+      final repo = ref.read(profileRepositoryProvider);
+      for (final batch in batches) {
+        if (!_sameOwner(owner)) return;
+        // 같은 묶음의 본문·순서를 유지해 2번 저장 복구의 기존 키를 재사용한다.
+        await repo.addExperiences([
+          for (final e in batch) ExperienceDraft(title: e.title, content: e.content),
+        ]);
+        if (!_sameOwner(owner)) return;
+        restored.add(batch);
+      }
+    }, refreshOnError: true);
+    if (!mounted) return;
+    // 성공한 복구만 제거한다. 실패한 내용은 안내 시간 만료로 버리지 않는다.
+    setState(() {
+      _restoreBatches = _sameOwner(owner)
+          ? batches.where((batch) => !restored.contains(batch)).toList()
+          : const [];
+      _deleted = _restoreBatches.expand((batch) => batch).toList();
+      _undoNeedsRetry = _deleted.isNotEmpty;
+    });
   }
 
   @override
