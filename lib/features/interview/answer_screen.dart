@@ -53,6 +53,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   late final TextEditingController _text;
   late final LocalStore _store;
   SpeechService? _speech;
+  Future<void>? _recordingStop;
   Timer? _draftTimer;
   _Mode _mode = _Mode.writing;
   bool _usedVoice = false;
@@ -184,33 +185,48 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     }
   }
 
-  Future<void> _stopRecording() async {
+  Future<void> _stopRecording() {
+    final active = _recordingStop;
+    if (active != null) return active;
     final speech = _speech;
-    if (speech == null) return;
-    await speech.stop();
-    if (!mounted) return;
-    final spoken = speech.text.trim();
-    final hadVoice = _text.text.trim() != _beforeVoice.trim();
-    setState(() {
-      // 말한 내용이 있으면 "녹음을 멈췄어요" → 다시 녹음하기 / 답변을 완료했어요
-      _mode = spoken.isEmpty && !hadVoice
-          ? _Mode.voiceReady
-          : _Mode.voiceStopped;
-      if (spoken.isNotEmpty) {
-        _usedVoice = true;
-        final joined = [
-          _text.text.trim(),
-          spoken,
-        ].where((s) => s.isNotEmpty).join('\n');
-        _text.value = TextEditingValue(
-          text: joined,
-          selection: TextSelection.collapsed(offset: joined.length),
-        );
+    if (!mounted || speech == null || _mode != _Mode.recording) {
+      return Future<void>.value();
+    }
+    // 서비스가 종료 알림을 보내기 전에 같은 중지 작업을 등록한다.
+    // 연속 탭·자동 종료·뒤로가기도 이 작업이 끝날 때까지 함께 기다린다.
+    late final Future<void> task;
+    task = Future<void>.microtask(() async {
+      try {
+        await speech.stop();
+        if (!mounted) return;
+        final spoken = speech.text.trim();
+        final hadVoice = _text.text.trim() != _beforeVoice.trim();
+        setState(() {
+          // 말한 내용이 있으면 "녹음을 멈췄어요" → 다시 녹음하기 / 답변을 완료했어요
+          _mode = spoken.isEmpty && !hadVoice
+              ? _Mode.voiceReady
+              : _Mode.voiceStopped;
+          if (spoken.isNotEmpty) {
+            _usedVoice = true;
+            final joined = [
+              _text.text.trim(),
+              spoken,
+            ].where((s) => s.isNotEmpty).join('\n');
+            _text.value = TextEditingValue(
+              text: joined,
+              selection: TextSelection.collapsed(offset: joined.length),
+            );
+          }
+        });
+        if (spoken.isEmpty && !hadVoice) {
+          showToast(context, '말한 내용을 알아듣지 못했어요. 다시 녹음해 주세요.');
+        }
+      } finally {
+        if (identical(_recordingStop, task)) _recordingStop = null;
       }
     });
-    if (spoken.isEmpty && !hadVoice) {
-      showToast(context, '말한 내용을 알아듣지 못했어요. 다시 녹음해 주세요.');
-    }
+    _recordingStop = task;
+    return task;
   }
 
   /// "답변을 완료했어요" → 4-4 텍스트 변환 중 → 내 답변 확인·수정
