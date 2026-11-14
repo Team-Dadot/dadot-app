@@ -6,6 +6,9 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:flutter/widgets.dart' show StringCharacters;
 
@@ -515,9 +518,49 @@ class RemoteCatalogRepository implements CatalogRepository {
 
 // ---------------------------------------------------------------- 준비 기업 · 경험 · 온보딩 · 알림
 
+/// 경험 추가가 전체 저장·목록 조회까지 끝날 때까지 같은 요청과 진행 상태를 보존한다.
+class _ExperienceCreation {
+  _ExperienceCreation(this.bodies, this.keys, {this.completed = 0});
+
+  final List<Map<String, dynamic>> bodies;
+  final List<String> keys;
+  int completed;
+
+  Map<String, dynamic> toJson() => {
+    'items': bodies,
+    'keys': keys,
+    'completed': completed,
+  };
+
+  static _ExperienceCreation restore(Map<String, dynamic> saved, List<Map<String, dynamic>> bodies) {
+    final keys = saved['keys'];
+    final completed = saved['completed'];
+    if (jsonEncode(saved['items']) != jsonEncode(bodies) ||
+        keys is! List || keys.length != bodies.length ||
+        keys.any((key) => key is! String || key.isEmpty) ||
+        completed is! int || completed < 0 || completed > bodies.length) {
+      throw const AppException(AppErrorKind.unknown,
+        message: '이전 경험 저장 상태를 확인하지 못했어요. 다시 시도해 주세요.');
+    }
+    return _ExperienceCreation(bodies, List<String>.from(keys), completed: completed);
+  }
+}
+
 class RemoteProfileRepository implements ProfileRepository {
-  RemoteProfileRepository(this._api);
+  RemoteProfileRepository(this._api, {LocalStore? store, String? Function()? ownerId})
+      : _experienceStore = store, _experienceOwnerId = ownerId;
   final ApiClient _api;
+  final LocalStore? _experienceStore;
+  final String? Function()? _experienceOwnerId;
+  final Map<String, _ExperienceCreation> _experienceCreations = {};
+  final Map<String, Future<List<Experience>>> _creatingExperiences = {};
+  int _experienceEpoch = 0;
+  bool _experienceDisposed = false;
+
+  void dispose() {
+    _experienceDisposed = true;
+    clearCache();
+  }
 
   /// 준비 기업 / 경험 version (PATCH 본문의 version 으로 보낸다 — 서버가 현재 버전과 비교)
   final Map<String, int> _prepVersions = {};
@@ -536,6 +579,10 @@ class RemoteProfileRepository implements ProfileRepository {
   /// 준비 기업 API 로 가서 "기업과 직무 등 필수 단계를 확인해 주세요"(ONBOARDING_INCOMPLETE)가 나던 문제
   @override
   void clearCache() {
+    // 옛 계정의 응답이 새 계정에서 다음 생성 요청을 보내지 못하게 한다.
+    _experienceEpoch++;
+    _experienceCreations.clear();
+    _creatingExperiences.clear();
     _onboarded = false;
     _known.clear();
     _pending = [];
@@ -758,13 +805,18 @@ class RemoteProfileRepository implements ProfileRepository {
   }
 
   @override
-  Future<List<Experience>> fetchExperiences() async {
+  Future<List<Experience>> fetchExperiences() => _loadExperiences();
+
+  Future<List<Experience>> _loadExperiences({void Function()? requireActive}) async {
     final items = _content(await _api.get(ApiPaths.meExperiences, query: {'page': 0, 'size': 100}));
+    requireActive?.call();
     // 목록에 본문이 없으면 상세를 같이 읽는다
     return Future.wait(items.map((j) async {
       if (j['content'] is String) return _experience(j);
       final id = _str(j, ['experienceId', 'id']) ?? '';
-      return _experience(_obj(await _api.get(ApiPaths.meExperience(id))));
+      final detail = _obj(await _api.get(ApiPaths.meExperience(id)));
+      requireActive?.call();
+      return _experience(detail);
     }));
   }
 
@@ -780,10 +832,67 @@ class RemoteProfileRepository implements ProfileRepository {
 
   @override
   Future<List<Experience>> addExperiences(List<ExperienceDraft> items) async {
-    for (final d in items) {
-      await _api.post(ApiPaths.meExperiences, body: {'title': d.title.trim(), 'content': d.content.trim()}, idempotencyKey: _idem());
+    if (_experienceDisposed) throw const AppException(AppErrorKind.unauthorized);
+    if (items.isEmpty) return fetchExperiences();
+    final owner = _experienceOwnerId?.call() ?? (_experienceStore == null ? 'memory' : null);
+    final epoch = _experienceEpoch;
+    void requireActive() {
+      if (_experienceDisposed || _experienceEpoch != epoch || owner == null ||
+          (_experienceOwnerId != null && _experienceOwnerId() != owner)) {
+        throw const AppException(AppErrorKind.unauthorized);
+      }
     }
-    return fetchExperiences();
+    requireActive();
+    final bodies = [for (final d in items) {'title': d.title.trim(), 'content': d.content.trim()}];
+    final fingerprint = sha256.convert(utf8.encode(jsonEncode(bodies)));
+    final key = '${LocalStore.pendingExperiencePrefix}$owner.$fingerprint';
+    final active = _creatingExperiences[key];
+    if (active != null) return active;
+    final task = _resumeExperienceCreation(key, bodies, requireActive);
+    _creatingExperiences[key] = task;
+    try {
+      return await task;
+    } finally {
+      if (identical(_creatingExperiences[key], task)) _creatingExperiences.remove(key);
+    }
+  }
+
+  Future<List<Experience>> _resumeExperienceCreation(
+    String key, List<Map<String, dynamic>> bodies, void Function() requireActive,
+  ) async {
+    final store = _experienceStore;
+    var creation = _experienceCreations[key];
+    if (creation == null) {
+      final saved = store?.readPendingExperienceCreation(key);
+      creation = saved == null
+          ? _ExperienceCreation(bodies, [for (final _ in bodies) _idem()])
+          : _ExperienceCreation.restore(saved, bodies);
+      _experienceCreations[key] = creation;
+    }
+    Future<void> checkpoint() async {
+      requireActive();
+      if (store != null) await store.savePendingSubmission(key, creation!.toJson());
+      requireActive();
+    }
+    // 전송 전에 키·본문을 저장한다. 응답 유실 후에도 같은 요청으로 확인한다.
+    await checkpoint();
+    while (creation.completed < creation.bodies.length) {
+      requireActive();
+      final index = creation.completed;
+      await _api.post(ApiPaths.meExperiences,
+        body: creation.bodies[index], idempotencyKey: creation.keys[index]);
+      requireActive();
+      creation.completed++;
+      await checkpoint();
+    }
+    // 저장이 완료됐으면 재시도 시 POST 없이 목록/상세 조회만 반복한다.
+    requireActive();
+    final result = await _loadExperiences(requireActive: requireActive);
+    requireActive();
+    if (store != null) await store.remove(key);
+    requireActive();
+    _experienceCreations.remove(key);
+    return result;
   }
 
   @override

@@ -65,9 +65,16 @@ final catalogRepositoryProvider = Provider<CatalogRepository>((ref) => _mock(ref
     ? MockCatalogRepository(ref.watch(mockBackendProvider))
     : RemoteCatalogRepository(ref.watch(apiClientProvider)));
 
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) => _mock(ref)
-    ? MockProfileRepository(ref.watch(mockBackendProvider))
-    : RemoteProfileRepository(ref.watch(apiClientProvider)));
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
+  if (_mock(ref)) return MockProfileRepository(ref.watch(mockBackendProvider));
+  final repository = RemoteProfileRepository(
+    ref.watch(apiClientProvider),
+    store: ref.watch(localStoreProvider),
+    ownerId: () => ref.read(sessionProvider).user?.id,
+  );
+  ref.onDispose(repository.dispose);
+  return repository;
+});
 
 final homeRepositoryProvider = Provider<HomeRepository>((ref) => _mock(ref)
     ? MockHomeRepository(ref.watch(mockBackendProvider))
