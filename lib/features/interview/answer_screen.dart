@@ -312,10 +312,11 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
 
   /// 기회를 다 쓴 질문: 안내만 띄우고 질문 화면(또는 복습)으로 돌려보낸다. 화면에 갇히지 않게.
   Future<void> _leaveBlocked(String message, {String? reason}) async {
-    _hasSubmissionRequest = true;
+    // 접수되지 않은 답변은 최신 작성 내용을 보존한다.
+    // 접수된 답변의 초안 정리는 _openFeedback에서 처리한다.
     _draftTimer?.cancel();
+    _saveLocalDraft();
     await _draftSave;
-    await _store.clearDraft(widget.questionId);
     ref.invalidate(interviewQuestionProvider(widget.questionId));
     ref.invalidate(interviewRecordsProvider);
     invalidateProgress(ref);
