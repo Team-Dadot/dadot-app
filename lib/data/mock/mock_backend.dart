@@ -265,6 +265,8 @@ class MockBackend {
         companyId: removed.companyId,
         companyName: removed.companyName,
         industry: removed.industry,
+        jobId: removed.jobId,
+        jobName: removed.jobName,
         quizCount: _stats[companyId]?.elementAtOrNull(1) ?? 0,
         answerCount: _answers.values.where((a) => companyIdOf(a.questionId) == companyId).length,
       ),

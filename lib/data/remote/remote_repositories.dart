@@ -786,10 +786,13 @@ class RemoteProfileRepository implements ProfileRepository {
         if (j['isActive'] != true)
           () {
             final c = _company(_map(j['company']) ?? j);
+            final job = _map(j['job']);
             return PastPreparation(
               companyId: c.id,
               companyName: c.name,
               industry: c.industry,
+              jobId: job == null || job['isCustom'] == true ? null : _str(job, ['jobId']),
+              jobName: _str(job, ['jobName']),
               quizCount: _int(j, ['quizQuestionCount']) ?? 0,
               answerCount: _int(j, ['interviewQuestionCount']) ?? 0,
             );

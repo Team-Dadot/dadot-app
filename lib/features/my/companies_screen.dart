@@ -51,12 +51,15 @@ class CompaniesScreen extends ConsumerWidget {
     await _add(context, ref, company, list.length);
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref, Company c, int count) async {
+  Future<void> _add(BuildContext context, WidgetRef ref, Company c, int count, {PastPreparation? previous}) async {
     if (_full(context, count)) return;
+    final past = previous ?? ref.read(pastPreparationsProvider).asData?.value
+        .where((p) => p.companyId == c.id).firstOrNull;
+    final initial = Preparation.fromCompany(c).copyWith(jobId: past?.jobId, jobName: past?.jobName);
     final added = await showAppSheet<bool>(
       context,
       title: c.name,
-      builder: (_) => PrepSheet(initial: Preparation.fromCompany(c), isNew: true),
+      builder: (_) => PrepSheet(initial: initial, isNew: true),
     );
     if (added == true && context.mounted) showToast(context, '${withObjectParticle(c.name)} 준비 기업에 추가했어요.');
   }
@@ -115,7 +118,7 @@ class CompaniesScreen extends ConsumerWidget {
                     label: '추가',
                     // QA 1529:9898: "빼기"(12)와 글자 크기를 맞춘다 (추가가 14 로 더 컸다)
                     style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: AppTypography.semibold),
-                    onTap: () => _add(context, ref, p.company, list.length),
+                    onTap: () => _add(context, ref, p.company, list.length, previous: p),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),

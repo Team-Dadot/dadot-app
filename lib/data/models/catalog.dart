@@ -58,12 +58,14 @@ class JobCatalog {
 
 /// 예전에 준비했던 기업 (6-2 "준비했던 기업 · 퀴즈 30문제 · 면접 답변 4개 · 다시 추가하기")
 class PastPreparation {
-  const PastPreparation({required this.companyId, required this.companyName, this.industry, this.quizCount = 0, this.answerCount = 0});
+  const PastPreparation({required this.companyId, required this.companyName, this.industry, this.jobId, this.jobName, this.quizCount = 0, this.answerCount = 0});
 
   factory PastPreparation.fromJson(Map<String, dynamic> json) => PastPreparation(
         companyId: json['companyId'].toString(),
         companyName: json['companyName'] as String,
         industry: json['industry'] as String?,
+        jobId: json['jobId']?.toString(),
+        jobName: json['jobName'] as String?,
         quizCount: json['quizCount'] as int? ?? 0,
         answerCount: json['answerCount'] as int? ?? 0,
       );
@@ -71,6 +73,10 @@ class PastPreparation {
   final String companyId;
   final String companyName;
   final String? industry;
+
+  /// 이전 지원 직무. 직접 입력한 직무는 jobId 없이 jobName만 있다.
+  final String? jobId;
+  final String? jobName;
   final int quizCount;
   final int answerCount;
 
@@ -80,6 +86,8 @@ class PastPreparation {
         'companyId': companyId,
         'companyName': companyName,
         'industry': industry,
+        'jobId': jobId,
+        'jobName': jobName,
         'quizCount': quizCount,
         'answerCount': answerCount,
       };
