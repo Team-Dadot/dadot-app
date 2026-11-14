@@ -26,6 +26,10 @@ dependencies:
   shared_preferences: ^2.5.6
   # 음성 답변 (기기 STT, 1분 이내)
   speech_to_text: ^7.5.0
+  # 운영 지표 (Firebase Analytics · Crashlytics)
+  firebase_core: ^4.0.0
+  firebase_analytics: ^12.0.0
+  firebase_crashlytics: ^5.0.0
   # 원문 링크 · 약관 열기
   url_launcher: ^6.3.3
   # 소셜 로그인: 카카오 (카카오톡 앱 → 없으면 카카오계정 웹) · Apple

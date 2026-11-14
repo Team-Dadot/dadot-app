@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,6 +98,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         answer: answer,
       );
       _submissionAccepted = true;
+      unawaited(ref.read(analyticsServiceProvider).logEvent('quiz_answer_submit'));
       invalidateProgress(ref);
       if (!mounted) return;
       // 이후 조회 실패는 제출을 반복하지 않고 서버의 현재 위치를 다시 불러온다.

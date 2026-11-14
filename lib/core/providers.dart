@@ -12,6 +12,7 @@ import '../data/remote/remote_repositories.dart';
 import '../data/repositories/repositories.dart';
 import 'config/app_config.dart';
 import 'network/api_client.dart';
+import 'services/analytics_service.dart';
 import 'services/link_service.dart';
 import 'services/push_service.dart';
 import 'services/reminder_service.dart';
@@ -65,16 +66,9 @@ final catalogRepositoryProvider = Provider<CatalogRepository>((ref) => _mock(ref
     ? MockCatalogRepository(ref.watch(mockBackendProvider))
     : RemoteCatalogRepository(ref.watch(apiClientProvider)));
 
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  if (_mock(ref)) return MockProfileRepository(ref.watch(mockBackendProvider));
-  final repository = RemoteProfileRepository(
-    ref.watch(apiClientProvider),
-    store: ref.watch(localStoreProvider),
-    ownerId: () => ref.read(sessionProvider).user?.id,
-  );
-  ref.onDispose(repository.dispose);
-  return repository;
-});
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) => _mock(ref)
+    ? MockProfileRepository(ref.watch(mockBackendProvider))
+    : RemoteProfileRepository(ref.watch(apiClientProvider)));
 
 final homeRepositoryProvider = Provider<HomeRepository>((ref) => _mock(ref)
     ? MockHomeRepository(ref.watch(mockBackendProvider))
@@ -119,5 +113,8 @@ final reminderServiceProvider = Provider<ReminderService>((ref) => ReminderServi
 final pushServiceProvider = Provider<PushService>(
   (ref) => NoopPushService(permission: ref.watch(reminderServiceProvider).requestPermission),
 );
+
+/// 운영 지표. 기본은 아무것도 안 보냄 — main.dart 에서 Firebase 가 준비되면 바꿔 끼운다.
+final analyticsServiceProvider = Provider<AnalyticsService>((ref) => const NoopAnalyticsService());
 
 final linkServiceProvider = Provider<LinkService>((ref) => const LinkService());

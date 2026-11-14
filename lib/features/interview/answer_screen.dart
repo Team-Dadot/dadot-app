@@ -53,12 +53,10 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   late final TextEditingController _text;
   late final LocalStore _store;
   SpeechService? _speech;
-  Future<void>? _recordingStop;
   Timer? _draftTimer;
   _Mode _mode = _Mode.writing;
   bool _usedVoice = false;
   bool _savingDraft = false;
-  bool _askingMicPermission = false;
   bool _leaving = false;
   bool _hasSubmissionRequest = false;
   bool _answerAccepted = false;
@@ -177,8 +175,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     setState(() => _mode = _Mode.recording);
     await speech.start();
     if (!mounted) return;
-    // 상태 알림에서 이미 녹음을 멈추고 안내했다면 다시 열지 않는다.
-    if (speech.status == SpeechStatus.permissionDenied && _mode == _Mode.recording) {
+    if (speech.status == SpeechStatus.permissionDenied) {
       setState(() => _mode = _Mode.voiceReady);
       await _askMicPermission();
     } else if (speech.status == SpeechStatus.unavailable) {
@@ -187,48 +184,33 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     }
   }
 
-  Future<void> _stopRecording() {
-    final active = _recordingStop;
-    if (active != null) return active;
+  Future<void> _stopRecording() async {
     final speech = _speech;
-    if (!mounted || speech == null || _mode != _Mode.recording) {
-      return Future<void>.value();
-    }
-    // 서비스가 종료 알림을 보내기 전에 같은 중지 작업을 등록한다.
-    // 연속 탭·자동 종료·뒤로가기도 이 작업이 끝날 때까지 함께 기다린다.
-    late final Future<void> task;
-    task = Future<void>.microtask(() async {
-      try {
-        await speech.stop();
-        if (!mounted) return;
-        final spoken = speech.text.trim();
-        final hadVoice = _text.text.trim() != _beforeVoice.trim();
-        setState(() {
-          // 말한 내용이 있으면 "녹음을 멈췄어요" → 다시 녹음하기 / 답변을 완료했어요
-          _mode = spoken.isEmpty && !hadVoice
-              ? _Mode.voiceReady
-              : _Mode.voiceStopped;
-          if (spoken.isNotEmpty) {
-            _usedVoice = true;
-            final joined = [
-              _text.text.trim(),
-              spoken,
-            ].where((s) => s.isNotEmpty).join('\n');
-            _text.value = TextEditingValue(
-              text: joined,
-              selection: TextSelection.collapsed(offset: joined.length),
-            );
-          }
-        });
-        if (spoken.isEmpty && !hadVoice) {
-          showToast(context, '말한 내용을 알아듣지 못했어요. 다시 녹음해 주세요.');
-        }
-      } finally {
-        if (identical(_recordingStop, task)) _recordingStop = null;
+    if (speech == null) return;
+    await speech.stop();
+    if (!mounted) return;
+    final spoken = speech.text.trim();
+    final hadVoice = _text.text.trim() != _beforeVoice.trim();
+    setState(() {
+      // 말한 내용이 있으면 "녹음을 멈췄어요" → 다시 녹음하기 / 답변을 완료했어요
+      _mode = spoken.isEmpty && !hadVoice
+          ? _Mode.voiceReady
+          : _Mode.voiceStopped;
+      if (spoken.isNotEmpty) {
+        _usedVoice = true;
+        final joined = [
+          _text.text.trim(),
+          spoken,
+        ].where((s) => s.isNotEmpty).join('\n');
+        _text.value = TextEditingValue(
+          text: joined,
+          selection: TextSelection.collapsed(offset: joined.length),
+        );
       }
     });
-    _recordingStop = task;
-    return task;
+    if (spoken.isEmpty && !hadVoice) {
+      showToast(context, '말한 내용을 알아듣지 못했어요. 다시 녹음해 주세요.');
+    }
   }
 
   /// "답변을 완료했어요" → 4-4 텍스트 변환 중 → 내 답변 확인·수정
@@ -242,23 +224,17 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
 
   /// 피그마 4-4 마이크 허용: "마이크 권한이 필요해요" → 취소 / 설정으로 이동
   Future<void> _askMicPermission() async {
-    if (!mounted || _askingMicPermission) return;
-    _askingMicPermission = true;
-    try {
-      final go = await showConfirmDialog(
-        context,
-        title: '마이크 권한이 필요해요',
-        message: '답변 녹음을 위해\n마이크 권한을 활성화해 주세요.',
-        cancelLabel: '취소',
-        confirmLabel: '설정으로 이동',
-      );
-      if (!go || !mounted) return;
-      final opened = await ref.read(linkServiceProvider).openAppSettings();
-      if (!opened && mounted) {
-        showToast(context, '휴대폰 설정 > 앱 > Dadot에서 마이크·음성 인식을 켜 주세요.');
-      }
-    } finally {
-      _askingMicPermission = false;
+    final go = await showConfirmDialog(
+      context,
+      title: '마이크 권한이 필요해요',
+      message: '답변 녹음을 위해\n마이크 권한을 활성화해 주세요.',
+      cancelLabel: '취소',
+      confirmLabel: '설정으로 이동',
+    );
+    if (!go || !mounted) return;
+    final opened = await ref.read(linkServiceProvider).openAppSettings();
+    if (!opened && mounted) {
+      showToast(context, '휴대폰 설정 > 앱 > Dadot에서 마이크·음성 인식을 켜 주세요.');
     }
   }
 
@@ -336,11 +312,10 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
 
   /// 기회를 다 쓴 질문: 안내만 띄우고 질문 화면(또는 복습)으로 돌려보낸다. 화면에 갇히지 않게.
   Future<void> _leaveBlocked(String message, {String? reason}) async {
-    // 접수되지 않은 답변은 최신 작성 내용을 보존한다.
-    // 접수된 답변의 초안 정리는 _openFeedback에서 처리한다.
+    _hasSubmissionRequest = true;
     _draftTimer?.cancel();
-    _saveLocalDraft();
     await _draftSave;
+    await _store.clearDraft(widget.questionId);
     ref.invalidate(interviewQuestionProvider(widget.questionId));
     ref.invalidate(interviewRecordsProvider);
     invalidateProgress(ref);
@@ -377,6 +352,9 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
         content: _text.text.trim(),
         inputType: _usedVoice ? AnswerInputType.voice : AnswerInputType.text,
       );
+      unawaited(ref.read(analyticsServiceProvider).logEvent('interview_answer_submit', {
+        'input_type': _usedVoice ? 'voice' : 'text',
+      }));
       if (mounted) await _openFeedback(attemptId);
     } catch (e) {
       if (!mounted) return;

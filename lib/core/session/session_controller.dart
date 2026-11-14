@@ -116,6 +116,7 @@ class SessionController extends Notifier<SessionState> {
     await ref.read(tokenStorageProvider).save(accessToken: session.accessToken, refreshToken: session.refreshToken);
     if (!ref.mounted) return;
     _setUser(session.user);
+    unawaited(ref.read(analyticsServiceProvider).logEvent('login'));
     if (session.user.onboardingCompleted) unawaited(_registerPushToken());
   }
 
@@ -133,6 +134,7 @@ class SessionController extends Notifier<SessionState> {
   }
 
   Future<void> signOut() async {
+    unawaited(ref.read(analyticsServiceProvider).setUserId(null));
     try {
       await ref.read(authRepositoryProvider).signOut();
     } catch (_) {
@@ -181,6 +183,8 @@ class SessionController extends Notifier<SessionState> {
   }
 
   void _setUser(AppUser user) {
+    // 운영 지표: 서버 id 로만 사용자를 구분 (이메일·이름은 보내지 않는다)
+    unawaited(ref.read(analyticsServiceProvider).setUserId(user.id));
     state = SessionState(
       status: user.onboardingCompleted ? SessionStatus.ready : SessionStatus.onboarding,
       user: user,

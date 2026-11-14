@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "424304407528",
+    "project_id": "dadat-92bb5",
+    "storage_bucket": "dadat-92bb5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:424304407528:android:428e407cf992aa7dfcea5d",
+        "android_client_info": {
+          "package_name": "com.dadot.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCITL6VIm1noA2RKKWBh-X-fSXVwWAEsRc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

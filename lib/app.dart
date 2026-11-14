@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers.dart';
 import 'core/router/app_router.dart';
+import 'core/services/screen_tracking.dart';
 import 'features/common/data_providers.dart';
 import 'design_system/theme/app_theme.dart';
 
@@ -17,6 +18,7 @@ class SwipeApp extends ConsumerWidget {
     // 학습 알림 예약을 알림 설정과 맞춘다 (QA: 알림 예약 기능)
     ref.watch(reminderSyncProvider);
     ref.read(reminderServiceProvider).onOpen = () => router.go(Routes.home);
+    ref.watch(screenTrackingProvider);
     return MaterialApp.router(
       title: 'Dadot',
       debugShowCheckedModeBanner: false,
