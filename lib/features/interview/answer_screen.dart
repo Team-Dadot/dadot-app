@@ -58,6 +58,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   _Mode _mode = _Mode.writing;
   bool _usedVoice = false;
   bool _savingDraft = false;
+  bool _askingMicPermission = false;
   bool _leaving = false;
   bool _hasSubmissionRequest = false;
   bool _answerAccepted = false;
@@ -176,7 +177,8 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     setState(() => _mode = _Mode.recording);
     await speech.start();
     if (!mounted) return;
-    if (speech.status == SpeechStatus.permissionDenied) {
+    // 상태 알림에서 이미 녹음을 멈추고 안내했다면 다시 열지 않는다.
+    if (speech.status == SpeechStatus.permissionDenied && _mode == _Mode.recording) {
       setState(() => _mode = _Mode.voiceReady);
       await _askMicPermission();
     } else if (speech.status == SpeechStatus.unavailable) {
@@ -240,17 +242,23 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
 
   /// 피그마 4-4 마이크 허용: "마이크 권한이 필요해요" → 취소 / 설정으로 이동
   Future<void> _askMicPermission() async {
-    final go = await showConfirmDialog(
-      context,
-      title: '마이크 권한이 필요해요',
-      message: '답변 녹음을 위해\n마이크 권한을 활성화해 주세요.',
-      cancelLabel: '취소',
-      confirmLabel: '설정으로 이동',
-    );
-    if (!go || !mounted) return;
-    final opened = await ref.read(linkServiceProvider).openAppSettings();
-    if (!opened && mounted) {
-      showToast(context, '휴대폰 설정 > 앱 > Dadot에서 마이크·음성 인식을 켜 주세요.');
+    if (!mounted || _askingMicPermission) return;
+    _askingMicPermission = true;
+    try {
+      final go = await showConfirmDialog(
+        context,
+        title: '마이크 권한이 필요해요',
+        message: '답변 녹음을 위해\n마이크 권한을 활성화해 주세요.',
+        cancelLabel: '취소',
+        confirmLabel: '설정으로 이동',
+      );
+      if (!go || !mounted) return;
+      final opened = await ref.read(linkServiceProvider).openAppSettings();
+      if (!opened && mounted) {
+        showToast(context, '휴대폰 설정 > 앱 > Dadot에서 마이크·음성 인식을 켜 주세요.');
+      }
+    } finally {
+      _askingMicPermission = false;
     }
   }
 
