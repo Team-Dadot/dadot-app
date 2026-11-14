@@ -985,20 +985,31 @@ class RemoteHomeRepository implements HomeRepository {
     final companies = await Future.wait(items.map((j) async {
       final prep = _preparation(j);
       Map<String, dynamic> dash = const {};
+      AppException? statsError;
       try {
         dash = _obj(await _api.get(ApiPaths.meDashboard, query: {'companyId': _id(prep.companyId)}));
       } on AppException catch (e) {
         if (e.kind == AppErrorKind.unauthorized) rethrow;
+        statsError = e;
       }
       final acc = _map(dash['quizAccuracy']);
       final eval = _map(dash['interviewEvaluationSummary']);
+      final correct = _int(acc, ['firstCorrectCount']);
+      final answered = _int(acc, ['firstAnsweredCount']);
+      final evaluated = _int(eval, ['evaluatedQuestionCount']);
+      final average = _int(eval, ['averageScorePercent']);
+      // 필수 집계 값이 없는 응답도 실제 0건으로 표시하지 않는다.
+      if (statsError == null && (correct == null || answered == null || evaluated == null ||
+          (evaluated > 0 && average == null))) {
+        statsError = const AppException(AppErrorKind.server);
+      }
       final quiz = _map(j['quizToday']);
       final interview = _map(j['interviewToday']);
       return CompanyHome(
         preparation: prep,
-        quizCorrect: _int(acc, ['firstCorrectCount']) ?? 0,
-        quizSolved: _int(acc, ['firstAnsweredCount']) ?? 0,
-        interviewAnswered: _int(eval, ['evaluatedQuestionCount']) ?? 0,
+        quizCorrect: correct ?? 0,
+        quizSolved: answered ?? 0,
+        interviewAnswered: evaluated ?? 0,
         interviewCompleted: 0,
         quiz: TodayTask(done: _int(quiz, ['submittedCount']) ?? 0, total: _int(quiz, ['totalCount']) ?? AppPolicy.quizQuestionCount),
         interview: TodayTask(
@@ -1008,7 +1019,8 @@ class RemoteHomeRepository implements HomeRepository {
         focusMode: (_str(j, ['learningMode']) ?? '').toUpperCase().contains('FOCUS'),
         adBonusAvailable: false,
         dday: _int(j, ['daysUntilInterview']),
-        interviewScorePercent: _int(eval, ['averageScorePercent']),
+        interviewScorePercent: average,
+        statsError: statsError,
       );
     }));
     return HomeSummary(nickname: user.nickname, companies: companies);

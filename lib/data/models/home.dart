@@ -1,3 +1,4 @@
+import '../../core/error/app_exception.dart';
 import 'catalog.dart';
 
 /// 오늘 할 일 진행 (퀴즈 0/5, 면접 질문 0/3)
@@ -29,6 +30,7 @@ class CompanyHome {
     required this.adBonusAvailable,
     this.dday,
     this.interviewScorePercent,
+    this.statsError,
   });
 
   factory CompanyHome.fromJson(Map<String, dynamic> json) => CompanyHome(
@@ -69,11 +71,14 @@ class CompanyHome {
   /// 서버 홈 지표: 질문별 최신 답변 평균 점수 비율 (interviewEvaluationSummary.averageScorePercent). 집계가 없으면 null.
   final int? interviewScorePercent;
 
+  /// 통계 조회 실패. 오늘의 학습 진행 정보와 별도로 표시한다.
+  final AppException? statsError;
+
   String get companyId => preparation.companyId;
   String get companyName => preparation.companyName;
 
-  int? get accuracy => quizSolved == 0 ? null : (quizCorrect * 100 / quizSolved).round();
-  int? get completionRate =>
+  int? get accuracy => statsError != null || quizSolved == 0 ? null : (quizCorrect * 100 / quizSolved).round();
+  int? get completionRate => statsError != null ? null :
       interviewScorePercent ?? (interviewAnswered == 0 ? null : (interviewCompleted * 100 / interviewAnswered).round());
 
   bool get allDone => quiz.isDone && interview.isDone;

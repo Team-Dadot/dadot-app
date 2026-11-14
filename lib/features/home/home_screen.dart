@@ -299,43 +299,46 @@ class _DoneBody extends StatelessWidget {
 }
 
 /// 학습 현황: 퀴즈 정답률(주황 막대) · 면접 완성률(라임 막대)
-class _Stats extends StatelessWidget {
+class _Stats extends ConsumerWidget {
   const _Stats({required this.c});
 
   final CompanyHome c;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('학습 현황', style: AppTypography.subheading.copyWith(fontWeight: AppTypography.medium, color: AppColors.textGuide, letterSpacing: -0.48)),
         const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                label: '퀴즈 정답률',
-                value: c.accuracy ?? 0,
-                detail: c.quizSolved == 0 ? '아직 푼 퀴즈가 없어요' : '${c.quizSolved}문제 중 ${c.quizCorrect}개 정답',
-                barColor: AppColors.accent,
+        if (c.statsError != null)
+          ErrorView(error: c.statsError!, compact: true, onRetry: () => ref.invalidate(homeProvider))
+        else
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  label: '퀴즈 정답률',
+                  value: c.accuracy ?? 0,
+                  detail: c.quizSolved == 0 ? '아직 푼 퀴즈가 없어요' : '${c.quizSolved}문제 중 ${c.quizCorrect}개 정답',
+                  barColor: AppColors.accent,
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: _StatCard(
-                label: '면접 완성률',
-                value: c.completionRate ?? 0,
-                detail: c.interviewAnswered == 0
-                    ? '아직 답변한 질문이 없어요'
-                    : c.interviewScorePercent != null
-                        ? '${c.interviewAnswered}질문 평균 점수'
-                        : '${c.interviewAnswered}질문 중 ${c.interviewCompleted}개 완성',
-                barColor: AppColors.point,
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _StatCard(
+                  label: '면접 완성률',
+                  value: c.completionRate ?? 0,
+                  detail: c.interviewAnswered == 0
+                      ? '아직 답변한 질문이 없어요'
+                      : c.interviewScorePercent != null
+                          ? '${c.interviewAnswered}질문 평균 점수'
+                          : '${c.interviewAnswered}질문 중 ${c.interviewCompleted}개 완성',
+                  barColor: AppColors.point,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
       ],
     );
   }
