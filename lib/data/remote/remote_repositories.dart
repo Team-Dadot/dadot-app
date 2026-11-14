@@ -1469,22 +1469,40 @@ class RemoteRecordsRepository implements RecordsRepository {
   // 서버 query: companyId · page · size (· filter). 모르는 query 는 400
   @override
   Future<List<QuizReviewItem>> fetchQuizReview({required String companyId}) async {
-    final page = await _api.get(ApiPaths.reviewQuizzes, query: {'companyId': _id(companyId), 'page': 0, 'size': 50});
-    return Future.wait(_content(page).map((j) async {
-      final questionId = _str(j, ['questionId']) ?? '';
-      final d = await _quizDetail(questionId, companyId);
-      final q = _map(d['question']) ?? {'question': j['question']};
-      return QuizReviewItem(
-        id: questionId,
-        companyId: companyId,
-        question: _quizQuestion(q, id: questionId),
-        wrong: !(_bool(j, ['isCorrect']) ?? _bool(d, ['isCorrect']) ?? true),
-        explanation: _str(d, ['explanation']) ?? '',
-        solvedAt: _date(j['lastAnsweredAt']) ?? _date(d['submittedAt']) ?? DateTime.now(),
-        evidence: _firstEvidence(d['evidence']),
-        correctChoiceId: _str(d, ['correctOptionId']),
-      );
-    }));
+    final result = <QuizReviewItem>[];
+    final seen = <String>{};
+    var pageIndex = 0;
+    while (true) {
+      final page = await _api.get(ApiPaths.reviewQuizzes,
+        query: {'companyId': _id(companyId), 'page': pageIndex, 'size': 50});
+      final hasNext = _bool(_map(page), ['hasNext']) == true;
+      final entries = <Map<String, dynamic>>[];
+      for (final j in _content(page)) {
+        final id = _str(j, ['questionId']);
+        if (id == null) throw const AppException(AppErrorKind.server);
+        if (seen.add(id)) entries.add(j);
+      }
+      // 응답이 반복되거나 비어 있는데 다음 페이지가 있다고 하면 무한 조회하지 않는다.
+      if (hasNext && entries.isEmpty) throw const AppException(AppErrorKind.server);
+      // 기존과 같은 페이지 크기로 상세를 읽고, 끝난 뒤 다음 페이지로 넘어간다.
+      result.addAll(await Future.wait(entries.map((j) async {
+        final questionId = _str(j, ['questionId']) ?? '';
+        final d = await _quizDetail(questionId, companyId);
+        final q = _map(d['question']) ?? {'question': j['question']};
+        return QuizReviewItem(
+          id: questionId,
+          companyId: companyId,
+          question: _quizQuestion(q, id: questionId),
+          wrong: !(_bool(j, ['isCorrect']) ?? _bool(d, ['isCorrect']) ?? true),
+          explanation: _str(d, ['explanation']) ?? '',
+          solvedAt: _date(j['lastAnsweredAt']) ?? _date(d['submittedAt']) ?? DateTime.now(),
+          evidence: _firstEvidence(d['evidence']),
+          correctChoiceId: _str(d, ['correctOptionId']),
+        );
+      })));
+      if (!hasNext) return result;
+      pageIndex++;
+    }
   }
 
   Future<Map<String, dynamic>> _quizDetail(String questionId, String? companyId) async {
