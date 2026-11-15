@@ -116,15 +116,15 @@ class _JobPickerScreenState extends ConsumerState<_JobPickerScreen> {
               AppSpacing.xl,
             ),
             children: [
-              _label('직접 입력', gap: 11),
+              // 피그마 1790:10960: 라벨 → 16 → 입력칸 → 8 → 안내 한 줄 → 32 → 자주 찾는 직무 (구분선 없음)
+              _label('직접 입력', gap: AppSpacing.md),
               _CustomJobField(
                 controller: _custom,
                 onChanged: () => setState(() {}),
               ),
-              // 피그마 1529:10669: 입력칸 아래 16 · 1px 선(#E9EBED) · 16
-              const SizedBox(height: AppSpacing.md),
-              const SizedBox(height: 1, width: double.infinity, child: ColoredBox(color: Color(0xFFE9EBED))),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.xs),
+              const _CustomJobHint(),
+              const SizedBox(height: AppSpacing.xxl),
               _label('자주 찾는 직무', gap: AppSpacing.md),
               Wrap(
                 spacing: 13,
@@ -219,15 +219,14 @@ class _CustomJobField extends StatelessWidget {
                 isCollapsed: true,
                 border: InputBorder.none,
                 counterText: '',
-                hintText: '직무명을 입력해 주세요',
+                hintText: '지원하는 직무를 입력하세요',
                 hintStyle: style.copyWith(color: AppColors.textGuide),
               ),
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
-          if (controller.text.isEmpty)
-            ExcludeSemantics(child: Image.asset('assets/images/icons/field_pencil.png', width: 20.5, height: 20.5))
-          else
+          // 피그마 1790:10972 ✕ (20 · #767A82): 글자가 있을 때만 보이고, 누르면 지운다
+          if (controller.text.isNotEmpty)
             Semantics(
               button: true,
               label: '지우기',
@@ -238,13 +237,68 @@ class _CustomJobField extends StatelessWidget {
                   controller.clear();
                   onChanged();
                 },
-                child: const Padding(padding: EdgeInsets.all(2.25), child: ClearCircleIcon()),
+                child: const CustomPaint(size: Size(20, 20), painter: _CloseXPainter()),
               ),
             ),
         ],
       ),
     );
   }
+}
+
+/// 입력칸 아래 안내: 연두 원 "!" 16 + 13 Regular (피그마 1790:10973)
+class _CustomJobHint extends StatelessWidget {
+  const _CustomJobHint();
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          const CustomPaint(size: Size(16, 16), painter: _HintMarkPainter()),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              '지원하는 직무가 없다면 직접 입력해서 추가해보세요',
+              style: AppTypography.body2
+                  .copyWith(fontSize: 13, letterSpacing: -0.39, height: 1.4, color: AppColors.textCaption),
+            ),
+          ),
+        ],
+      );
+}
+
+class _HintMarkPainter extends CustomPainter {
+  const _HintMarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawCircle(size.center(Offset.zero), size.width / 2, Paint()..color = AppColors.point);
+    final p = Paint()
+      ..color = const Color(0xFF5E6B0B)
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(const Offset(8, 5), const Offset(8, 9), p);
+    canvas.drawLine(const Offset(8, 11), const Offset(8, 11.3), p);
+  }
+
+  @override
+  bool shouldRepaint(_HintMarkPainter old) => false;
+}
+
+class _CloseXPainter extends CustomPainter {
+  const _CloseXPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = AppColors.textCaption
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(const Offset(3.333, 3.333), const Offset(16.667, 16.667), p);
+    canvas.drawLine(const Offset(16.667, 3.333), const Offset(3.333, 16.667), p);
+  }
+
+  @override
+  bool shouldRepaint(_CloseXPainter old) => false;
 }
 
 /// 전체 직무 한 줄: "경영·기획 ⌄" — 누르면 펼쳐서 직무 태그 (피그마 1529:10698: 줄 위아래 16 · 이름과 태그 사이 12 · 아래 0.5 선)

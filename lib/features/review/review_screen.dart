@@ -200,7 +200,10 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
     try {
       await ref
           .read(quizRepositoryProvider)
-          .reportQuestion(questionId: widget.item.question.id, reason: '문제 해설에서 오류 제보');
+          .reportQuestion(
+            questionId: widget.item.question.id,
+            reason: '문제 해설에서 오류 제보',
+          );
       if (!mounted) return;
       Navigator.of(context).pop();
       showToast(context, '제보해 주셔서 고마워요. 확인 후 고칠게요.');
@@ -217,16 +220,36 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
     final ev = item.evidence ?? item.question.evidence;
     final correct = item.correctText;
     // 피그마: 본문 16 Regular 줄 160% — 제목줄 #303137, 설명 #727479
-    final head = AppTypography.body1.copyWith(fontSize: 16, height: 1.6, letterSpacing: -0.48, color: const Color(0xFF303137));
-    final body = AppTypography.body1.copyWith(fontSize: 16, height: 1.6, letterSpacing: -0.48, color: const Color(0xFF727479));
-    final meta = AppTypography.body1.copyWith(fontSize: 13, height: 1.4, letterSpacing: -0.39, color: AppColors.textGuide);
+    final head = AppTypography.body1.copyWith(
+      fontSize: 16,
+      height: 1.6,
+      letterSpacing: -0.48,
+      color: const Color(0xFF303137),
+    );
+    final body = AppTypography.body1.copyWith(
+      fontSize: 16,
+      height: 1.6,
+      letterSpacing: -0.48,
+      color: const Color(0xFF727479),
+    );
+    final meta = AppTypography.body1.copyWith(
+      fontSize: 13,
+      height: 1.4,
+      letterSpacing: -0.39,
+      color: AppColors.textGuide,
+    );
     final url = ev?.url;
     // 피그마 1520:11373: 시트는 내용 높이만큼 (위 24 · 머리 24 · 24 · 문제 · 24 · 해설 카드 · 24 · 버튼 · 아래 36).
     // 내용이 화면보다 길면 문제~카드만 스크롤하고 버튼은 아래에 남는다.
     // 머리 줄은 누르기 쉽게 44 높이로 두고, 위·아래 여백을 10씩 줄여 글자 위치는 피그마(24 + 12)와 같게 맞춘다.
     final bottom = math.max(36.0, MediaQuery.paddingOf(context).bottom);
     return Padding(
-      padding: EdgeInsets.fromLTRB(AppSpacing.screenH, 14, AppSpacing.screenH, bottom),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        14,
+        AppSpacing.screenH,
+        bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -241,7 +264,10 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
                   child: Text(
                     '문제 해설',
                     textAlign: TextAlign.center,
-                    style: AppTypography.subheading.copyWith(color: const Color(0xFF303137), height: 1.4),
+                    style: AppTypography.subheading.copyWith(
+                      color: const Color(0xFF303137),
+                      height: 1.4,
+                    ),
                   ),
                 ),
                 Align(
@@ -259,7 +285,11 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
                         height: 44,
                         child: Align(
                           alignment: Alignment(0.86, 0),
-                          child: Icon(Icons.close_rounded, size: 27, color: AppColors.cardDark),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 27,
+                            color: AppColors.cardDark,
+                          ),
                         ),
                       ),
                     ),
@@ -274,11 +304,20 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(item.question.prompt, style: AppTypography.title4.copyWith(color: AppColors.ink, height: 1.4)),
+                  Text(
+                    item.question.prompt,
+                    style: AppTypography.title4.copyWith(
+                      color: AppColors.ink,
+                      height: 1.4,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xl),
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.button)),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.button),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -286,7 +325,9 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
                         Container(
                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                           decoration: const BoxDecoration(
-                            border: Border(bottom: BorderSide(color: AppColors.fillMuted)),
+                            border: Border(
+                              bottom: BorderSide(color: AppColors.fillMuted),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -310,7 +351,14 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
                               if (ev.publishedAt != null) ...[
                                 Text(ev.publishedAt!, style: meta),
                                 // 피그마 1520:11386: 세로 구분선 1×10 #BCBFC5
-                                Container(width: 1, height: 10, margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs), color: const Color(0xFFBCBFC5)),
+                                Container(
+                                  width: 1,
+                                  height: 10,
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.xs,
+                                  ),
+                                  color: const Color(0xFFBCBFC5),
+                                ),
                               ],
                               Expanded(child: Text(ev.title, style: meta)),
                             ],
@@ -325,7 +373,11 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
           ),
           const SizedBox(height: AppSpacing.xl),
           if (url != null) ...[
-            AppButton(label: 'DART 원문보기', onPressed: () => unawaited(ref.read(linkServiceProvider).open(url))),
+            AppButton(
+              label: 'DART 원문보기',
+              onPressed: () =>
+                  unawaited(ref.read(linkServiceProvider).open(url)),
+            ),
             const SizedBox(height: AppSpacing.ctaGap),
           ],
           Semantics(
@@ -338,7 +390,14 @@ class _ExplanationSheetState extends ConsumerState<_ExplanationSheet> {
                 height: AppSizes.ctaHeight,
                 child: Center(
                   child: _reporting
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.textCaption))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: AppColors.textCaption,
+                          ),
+                        )
                       : Text(
                           '오류 제보하기',
                           style: AppTypography.subheading.copyWith(
@@ -499,10 +558,7 @@ class ReviewFolderCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             // 피그마 1337:10037 List/Item: 16 SemiBold · 줄 140% · 자간 -3% · #303137
-            Text(
-              title,
-              style: _cardTextStyle(_cardText),
-            ),
+            Text(title, style: _cardTextStyle(_cardText)),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
@@ -687,15 +743,32 @@ class _InterviewRecordCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final r = record;
-    final question = ref.watch(interviewQuestionProvider(r.questionId)).asData?.value;
+    final question = ref
+        .watch(interviewQuestionProvider(r.questionId))
+        .asData
+        ?.value;
     final canAnswer = question != null && !question.blocked;
     final hasDraft = r.hasDraft || r.status == AnswerStatus.draft;
-    final evaluation = EvaluationStatus.fromWire(r.evaluationStatus, hasResult: r.score != null);
+    // 작성 중인 초안이 있으면 이어 쓰기, 제출한 답변만 있으면 평가 화면으로
+    final hasAnswer = r.hasAnswer && !hasDraft;
+    final evaluation = EvaluationStatus.fromWire(
+      r.evaluationStatus,
+      hasResult: r.score != null,
+    );
     final (String status, ReviewTone tone) = switch ((r.status, evaluation)) {
-      (_, EvaluationStatus.processing) when !hasDraft => ('평가 중', ReviewTone.draft),
+      (_, EvaluationStatus.processing) when !hasDraft => (
+        '평가 중',
+        ReviewTone.draft,
+      ),
       (_, EvaluationStatus.failed) when !hasDraft => ('평가 실패', ReviewTone.warn),
-      (_, EvaluationStatus.cancelled) when !hasDraft => ('평가 취소', ReviewTone.warn),
-      (_, EvaluationStatus.unknown) when r.hasAnswer && !hasDraft => ('평가 확인 필요', ReviewTone.warn),
+      (_, EvaluationStatus.cancelled) when !hasDraft => (
+        '평가 취소',
+        ReviewTone.warn,
+      ),
+      (_, EvaluationStatus.unknown) when r.hasAnswer && !hasDraft => (
+        '평가 확인 필요',
+        ReviewTone.warn,
+      ),
       (AnswerStatus.needsWork, _) => ('보완필요', ReviewTone.warn),
       (AnswerStatus.draft, _) => ('작성 중', ReviewTone.draft),
       (AnswerStatus.complete, _) => ('완성 답변', ReviewTone.done),
@@ -714,21 +787,34 @@ class _InterviewRecordCard extends ConsumerWidget {
         status: status,
         tone: tone,
         title: r.questionText,
-        secondaryLabel: r.hasAnswer ? '평가 보기' : null,
-        onSecondary: r.hasAnswer ? () => context.push(Routes.answerView(r.questionId)) : null,
-        primaryLabel: !canAnswer ? null
-            : hasDraft || !r.hasAnswer ? '이어서 답변하기'
-            : r.status == AnswerStatus.needsWork ? '다시 답변하기' : null,
+        // 답변이 있으면 "다시 답변하기" 버튼 하나만. 누르면 평가 보기 화면이 먼저 열리고 거기서 다시 답변으로 이어진다
+        primaryLabel: hasAnswer
+            ? '다시 답변하기'
+            : !canAnswer
+            ? null
+            : '이어서 답변하기',
         onPrimary: () async {
+          if (hasAnswer) {
+            context.push(Routes.answerView(r.questionId));
+            return;
+          }
           try {
-            final latest = await ref.read(interviewRepositoryProvider).fetchQuestion(r.questionId);
+            final latest = await ref
+                .read(interviewRepositoryProvider)
+                .fetchQuestion(r.questionId);
             if (!context.mounted) return;
             ref.invalidate(interviewQuestionProvider(r.questionId));
             if (latest.blocked) {
-              await showNoticeDialog(context, title: latest.blockedMessage,
-                message: latest.blockedHelp, buttonLabel: '확인');
+              await showNoticeDialog(
+                context,
+                title: latest.blockedMessage,
+                message: latest.blockedHelp,
+                buttonLabel: '확인',
+              );
             } else {
-              context.push(Routes.interviewAnswer(r.questionId, fromReview: true));
+              context.push(
+                Routes.interviewAnswer(r.questionId, fromReview: true),
+              );
             }
           } catch (e) {
             if (context.mounted) showErrorToast(context, e);
@@ -745,10 +831,10 @@ const Color _cardText = Color(0xFF303137);
 
 /// 카드 질문 · 카드 버튼 글자 (피그마 List/Item · Button/Small: 16 SemiBold · 줄 140% · 자간 -3%)
 TextStyle _cardTextStyle(Color color) => AppTypography.subheading.copyWith(
-      color: color,
-      height: 1.4,
-      letterSpacing: -0.48,
-    );
+  color: color,
+  height: 1.4,
+  letterSpacing: -0.48,
+);
 
 /// 복습 카드 버튼 (높이 42 · 모서리 10 · 글자 16 SemiBold)
 class _CardButton extends StatelessWidget {
@@ -780,11 +866,7 @@ class _CardButton extends StatelessWidget {
           child: SizedBox(
             height: 42,
             child: Center(
-              child: Text(
-                label,
-                maxLines: 1,
-                style: _cardTextStyle(textColor),
-              ),
+              child: Text(label, maxLines: 1, style: _cardTextStyle(textColor)),
             ),
           ),
         ),

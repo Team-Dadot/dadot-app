@@ -31,7 +31,12 @@ class QuestionHeadline extends StatelessWidget {
     header: true,
     child: Text(
       text,
-      style: AppTypography.title1.copyWith(fontSize: 26, height: 1.4, letterSpacing: -0.78, color: AppColors.ink),
+      style: AppTypography.title1.copyWith(
+        fontSize: 26,
+        height: 1.4,
+        letterSpacing: -0.78,
+        color: AppColors.ink,
+      ),
     ),
   );
 }
@@ -183,9 +188,13 @@ class FeedbackContent extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (f.goodPoint.trim().isNotEmpty) _Point(title: '잘한 점', body: f.goodPoint),
-                  if (f.goodPoint.trim().isNotEmpty && f.improvement.trim().isNotEmpty) const SizedBox(height: 20),
-                  if (f.improvement.trim().isNotEmpty) _Point(title: '보완할 점', body: f.improvement),
+                  if (f.goodPoint.trim().isNotEmpty)
+                    _Point(title: '잘한 점', body: f.goodPoint),
+                  if (f.goodPoint.trim().isNotEmpty &&
+                      f.improvement.trim().isNotEmpty)
+                    const SizedBox(height: 20),
+                  if (f.improvement.trim().isNotEmpty)
+                    _Point(title: '보완할 점', body: f.improvement),
                 ],
               ),
             ),
@@ -366,7 +375,10 @@ class _MyAnswerState extends State<_MyAnswer> {
               excludeSemantics: true,
               child: LayoutBuilder(
                 builder: (context, box) {
-                  final style = AppTypography.body2Strong.copyWith(color: AppColors.textSub, height: 1.4);
+                  final style = AppTypography.body2Strong.copyWith(
+                    color: AppColors.textSub,
+                    height: 1.4,
+                  );
                   final painter = TextPainter(
                     text: TextSpan(text: 'Q. $q', style: style),
                     maxLines: 1,
@@ -378,7 +390,9 @@ class _MyAnswerState extends State<_MyAnswer> {
                     'Q. $q',
                     textAlign: oneLine ? TextAlign.center : TextAlign.left,
                     maxLines: _open ? null : 2,
-                    overflow: _open ? TextOverflow.visible : TextOverflow.ellipsis,
+                    overflow: _open
+                        ? TextOverflow.visible
+                        : TextOverflow.ellipsis,
                     style: style,
                   );
                 },
@@ -441,11 +455,10 @@ class CriteriaList extends StatelessWidget {
 
   final List<CriterionScore> criteria;
 
-  /// 막대가 채워지는 비율 (1~10점은 [lowScore] 점 분량, 0점은 막대 없음)
+  /// 막대가 채워지는 비율 (점수 그대로. 0점은 막대 없음)
   static double fillRatio(CriterionScore c) {
     if (c.max <= 0 || c.score <= 0) return 0;
-    final shown = c.score < lowScore ? lowScore : c.score;
-    return (shown / c.max).clamp(0.0, 1.0);
+    return (c.score / c.max).clamp(0.0, 1.0);
   }
 
   /// 검정 막대 여부 (1~10점. 0점은 막대 자체를 그리지 않는다)
@@ -546,26 +559,32 @@ class EvidenceFolderCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FolderCard(
-            color: AppColors.point,
-            tabWidth: 148,
-            tabHeight: 39,
-            curveWidth: 51,
-            radius: AppRadius.lg,
-            bottomRadius: 0,
-            bodyPadding: const EdgeInsets.all(AppSpacing.lg),
-            tab: Padding(
-              padding: const EdgeInsets.only(top: 10),
-              // 피그마 1520:9641: 14 Medium #5E6B0B (탭 148×39, 위 10 아래 칸의 가운데)
-              child: Text(
-                '답변에 활용할 정보',
-                style: AppTypography.body2Medium.copyWith(color: AppColors.pointText, height: 1.4),
+          color: AppColors.point,
+          tabWidth: 148,
+          tabHeight: 39,
+          curveWidth: 51,
+          radius: AppRadius.lg,
+          bottomRadius: 0,
+          bodyPadding: const EdgeInsets.all(AppSpacing.lg),
+          tab: Padding(
+            padding: const EdgeInsets.only(top: 10),
+            // 피그마 1520:9641: 14 Medium #5E6B0B (탭 148×39, 위 10 아래 칸의 가운데)
+            child: Text(
+              '답변에 활용할 정보',
+              style: AppTypography.body2Medium.copyWith(
+                color: AppColors.pointText,
+                height: 1.4,
               ),
             ),
+          ),
           child: title,
         ),
         Container(
           // 피그마 1520:9646: 좌우 20 · 위아래 24 (QA: 좌우 24 · 아래 36 이라 디자인보다 넓었다), 바탕 #303137
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xl,
+          ),
           decoration: const BoxDecoration(
             color: AppColors.tabBar,
             borderRadius: BorderRadius.vertical(
@@ -580,7 +599,11 @@ class EvidenceFolderCard extends StatelessWidget {
                 if (i > 0) ...[
                   // 피그마 1540:11471: 선은 높이 0 칸 위에 1px 로 그려져 위 15 · 아래 16 (글 사이 합 32)
                   const SizedBox(height: AppSpacing.md - 1),
-                  const Divider(height: 1, thickness: 1, color: Color(0xFF404147)),
+                  const Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Color(0xFF404147),
+                  ),
                   const SizedBox(height: AppSpacing.md),
                 ],
                 Text(
@@ -595,7 +618,9 @@ class EvidenceFolderCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     '해석 · ${evidence[i].interpretation}',
-                    style: AppTypography.body2.copyWith(color: const Color(0xFFB9B9BC)),
+                    style: AppTypography.body2.copyWith(
+                      color: const Color(0xFFB9B9BC),
+                    ),
                   ),
                 ],
               ],
@@ -605,10 +630,18 @@ class EvidenceFolderCard extends StatelessWidget {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFF404147), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF404147),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Text(
                     meta.join('\n'),
-                    style: AppTypography.caption.copyWith(fontWeight: AppTypography.regular, color: const Color(0xFFBCBFC5), height: 1.4, letterSpacing: 0),
+                    style: AppTypography.caption.copyWith(
+                      fontWeight: AppTypography.regular,
+                      color: const Color(0xFFBCBFC5),
+                      height: 1.4,
+                      letterSpacing: 0,
+                    ),
                   ),
                 ),
               ],
@@ -653,7 +686,9 @@ class RetryAnswerButton extends StatelessWidget {
       label: out ? '$label, ${blockedMessage ?? '현재 답변할 수 없어요'}' : label,
       excludeSemantics: true,
       child: Material(
-        color: out ? const Color(0xFFE9EBED) : (primary ? AppColors.ink : AppColors.fillMuted),
+        color: out
+            ? const Color(0xFFE9EBED)
+            : (primary ? AppColors.ink : AppColors.fillMuted),
         borderRadius: BorderRadius.circular(AppRadius.button),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.button),
@@ -662,7 +697,9 @@ class RetryAnswerButton extends StatelessWidget {
               ? () => showNoticeDialog(
                   context,
                   title: blockedMessage ?? '이 질문의 답변 기회를 모두 사용했어요',
-                  message: blockedHelp ?? '같은 질문에는 누적 최대 3회 답변할 수 있고 다음 날 초기화되지 않아요.',
+                  message:
+                      blockedHelp ??
+                      '같은 질문에는 누적 최대 3회 답변할 수 있고 다음 날 초기화되지 않아요.',
                   buttonLabel: '확인',
                 )
               : onRetry,
@@ -675,7 +712,9 @@ class RetryAnswerButton extends StatelessWidget {
                   label,
                   maxLines: 1,
                   style: AppTypography.button.copyWith(
-                    color: out ? AppColors.textGuide : (primary ? AppColors.white : AppColors.textSub),
+                    color: out
+                        ? AppColors.textGuide
+                        : (primary ? AppColors.white : AppColors.textSub),
                   ),
                 ),
               ),
@@ -692,7 +731,9 @@ class RetryAnswerButton extends StatelessWidget {
 void goNextInterviewQuestion(BuildContext context, String companyId) {
   final router = GoRouter.of(context);
   router.go(Routes.home);
-  WidgetsBinding.instance.addPostFrameCallback((_) => router.push(Routes.todayInterview(companyId)));
+  WidgetsBinding.instance.addPostFrameCallback(
+    (_) => router.push(Routes.todayInterview(companyId)),
+  );
 }
 
 /// 피그마 1653:10983 "하단 페이드" (152 높이, 9.5% 지점에서 투명 → 36.8% 에서 흰색) 위의 하단 버튼.
@@ -710,7 +751,11 @@ class FadedBottomCta extends StatelessWidget {
     // 버튼 묶음(위 8 + 버튼 56 + 아래 안전 영역)이 152 보다 낮으면 위를 투명하게 채워 152 를 맞춘다.
     // (Container 에 alignment 를 주면 bottomNavigationBar 가 화면 전체로 늘어나 흰 막이 덮인다)
     final bottom = MediaQuery.paddingOf(context).bottom;
-    final own = AppSpacing.xs + 56.0 * children.length + (children.length - 1) * AppSpacing.ctaGap + (bottom > AppSpacing.sm ? bottom : AppSpacing.sm);
+    final own =
+        AppSpacing.xs +
+        56.0 * children.length +
+        (children.length - 1) * AppSpacing.ctaGap +
+        (bottom > AppSpacing.sm ? bottom : AppSpacing.sm);
     final top = own >= 152 ? 0.0 : 152 - own;
     return DecoratedBox(
       decoration: const BoxDecoration(

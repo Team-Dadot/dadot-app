@@ -3,10 +3,11 @@ import 'package:swipe/data/models/interview.dart';
 import 'package:swipe/features/interview/interview_widgets.dart';
 
 void main() {
-  CriterionScore c(num score) => CriterionScore(key: CriterionKey.logic, score: score.toInt());
+  CriterionScore c(num score) =>
+      CriterionScore(key: CriterionKey.logic, score: score.toInt());
 
-  test('10점 이하는 막대 길이 10점 분량 + 검정', () {
-    expect(CriteriaList.fillRatio(c(3)), closeTo(10 / 25, 1e-9));
+  test('10점 이하도 실제 점수만큼 채우고 색은 검정', () {
+    expect(CriteriaList.fillRatio(c(3)), closeTo(3 / 25, 1e-9));
     expect(CriteriaList.fillRatio(c(10)), closeTo(10 / 25, 1e-9));
     expect(CriteriaList.isLow(c(3)), isTrue);
     expect(CriteriaList.isLow(c(10)), isTrue);
