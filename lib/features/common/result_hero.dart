@@ -63,11 +63,14 @@ class ResultHero extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            top: top - 62,
+            // 퀴즈 오답(1684:10823)은 피그마 배경 레이어를 그대로 합친 402×364 그림이라 화면 맨 위(0)에 놓는다
+            top: (!_pass && quiz) ? top - 59 : top - 62,
             child: Image.asset(
               _pass
                   ? 'assets/images/result_bg_pass.png'
-                  : (quiz ? 'assets/images/result_bg_quiz_fail.png' : 'assets/images/result_bg_feedback_fail.png'),
+                  : (quiz
+                        ? 'assets/images/result_bg_quiz_fail.png'
+                        : 'assets/images/result_bg_feedback_fail.png'),
               fit: BoxFit.fitWidth,
               alignment: Alignment.topCenter,
               excludeFromSemantics: true,
@@ -80,11 +83,12 @@ class ResultHero extends StatelessWidget {
               _NavRow(title: navTitle, onBack: onBack, onClose: onClose),
               Padding(
                 // 피그마: 내비 바 아래 55 에 폴더, 폴더 아래 25 에서 회색 본문 시작
-                padding: const EdgeInsets.fromLTRB(
+                // 퀴즈 오답(1684:10823)은 폴더가 169.65 에서 시작해 361.79 에 끝나고 본문은 385
+                padding: EdgeInsets.fromLTRB(
                   AppSpacing.screenH,
-                  55,
+                  (!_pass && quiz) ? 54.65 : 55,
                   AppSpacing.screenH,
-                  25,
+                  (!_pass && quiz) ? 23.21 : 25,
                 ),
                 child: Semantics(
                   label: semanticLabel,
@@ -95,6 +99,7 @@ class ResultHero extends StatelessWidget {
                     title: title,
                     description: description,
                     progress: progress,
+                    figmaQuizFail: !_pass && quiz,
                   ),
                 ),
               ),
@@ -212,8 +217,10 @@ class _Folder extends StatelessWidget {
     required this.title,
     required this.description,
     required this.progress,
+    this.figmaQuizFail = false,
   });
 
+  final bool figmaQuizFail;
   final ResultTone tone;
   final String badge;
   final Widget title;
@@ -221,14 +228,16 @@ class _Folder extends StatelessWidget {
   final double progress;
 
   static const double height = 192;
+  static const double quizFailHeight = 192.137;
 
   @override
   Widget build(BuildContext context) {
     final pass = tone == ResultTone.pass;
     final folder = pass ? AppColors.point : AppColors.accent;
     final deep = pass ? AppColors.pointText : const Color(0xFF5F2A19);
+    final h = figmaQuizFail ? quizFailHeight : height;
     return SizedBox(
-      height: height,
+      height: h,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -241,7 +250,7 @@ class _Folder extends StatelessWidget {
               radius: AppRadius.button,
               bodyPadding: EdgeInsets.zero,
               tab: const SizedBox.shrink(),
-              child: const SizedBox(height: height - 44),
+              child: SizedBox(height: h - 44),
             ),
           ),
           // 일러스트(오른쪽 기준): 불꽃 134×150 (폴더 위 -51) / 느낌표 94×131 + 번개 162×81
@@ -257,14 +266,25 @@ class _Folder extends StatelessWidget {
               ),
             )
           else ...[
-            // 작은 번개들은 배경 그림에 들어 있다
+            // 피그마 1684:10870 · 1684:10877: 작은 주황 번개 39.4×40 + 번개·느낌표 93.7×130.6 (폴더 왼쪽·위 기준).
+            // 나머지 작은 번개들은 배경 그림에 들어 있다
             Positioned(
-              right: 27,
-              top: -20,
+              left: 210,
+              top: -24.65,
+              child: Image.asset(
+                'assets/images/result_bolt_small.png',
+                width: 39.41,
+                height: 40.02,
+                excludeFromSemantics: true,
+              ),
+            ),
+            Positioned(
+              left: 238.93,
+              top: -20.65,
               child: Image.asset(
                 'assets/images/result_alert.png',
-                width: 94,
-                height: 131,
+                width: 93.71,
+                height: 130.62,
                 excludeFromSemantics: true,
               ),
             ),
@@ -290,7 +310,7 @@ class _Folder extends StatelessWidget {
           Positioned(
             left: 22,
             right: 18,
-            bottom: 25,
+            bottom: figmaQuizFail ? 25.9 : 25,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,

@@ -31,7 +31,6 @@ class LocalStore {
 
   static const _draftPrefix = 'draft.answer.';
   static const pendingInterviewPrefix = 'submission.interview.';
-  static const pendingExperiencePrefix = 'submission.experience.';
   static const _lastCompanyKey = 'home.lastCompanyId';
   static const _askedPushKey = 'push.askedPermission';
   static const _onboardingStepKey = 'onboarding.lastStep';
@@ -58,21 +57,10 @@ class LocalStore {
     }
   });
 
-  /// 복구 기록이 손상됐으면 새 생성 요청을 만들지 않고 멈춘다.
-  Map<String, dynamic>? readPendingExperienceCreation(String key) {
-    final raw = _prefs.getString(key);
-    if (raw == null) return null;
-    try {
-      return (jsonDecode(raw) as Map).cast<String, dynamic>();
-    } catch (_) {
-      throw const AppException(AppErrorKind.unknown,
-        message: '이전 경험 저장 상태를 확인하지 못했어요. 다시 시도해 주세요.');
-    }
-  }
-
   // ---- 홈 기본 기업 ----
   String? get lastCompanyId => _prefs.getString(_lastCompanyKey);
   Future<void> setLastCompanyId(String id) => _prefs.setString(_lastCompanyKey, id);
+  Future<void> clearLastCompanyId() => _prefs.remove(_lastCompanyKey);
 
   // ---- 첫 실행 튜토리얼 (한 번 보면 다시 안 보여 준다) ----
   bool get tutorialSeen => _prefs.getBool(_tutorialSeenKey) ?? false;
@@ -108,7 +96,7 @@ class LocalStore {
 
   /// 로그아웃·탈퇴 시 기기에 남은 개인 데이터 삭제
   Future<void> clearUserData() => _serializeSubmissionWrite(() async {
-    final keys = _prefs.getKeys().where((k) => k.startsWith(_draftPrefix) || k.startsWith(pendingInterviewPrefix) || k.startsWith(pendingExperiencePrefix) || k == _lastCompanyKey || k == _onboardingStepKey);
+    final keys = _prefs.getKeys().where((k) => k.startsWith(_draftPrefix) || k.startsWith(pendingInterviewPrefix) || k == _lastCompanyKey || k == _onboardingStepKey);
     for (final k in keys.toList()) {
       await _prefs.remove(k);
     }

@@ -665,7 +665,11 @@ class RetryAnswerButton extends StatelessWidget {
     this.blockedMessage,
     this.blockedHelp,
     this.primary = false,
+    this.blockedLooksActive = false,
   });
+
+  /// 눌러도 안내만 나오는 경우(canSubmit false)에도 모양은 평소 회색 버튼으로 둔다 (피그마 1332:7867 정답 확인의 "재답변")
+  final bool blockedLooksActive;
 
   /// 피그마 1653:10895: 복습 화면의 단독 버튼은 진한 바탕 (횟수가 없으면 회색)
   final bool primary;
@@ -680,13 +684,15 @@ class RetryAnswerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final left = remaining.clamp(0, AppPolicy.retryPerQuestionDaily);
     final out = left <= 0 || !canSubmit;
+    // 모양: 횟수를 다 썼을 때만 흐리게. blockedLooksActive 면 canSubmit false 여도 평소 모양
+    final dim = left <= 0 || (!canSubmit && !blockedLooksActive);
     final label = '$prefix ($left/${AppPolicy.retryPerQuestionDaily})';
     return Semantics(
       button: true,
       label: out ? '$label, ${blockedMessage ?? '현재 답변할 수 없어요'}' : label,
       excludeSemantics: true,
       child: Material(
-        color: out
+        color: dim
             ? const Color(0xFFE9EBED)
             : (primary ? AppColors.ink : AppColors.fillMuted),
         borderRadius: BorderRadius.circular(AppRadius.button),
@@ -712,7 +718,7 @@ class RetryAnswerButton extends StatelessWidget {
                   label,
                   maxLines: 1,
                   style: AppTypography.button.copyWith(
-                    color: out
+                    color: dim
                         ? AppColors.textGuide
                         : (primary ? AppColors.white : AppColors.textSub),
                   ),

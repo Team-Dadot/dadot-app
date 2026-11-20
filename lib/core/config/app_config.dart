@@ -24,7 +24,7 @@ class AppConfig {
     const privacy = String.fromEnvironment('PRIVACY_POLICY_URL', defaultValue: 'https://app.notion.com/p/Dadot-40da1df4ae0481939c45e7eb3dcb17f3');
     const terms = String.fromEnvironment('TERMS_URL', defaultValue: 'https://app.notion.com/p/Dadot-40da1df4ae04803f8503ffdd2f6b2a5c');
     // 문의 구글폼 ("다닷 문의하기"). 다른 주소를 쓰려면 --dart-define=INQUIRY_FORM_URL=... 로 넣는다
-    const inquiryForm = String.fromEnvironment('INQUIRY_FORM_URL', defaultValue: 'https://docs.google.com/forms/d/e/1FAIpQLSens1UNrDv824kOyBTh1ahNQaZjd6uKjkBldN6DwyLTRJKScA/viewform');
+    const inquiryForm = String.fromEnvironment('INQUIRY_FORM_URL', defaultValue: 'https://docs.google.com/forms/d/e/1FAIpQLSe03gEpxm49TT8d3X5tV0N-dBrbOnWrWeZCijUz084diKSeIg/viewform');
     // 카카오 디벨로퍼스 > 앱 > 앱 키 > 네이티브 앱 키. 앱에 들어가는 공개 키라 기본값으로 둔다.
     // 같은 값을 android/gradle.properties 와 ios/Flutter/Kakao.xcconfig 의 KAKAO_NATIVE_APP_KEY 에도 넣는다.
     const kakaoKey = String.fromEnvironment('KAKAO_NATIVE_APP_KEY', defaultValue: 'c7bad61811bc0fa198af5d8fb04a9db9');

@@ -26,12 +26,18 @@ import '../repositories/repositories.dart';
 
 // ---------------------------------------------------------------- 읽기 도우미
 
-Map<String, dynamic> _obj(dynamic data) => data is Map ? data.cast<String, dynamic>() : <String, dynamic>{};
+Map<String, dynamic> _obj(dynamic data) =>
+    data is Map ? data.cast<String, dynamic>() : <String, dynamic>{};
 
-Map<String, dynamic>? _map(dynamic v) => v is Map ? v.cast<String, dynamic>() : null;
+Map<String, dynamic>? _map(dynamic v) =>
+    v is Map ? v.cast<String, dynamic>() : null;
 
-List<Map<String, dynamic>> _list(dynamic v) =>
-    v is List ? v.whereType<Map<dynamic, dynamic>>().map((e) => e.cast<String, dynamic>()).toList() : const [];
+List<Map<String, dynamic>> _list(dynamic v) => v is List
+    ? v
+          .whereType<Map<dynamic, dynamic>>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList()
+    : const [];
 
 /// 목록 응답: 페이지 {content:[..]} · {items:[..]} · [..]
 List<Map<String, dynamic>> _content(dynamic data) {
@@ -85,12 +91,14 @@ int? _percent(Map<String, dynamic>? m, List<String> keys) {
     if (p != null) return p;
     final total = _int(o, ['total', 'answeredCount', 'firstAnsweredCount']);
     final correct = _int(o, ['correct', 'correctCount', 'firstCorrectCount']);
-    if (total != null && correct != null) return total == 0 ? null : (correct * 100 / total).round();
+    if (total != null && correct != null)
+      return total == 0 ? null : (correct * 100 / total).round();
   }
   return null;
 }
 
-DateTime? _date(dynamic v) => v is String ? DateTime.tryParse(v)?.toLocal() : null;
+DateTime? _date(dynamic v) =>
+    v is String ? DateTime.tryParse(v)?.toLocal() : null;
 
 /// "2026-11-20" → 날짜만 (시간대 영향 없이)
 DateTime? _day(dynamic v) {
@@ -102,7 +110,12 @@ DateTime? _day(dynamic v) {
 /// 서버 ID 는 JSON 정수. 앱은 문자열로 들고 있다가 보낼 때 정수로 바꾼다.
 int _id(String id) {
   final n = int.tryParse(id);
-  if (n == null) throw AppException(AppErrorKind.validation, message: '잘못된 항목이에요. 새로 고친 뒤 다시 시도해 주세요.', code: 'BAD_ID:$id');
+  if (n == null)
+    throw AppException(
+      AppErrorKind.validation,
+      message: '잘못된 항목이에요. 새로 고친 뒤 다시 시도해 주세요.',
+      code: 'BAD_ID:$id',
+    );
   return n;
 }
 
@@ -115,17 +128,31 @@ List<String> _texts(dynamic v) {
       if (e is String && e.trim().isNotEmpty)
         e.trim()
       else if (e is Map)
-        ?_str(e.cast<String, dynamic>(), ['text', 'content', 'description', 'feedback', 'title']),
+        ?_str(e.cast<String, dynamic>(), [
+          'text',
+          'content',
+          'description',
+          'feedback',
+          'title',
+        ]),
   ];
 }
 
 const _letters = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-bool _isFailed(String status) => status.contains('FAIL') || status.contains('CANCEL') || status.contains('ERROR');
+bool _isFailed(String status) =>
+    status.contains('FAIL') ||
+    status.contains('CANCEL') ||
+    status.contains('ERROR');
 
 bool _isRunning(String status) =>
-    status.contains('PENDING') || status.contains('QUEUE') || status.contains('PROCESS') || status.contains('RUNNING') ||
-    status.contains('PROGRESS') || status.contains('ACCEPT') || status.contains('REQUEST');
+    status.contains('PENDING') ||
+    status.contains('QUEUE') ||
+    status.contains('PROCESS') ||
+    status.contains('RUNNING') ||
+    status.contains('PROGRESS') ||
+    status.contains('ACCEPT') ||
+    status.contains('REQUEST');
 
 /// 기업 이름 (퀴즈·면접 응답에는 기업 이름이 없을 수 있어 준비 기업 목록에서 채워 둔다)
 final Map<String, String> _companyNames = {};
@@ -160,24 +187,44 @@ Preparation _preparation(Map<String, dynamic> j, [Map<String, int>? versions]) {
 }
 
 LoginMethod _loginMethodOf(Map<String, dynamic> j) {
-  final raw = _str(j, ['loginProvider', 'provider', 'loginMethod', 'loginType', 'socialProvider', 'authProvider', 'signupType'])?.toUpperCase();
+  final raw = _str(j, [
+    'loginProvider',
+    'provider',
+    'loginMethod',
+    'loginType',
+    'socialProvider',
+    'authProvider',
+    'signupType',
+  ])?.toUpperCase();
   if (raw != null) {
     if (raw.contains('KAKAO')) return LoginMethod.kakao;
     if (raw.contains('APPLE')) return LoginMethod.apple;
     if (raw.contains('GOOGLE')) return LoginMethod.google;
-    if (raw.contains('EMAIL') || raw.contains('PASSWORD') || raw.contains('LOCAL')) return LoginMethod.email;
+    if (raw.contains('EMAIL') ||
+        raw.contains('PASSWORD') ||
+        raw.contains('LOCAL'))
+      return LoginMethod.email;
   }
   return _lastLoginMethod ?? LoginMethod.email;
 }
 
 /// GET /users/me (+ 필요하면 온보딩 완료 여부)
-Future<AppUser> _fetchUser(ApiClient api, {String? bearer, bool? onboardingCompleted}) async {
+Future<AppUser> _fetchUser(
+  ApiClient api, {
+  String? bearer,
+  bool? onboardingCompleted,
+}) async {
   final raw = _obj(await api.get(ApiPaths.me, bearer: bearer));
   final j = {...raw, ...?_map(raw['user']), ...?_map(raw['profile'])};
-  var done = _bool(j, ['onboardingCompleted']) ?? _bool(_map(raw['onboarding']), ['completed']) ?? onboardingCompleted;
+  var done =
+      _bool(j, ['onboardingCompleted']) ??
+      _bool(_map(raw['onboarding']), ['completed']) ??
+      onboardingCompleted;
   if (done == null) {
     try {
-      done = _bool(_obj(await api.get(ApiPaths.meOnboarding, bearer: bearer)), ['completed']);
+      done = _bool(_obj(await api.get(ApiPaths.meOnboarding, bearer: bearer)), [
+        'completed',
+      ]);
     } on AppException catch (e) {
       if (e.kind == AppErrorKind.unauthorized) rethrow;
     }
@@ -204,21 +251,60 @@ String? _evDate(String? v) {
 String? _evPeriod(Map<String, dynamic> j) {
   final direct = _str(j, ['period', 'targetPeriod', 'coveragePeriod']);
   if (direct != null) return direct;
-  final obj = _map(j['period']) ?? _map(j['targetPeriod']) ?? _map(j['coveragePeriod']);
+  final obj =
+      _map(j['period']) ?? _map(j['targetPeriod']) ?? _map(j['coveragePeriod']);
   final src = obj ?? j;
-  final a = _evDate(_str(src, ['start', 'from', 'startDate', 'periodStart', 'periodStartDate', 'targetPeriodStart', 'targetStartDate']));
-  final b = _evDate(_str(src, ['end', 'to', 'endDate', 'periodEnd', 'periodEndDate', 'targetPeriodEnd', 'targetEndDate']));
+  final a = _evDate(
+    _str(src, [
+      'start',
+      'from',
+      'startDate',
+      'periodStart',
+      'periodStartDate',
+      'targetPeriodStart',
+      'targetStartDate',
+    ]),
+  );
+  final b = _evDate(
+    _str(src, [
+      'end',
+      'to',
+      'endDate',
+      'periodEnd',
+      'periodEndDate',
+      'targetPeriodEnd',
+      'targetEndDate',
+    ]),
+  );
   if (a != null && b != null) return '$a – $b';
   return a ?? b;
 }
 
 Evidence _evidence(Map<String, dynamic> j) {
   // 공시 정보가 한 단계 안쪽(report · disclosure · source)에 들어 있어도 읽는다
-  final inner = _map(j['report']) ?? _map(j['disclosure']) ?? _map(j['source']) ?? _map(j['document']);
+  final inner =
+      _map(j['report']) ??
+      _map(j['disclosure']) ??
+      _map(j['source']) ??
+      _map(j['document']);
   String? pick(List<String> keys) => _str(j, keys) ?? _str(inner, keys);
-  final published = _evDate(pick(['publishedAt', 'disclosedAt', 'disclosureDate', 'receiptDate', 'rceptDt', 'reportDate', 'filedAt', 'publishDate']));
+  final published = _evDate(
+    pick([
+      'publishedAt',
+      'disclosedAt',
+      'disclosureDate',
+      'receiptDate',
+      'rceptDt',
+      'reportDate',
+      'filedAt',
+      'publishDate',
+    ]),
+  );
   return Evidence(
-    title: [pick(['reportTitle', 'title', 'reportName']), _str(j, ['sectionTitle'])].whereType<String>().join(' · '),
+    title: [
+      pick(['reportTitle', 'title', 'reportName']),
+      _str(j, ['sectionTitle']),
+    ].whereType<String>().join(' · '),
     excerpt: _str(j, ['quote', 'quotation', 'excerpt', 'content']) ?? '',
     publishedAt: published,
     period: _evPeriod(j) ?? (inner == null ? null : _evPeriod(inner)),
@@ -231,10 +317,19 @@ Evidence _evidence(Map<String, dynamic> j) {
 List<Evidence> _evidenceList(Map<String, dynamic> d) {
   final q = _map(d['question']);
   for (final src in [d, ?q]) {
-    for (final k in const ['evidence', 'evidences', 'references', 'disclosures', 'sources']) {
+    for (final k in const [
+      'evidence',
+      'evidences',
+      'references',
+      'disclosures',
+      'sources',
+    ]) {
       final v = src[k];
       final items = v is Map ? [v.cast<String, dynamic>()] : _list(v);
-      final out = items.map(_evidence).where((e) => e.excerpt.trim().isNotEmpty).toList();
+      final out = items
+          .map(_evidence)
+          .where((e) => e.excerpt.trim().isNotEmpty)
+          .toList();
       if (out.isNotEmpty) return out;
     }
   }
@@ -248,7 +343,11 @@ Evidence? _firstEvidence(dynamic v) {
 
 /// 퀴즈 문항 {itemId, questionId, position, question, options[{optionId, position, text}]}
 QuizQuestion _quizQuestion(Map<String, dynamic> j, {String? id}) {
-  final options = _list(j['options'])..sort((a, b) => (_int(a, ['position']) ?? 0).compareTo(_int(b, ['position']) ?? 0));
+  final options = _list(j['options'])
+    ..sort(
+      (a, b) =>
+          (_int(a, ['position']) ?? 0).compareTo(_int(b, ['position']) ?? 0),
+    );
   final prompt = _str(j, ['question', 'prompt', 'text']) ?? '';
   return QuizQuestion(
     id: id ?? _str(j, ['itemId', 'id', 'questionId']) ?? '',
@@ -257,34 +356,74 @@ QuizQuestion _quizQuestion(Map<String, dynamic> j, {String? id}) {
     prompt: prompt,
     title: prompt,
     choices: [
-      for (final o in options) QuizChoice(id: _str(o, ['optionId', 'id']) ?? '', text: _str(o, ['text', 'content']) ?? ''),
+      for (final o in options)
+        QuizChoice(
+          id: _str(o, ['optionId', 'id']) ?? '',
+          text: _str(o, ['text', 'content']) ?? '',
+        ),
     ],
   );
 }
 
 /// 아직 서버가 보여주지 않은 문항 자리 (퀴즈는 한 문항씩 내려온다)
-QuizQuestion _placeholder(int order) => QuizQuestion(id: '', order: order, tags: const [], prompt: '', title: '', choices: const []);
+QuizQuestion _placeholder(int order) => QuizQuestion(
+  id: '',
+  order: order,
+  tags: const [],
+  prompt: '',
+  title: '',
+  choices: const [],
+);
 
 CriterionKey _criterionKey(String raw) {
   final s = raw.toUpperCase();
-  if (s.contains('COMPANY') || s.contains('기업')) return CriterionKey.companyInfo;
-  if (s.contains('SPECIFIC') || s.contains('EXPERIENCE') || s.contains('구체') || s.contains('경험')) return CriterionKey.specificity;
-  if (s.contains('LOGIC') || s.contains('STRUCT') || s.contains('논리') || s.contains('구성')) return CriterionKey.logic;
-  if (s.contains('RESPON') || s.contains('응답')) return CriterionKey.responsiveness;
+  if (s.contains('COMPANY') || s.contains('기업'))
+    return CriterionKey.companyInfo;
+  if (s.contains('SPECIFIC') ||
+      s.contains('EXPERIENCE') ||
+      s.contains('구체') ||
+      s.contains('경험'))
+    return CriterionKey.specificity;
+  if (s.contains('LOGIC') ||
+      s.contains('STRUCT') ||
+      s.contains('논리') ||
+      s.contains('구성'))
+    return CriterionKey.logic;
+  if (s.contains('RESPON') || s.contains('응답'))
+    return CriterionKey.responsiveness;
   return CriterionKey.clarity;
 }
 
 CriterionScore _criterion(Map<String, dynamic> j) => CriterionScore(
-      key: _criterionKey(_str(j, ['code', 'key', 'criterion', 'criterionCode', 'name', 'label', 'title']) ?? ''),
-      score: _int(j, ['score', 'points', 'value']) ?? 0,
-      max: _int(j, ['maxScore', 'max', 'fullScore']) ?? 25,
-    );
+  key: _criterionKey(
+    _str(j, [
+          'code',
+          'key',
+          'criterion',
+          'criterionCode',
+          'name',
+          'label',
+          'title',
+        ]) ??
+        '',
+  ),
+  score: _int(j, ['score', 'points', 'value']) ?? 0,
+  max: _int(j, ['maxScore', 'max', 'fullScore']) ?? 25,
+);
 
-EvaluationStatus _evaluationStatus(Map<String, dynamic> evaluation, {Map<String, dynamic>? attempt}) {
+EvaluationStatus _evaluationStatus(
+  Map<String, dynamic> evaluation, {
+  Map<String, dynamic>? attempt,
+}) {
   final result = _map(evaluation['result']) ?? evaluation;
-  final status = _str(evaluation, ['status', 'evaluationStatus']) ??
-      _str(_map(evaluation['task']), ['status']) ?? _str(attempt, ['evaluationStatus']);
-  return EvaluationStatus.fromWire(status, hasResult: _int(result, ['scorePercent', 'totalScore', 'score']) != null);
+  final status =
+      _str(evaluation, ['status', 'evaluationStatus']) ??
+      _str(_map(evaluation['task']), ['status']) ??
+      _str(attempt, ['evaluationStatus']);
+  return EvaluationStatus.fromWire(
+    status,
+    hasResult: _int(result, ['scorePercent', 'totalScore', 'score']) != null,
+  );
 }
 
 /// 평가 결과 (INT-08) → 피드백 화면 모델. [attempt] 는 시도 정보 (text, attemptNumber, submittedAt).
@@ -300,25 +439,47 @@ AnswerFeedback _feedback({
   final r = _map(evaluation['result']) ?? evaluation;
   final score = _int(r, ['scorePercent', 'totalScore', 'score']);
   final evaluationStatus = _evaluationStatus(evaluation, attempt: a);
-  if (evaluationStatus == EvaluationStatus.failed || evaluationStatus == EvaluationStatus.cancelled) {
-    throw EvaluationFailed(answerId: attemptId, status: evaluationStatus,
-      message: _str(_map(evaluation['error']), ['message']));
+  if (evaluationStatus == EvaluationStatus.failed ||
+      evaluationStatus == EvaluationStatus.cancelled) {
+    throw EvaluationFailed(
+      answerId: attemptId,
+      status: evaluationStatus,
+      message: _str(_map(evaluation['error']), ['message']),
+    );
   }
   if (evaluationStatus != EvaluationStatus.succeeded || score == null) {
-    throw const AppException(AppErrorKind.server, message: '아직 완료된 평가 결과가 없어요. 잠시 후 다시 확인해 주세요.');
+    throw const AppException(
+      AppErrorKind.server,
+      message: '아직 완료된 평가 결과가 없어요. 잠시 후 다시 확인해 주세요.',
+    );
   }
   final criteria = _list(r['criteria']).map(_criterion).toList();
-  final met = criteria.where((c) => c.max > 0 && c.score * 100 / c.max >= 80).length;
-  final complete = _bool(r, ['completionDecision']) ?? score >= AppPolicy.completeScore;
+  final met = criteria
+      .where((c) => c.max > 0 && c.score * 100 / c.max >= 80)
+      .length;
+  final complete =
+      _bool(r, ['completionDecision']) ?? score >= AppPolicy.completeScore;
   final material = _list(r['relatedMaterials']).firstOrNull;
   final u = usage ?? _map(evaluation['usage']);
   return AnswerFeedback(
     answerId: attemptId,
-    questionId: questionId ?? _str(a, ['questionId']) ?? _str(evaluation, ['questionId']) ?? '',
-    content: text ?? _str(a, ['text', 'content']) ?? _str(evaluation, ['text', 'answerText']) ?? '',
+    questionId:
+        questionId ??
+        _str(a, ['questionId']) ??
+        _str(evaluation, ['questionId']) ??
+        '',
+    content:
+        text ??
+        _str(a, ['text', 'content']) ??
+        _str(evaluation, ['text', 'answerText']) ??
+        '',
     inputType: AnswerInputType.text,
-    attempt: _int(a, ['attemptNumber']) ?? _int(evaluation, ['attemptNumber']) ?? 1,
-    submittedAt: _date(a['submittedAt']) ?? _date(evaluation['submittedAt']) ?? DateTime.now(),
+    attempt:
+        _int(a, ['attemptNumber']) ?? _int(evaluation, ['attemptNumber']) ?? 1,
+    submittedAt:
+        _date(a['submittedAt']) ??
+        _date(evaluation['submittedAt']) ??
+        DateTime.now(),
     score: score,
     criteria: criteria,
     metCount: met,
@@ -351,12 +512,16 @@ class RemoteAuthRepository implements AuthRepository {
   SocialProvider? _pendingProvider;
 
   @override
-  Future<ServerAppConfig> fetchAppConfig() async => ServerAppConfig.fromJson(_obj(await _api.get(ApiPaths.appConfig)));
+  Future<ServerAppConfig> fetchAppConfig() async =>
+      ServerAppConfig.fromJson(_obj(await _api.get(ApiPaths.appConfig)));
 
   @override
   Future<String?> prepareSocial(SocialProvider provider) async {
     if (provider != SocialProvider.apple) return null;
-    return _str(_obj(await _api.post(ApiPaths.socialAppleChallenge, auth: false)), ['nonce']);
+    return _str(
+      _obj(await _api.post(ApiPaths.socialAppleChallenge, auth: false)),
+      ['nonce'],
+    );
   }
 
   @override
@@ -364,45 +529,82 @@ class RemoteAuthRepository implements AuthRepository {
     final path = switch (credential.provider) {
       SocialProvider.kakao => ApiPaths.socialKakao,
       SocialProvider.apple => ApiPaths.socialApple,
-      SocialProvider.google => throw const AppException(AppErrorKind.validation, message: 'Google 로그인은 지원하지 않아요.'),
+      SocialProvider.google => throw const AppException(
+        AppErrorKind.validation,
+        message: 'Google 로그인은 지원하지 않아요.',
+      ),
     };
-    final data = _obj(await _api.post(path, body: credential.toJson(), auth: false, idempotencyKey: _idem()));
+    final data = _obj(
+      await _api.post(
+        path,
+        body: credential.toJson(),
+        auth: false,
+        idempotencyKey: _idem(),
+      ),
+    );
     if (_str(data, ['status']) == 'SIGN_UP_REQUIRED') {
       _pendingProvider = credential.provider;
-      throw SocialSignUpRequired(registrationToken: _str(data, ['registrationToken']) ?? '', provider: credential.provider);
+      throw SocialSignUpRequired(
+        registrationToken: _str(data, ['registrationToken']) ?? '',
+        provider: credential.provider,
+      );
     }
     _lastLoginMethod = LoginMethod.fromWire(credential.provider.wire);
     return _session(data);
   }
 
   @override
-  Future<AuthSession> completeSocialSignup({required String registrationToken, required List<String> termIds}) async {
-    final data = _obj(await _api.post(
-      ApiPaths.socialSignup,
-      body: {'registrationToken': registrationToken, 'acceptedTermsIds': termIds.map(_id).toList()},
-      auth: false,
-      idempotencyKey: _idem(),
-    ));
-    if (_pendingProvider != null) _lastLoginMethod = LoginMethod.fromWire(_pendingProvider!.wire);
+  Future<AuthSession> completeSocialSignup({
+    required String registrationToken,
+    required List<String> termIds,
+  }) async {
+    final data = _obj(
+      await _api.post(
+        ApiPaths.socialSignup,
+        body: {
+          'registrationToken': registrationToken,
+          'acceptedTermsIds': termIds.map(_id).toList(),
+        },
+        auth: false,
+        idempotencyKey: _idem(),
+      ),
+    );
+    if (_pendingProvider != null)
+      _lastLoginMethod = LoginMethod.fromWire(_pendingProvider!.wire);
     return _session(data);
   }
 
   @override
-  Future<String> sendEmailCode({required String email, required EmailCodePurpose purpose}) async {
-    final data = _obj(await _api.post(
-      ApiPaths.emailVerifications,
-      body: {'email': email.trim(), 'purpose': purpose.wire},
-      auth: purpose == EmailCodePurpose.passwordChange,
-      idempotencyKey: _idem(),
-    ));
+  Future<String> sendEmailCode({
+    required String email,
+    required EmailCodePurpose purpose,
+  }) async {
+    final data = _obj(
+      await _api.post(
+        ApiPaths.emailVerifications,
+        body: {'email': email.trim(), 'purpose': purpose.wire},
+        auth: purpose == EmailCodePurpose.passwordChange,
+        idempotencyKey: _idem(),
+      ),
+    );
     final id = _str(data, ['verificationId']);
     if (id == null) throw const AppException(AppErrorKind.server);
     return id;
   }
 
   @override
-  Future<String> verifyEmailCode({required String verificationId, required String code}) async {
-    final data = _obj(await _api.post(ApiPaths.emailVerify(verificationId), body: {'code': code.trim()}, auth: verificationId == _passwordVerificationId, idempotencyKey: _idem()));
+  Future<String> verifyEmailCode({
+    required String verificationId,
+    required String code,
+  }) async {
+    final data = _obj(
+      await _api.post(
+        ApiPaths.emailVerify(verificationId),
+        body: {'code': code.trim()},
+        auth: verificationId == _passwordVerificationId,
+        idempotencyKey: _idem(),
+      ),
+    );
     final token = _str(data, ['verificationToken']);
     if (token == null) throw const AppException(AppErrorKind.server);
     return token;
@@ -415,33 +617,50 @@ class RemoteAuthRepository implements AuthRepository {
     required String verificationToken,
     required List<String> termIds,
   }) async {
-    final data = _obj(await _api.post(
-      ApiPaths.signup,
-      body: {
-        'email': email.trim(),
-        'password': password,
-        'verificationToken': verificationToken,
-        'acceptedTermsIds': termIds.map(_id).toList(),
-      },
-      auth: false,
-      idempotencyKey: _idem(),
-    ));
+    final data = _obj(
+      await _api.post(
+        ApiPaths.signup,
+        body: {
+          'email': email.trim(),
+          'password': password,
+          'verificationToken': verificationToken,
+          'acceptedTermsIds': termIds.map(_id).toList(),
+        },
+        auth: false,
+        idempotencyKey: _idem(),
+      ),
+    );
     _lastLoginMethod = LoginMethod.email;
     return _session(data);
   }
 
   @override
-  Future<AuthSession> signInWithEmail({required String email, required String password}) async {
-    final data = _obj(await _api.post(ApiPaths.login, body: {'email': email.trim(), 'password': password}, auth: false));
+  Future<AuthSession> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    final data = _obj(
+      await _api.post(
+        ApiPaths.login,
+        body: {'email': email.trim(), 'password': password},
+        auth: false,
+      ),
+    );
     _lastLoginMethod = LoginMethod.email;
     return _session(data);
   }
 
   @override
-  Future<void> resetPassword({required String verificationToken, required String newPassword}) async {
+  Future<void> resetPassword({
+    required String verificationToken,
+    required String newPassword,
+  }) async {
     await _api.post(
       ApiPaths.passwordReset,
-      body: {'verificationToken': verificationToken, 'newPassword': newPassword},
+      body: {
+        'verificationToken': verificationToken,
+        'newPassword': newPassword,
+      },
       auth: false,
       idempotencyKey: _idem(),
     );
@@ -454,7 +673,11 @@ class RemoteAuthRepository implements AuthRepository {
     final onboarded = _bool(data, ['onboardingCompleted']);
     AppUser user;
     try {
-      user = await _fetchUser(_api, bearer: token, onboardingCompleted: onboarded);
+      user = await _fetchUser(
+        _api,
+        bearer: token,
+        onboardingCompleted: onboarded,
+      );
     } on AppException catch (e) {
       if (e.kind == AppErrorKind.unauthorized) rethrow;
       user = AppUser(
@@ -464,14 +687,22 @@ class RemoteAuthRepository implements AuthRepository {
         onboardingCompleted: onboarded ?? false,
       );
     }
-    return AuthSession(accessToken: token, refreshToken: _str(data, ['refreshToken']), user: user, isNewUser: !user.onboardingCompleted);
+    return AuthSession(
+      accessToken: token,
+      refreshToken: _str(data, ['refreshToken']),
+      user: user,
+      isNewUser: !user.onboardingCompleted,
+    );
   }
 
   @override
   Future<AppUser> fetchMe() => _fetchUser(_api);
 
   @override
-  Future<AppUser> updateProfile({required String nickname, required int avatarIndex}) async {
+  Future<AppUser> updateProfile({
+    required String nickname,
+    required int avatarIndex,
+  }) async {
     await _api.patch(ApiPaths.meProfile, body: {'nickname': nickname.trim()});
     return _fetchUser(_api);
   }
@@ -481,17 +712,34 @@ class RemoteAuthRepository implements AuthRepository {
     final me = await _fetchUser(_api);
     final email = me.email;
     if (email == null || email.isEmpty) {
-      throw const AppException(AppErrorKind.validation, message: '이메일로 가입한 회원만 비밀번호를 바꿀 수 있어요.');
+      throw const AppException(
+        AppErrorKind.validation,
+        message: '이메일로 가입한 회원만 비밀번호를 바꿀 수 있어요.',
+      );
     }
-    _passwordVerificationId = await sendEmailCode(email: email, purpose: EmailCodePurpose.passwordChange);
+    _passwordVerificationId = await sendEmailCode(
+      email: email,
+      purpose: EmailCodePurpose.passwordChange,
+    );
   }
 
   @override
-  Future<void> changePassword({required String code, required String newPassword}) async {
+  Future<void> changePassword({
+    required String code,
+    required String newPassword,
+  }) async {
     final id = _passwordVerificationId;
-    if (id == null) throw const AppException(AppErrorKind.validation, message: '먼저 본인 확인 코드를 받아 주세요.');
+    if (id == null)
+      throw const AppException(
+        AppErrorKind.validation,
+        message: '먼저 본인 확인 코드를 받아 주세요.',
+      );
     final token = await verifyEmailCode(verificationId: id, code: code);
-    await _api.patch(ApiPaths.mePassword, body: {'verificationToken': token, 'newPassword': newPassword}, idempotencyKey: _idem());
+    await _api.patch(
+      ApiPaths.mePassword,
+      body: {'verificationToken': token, 'newPassword': newPassword},
+      idempotencyKey: _idem(),
+    );
     _passwordVerificationId = null;
   }
 
@@ -501,11 +749,17 @@ class RemoteAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> deleteAccount({String? password, SocialCredential? credential}) async {
+  Future<void> deleteAccount({
+    String? password,
+    SocialCredential? credential,
+  }) async {
     // Member.Delete.parse: {confirm:true, password} 또는 {confirm:true, socialCredential:{카카오 accessToken | Apple identityToken·authorizationCode·nonce}}
     final body = <String, dynamic>{
       'confirm': true,
-      if (password != null) 'password': password else if (credential != null) 'socialCredential': credential.toJson(),
+      if (password != null)
+        'password': password
+      else if (credential != null)
+        'socialCredential': credential.toJson(),
     };
     await _api.delete(ApiPaths.me, body: body, idempotencyKey: _idem());
     _lastLoginMethod = null;
@@ -521,7 +775,10 @@ class RemoteCatalogRepository implements CatalogRepository {
   @override
   Future<List<Company>> fetchCompanies({String? query}) async {
     final q = query?.trim();
-    final data = await _api.get(ApiPaths.companies, query: {'query': (q?.isEmpty ?? true) ? null : q, 'page': 0, 'size': 50});
+    final data = await _api.get(
+      ApiPaths.companies,
+      query: {'query': (q?.isEmpty ?? true) ? null : q, 'page': 0, 'size': 50},
+    );
     return _content(data).map(_company).where((c) => c.id.isNotEmpty).toList();
   }
 
@@ -531,24 +788,41 @@ class RemoteCatalogRepository implements CatalogRepository {
     final jobs = <Map<String, dynamic>>[];
     var categories = <Map<String, dynamic>>[];
     for (var page = 0; page < 20; page++) {
-      final data = _obj(await _api.get(ApiPaths.jobs, query: {'page': page, 'size': 100}));
+      final data = _obj(
+        await _api.get(ApiPaths.jobs, query: {'page': page, 'size': 100}),
+      );
       jobs.addAll(_content(data));
       if (page == 0) categories = _list(data['categories']);
       if (data['hasNext'] != true) break;
     }
-    Job job(Map<String, dynamic> j) => Job(id: _str(j, ['jobId', 'id']) ?? '', name: _str(j, ['jobName', 'name']) ?? '');
+    Job job(Map<String, dynamic> j) => Job(
+      id: _str(j, ['jobId', 'id']) ?? '',
+      name: _str(j, ['jobName', 'name']) ?? '',
+    );
     final cats = <String, String>{
-      for (final c in categories) (_str(c, ['categoryId', 'id']) ?? ''): _str(c, ['categoryName', 'name']) ?? '',
+      for (final c in categories)
+        (_str(c, ['categoryId', 'id']) ?? ''):
+            _str(c, ['categoryName', 'name']) ?? '',
     };
     for (final j in jobs) {
-      cats.putIfAbsent(_str(j, ['categoryId']) ?? '', () => _str(j, ['categoryName']) ?? '기타');
+      cats.putIfAbsent(
+        _str(j, ['categoryId']) ?? '',
+        () => _str(j, ['categoryName']) ?? '기타',
+      );
     }
     return JobCatalog(
       popular: jobs.where((j) => j['popular'] == true).map(job).toList(),
       categories: [
         for (final e in cats.entries)
           if (jobs.any((j) => (_str(j, ['categoryId']) ?? '') == e.key))
-            JobCategory(id: e.key, name: e.value, jobs: jobs.where((j) => (_str(j, ['categoryId']) ?? '') == e.key).map(job).toList()),
+            JobCategory(
+              id: e.key,
+              name: e.value,
+              jobs: jobs
+                  .where((j) => (_str(j, ['categoryId']) ?? '') == e.key)
+                  .map(job)
+                  .toList(),
+            ),
       ],
     );
   }
@@ -585,13 +859,18 @@ class RemoteProfileRepository implements ProfileRepository {
   }
 
   Future<List<Preparation>> _server() async {
-    final data = await _api.get(ApiPaths.meCompanies, query: {'page': 0, 'size': 100});
+    final data = await _api.get(
+      ApiPaths.meCompanies,
+      query: {'page': 0, 'size': 100},
+    );
     return _content(data).map((j) => _preparation(j, _prepVersions)).toList();
   }
 
   Future<List<Preparation>> _merged() async {
     final server = await _server();
-    _pending = _pending.where((p) => !server.any((s) => s.companyId == p.companyId)).toList();
+    _pending = _pending
+        .where((p) => !server.any((s) => s.companyId == p.companyId))
+        .toList();
     return [...server, ..._pending];
   }
 
@@ -600,12 +879,16 @@ class RemoteProfileRepository implements ProfileRepository {
     return id != null ? {'jobId': id} : {'customName': p.jobName};
   }
 
-  String? _date(Preparation p) => p.interviewDate == null ? null : formatIsoDate(p.interviewDate!);
+  String? _date(Preparation p) =>
+      p.interviewDate == null ? null : formatIsoDate(p.interviewDate!);
 
   bool _sameJob(Preparation a, Preparation b) =>
-      (a.jobId != null || b.jobId != null) ? a.jobId == b.jobId : (a.jobName ?? '') == (b.jobName ?? '');
+      (a.jobId != null || b.jobId != null)
+      ? a.jobId == b.jobId
+      : (a.jobName ?? '') == (b.jobName ?? '');
 
-  bool _changed(Preparation a, Preparation b) => !_sameJob(a, b) || a.interviewDate != b.interviewDate;
+  bool _changed(Preparation a, Preparation b) =>
+      !_sameJob(a, b) || a.interviewDate != b.interviewDate;
 
   // ---- 첫 설정 (서버 온보딩: GET/PATCH /users/me/onboarding → POST complete 가 준비 기업을 만든다)
 
@@ -620,15 +903,33 @@ class RemoteProfileRepository implements ProfileRepository {
     return ob;
   }
 
-  Set<String> _steps(Map<String, dynamic> ob) => (ob['completedSteps'] as List<dynamic>? ?? const []).map((e) => e.toString()).toSet();
+  Set<String> _steps(Map<String, dynamic> ob) =>
+      (ob['completedSteps'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .toSet();
 
-  Future<Map<String, dynamic>> _step(Map<String, dynamic> ob, String step, Map<String, dynamic> payload) async => _obj(
-        await _api.patch(ApiPaths.meOnboarding, body: {'step': step, 'version': _int(ob, ['version']) ?? 1, 'payload': payload}),
-      );
+  Future<Map<String, dynamic>> _step(
+    Map<String, dynamic> ob,
+    String step,
+    Map<String, dynamic> payload,
+  ) async => _obj(
+    await _api.patch(
+      ApiPaths.meOnboarding,
+      body: {
+        'step': step,
+        'version': _int(ob, ['version']) ?? 1,
+        'payload': payload,
+      },
+    ),
+  );
 
   List<Preparation> _fromDraft(Map<String, dynamic> ob) {
-    final ids = (ob['companyIds'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList();
-    final assignments = {for (final a in _list(ob['assignments'])) _str(a, ['companyId']) ?? '': a};
+    final ids = (ob['companyIds'] as List<dynamic>? ?? const [])
+        .map((e) => e.toString())
+        .toList();
+    final assignments = {
+      for (final a in _list(ob['assignments'])) _str(a, ['companyId']) ?? '': a,
+    };
     return [
       for (final id in ids)
         () {
@@ -639,7 +940,9 @@ class RemoteProfileRepository implements ProfileRepository {
             companyId: id,
             companyName: known?.companyName ?? _companyNames[id] ?? '',
             industry: known?.industry,
-            jobId: job == null || job['isCustom'] == true ? null : _str(job, ['jobId']),
+            jobId: job == null || job['isCustom'] == true
+                ? null
+                : _str(job, ['jobId']),
             jobName: _str(job, ['jobName', 'customName']),
             interviewDate: _day(a?['interviewDate']),
           );
@@ -648,30 +951,52 @@ class RemoteProfileRepository implements ProfileRepository {
   }
 
   /// 첫 설정 단계를 순서대로 서버에 저장 (기업 → 직무 → 면접일). 앞 단계가 바뀌면 서버가 뒤 단계를 지운다.
-  Future<List<Preparation>> _saveOnboarding(Map<String, dynamic> start, List<Preparation> items) async {
+  Future<List<Preparation>> _saveOnboarding(
+    Map<String, dynamic> start,
+    List<Preparation> items,
+  ) async {
     var ob = start;
     for (final p in items) {
       _known[p.companyId] = p;
     }
     final ids = items.map((p) => _id(p.companyId)).toList();
-    final draftIds = (ob['companyIds'] as List<dynamic>? ?? const []).map((e) => (e as num).toInt()).toList();
-    final sameCompanies = ids.length == draftIds.length && [for (var i = 0; i < ids.length; i++) ids[i] == draftIds[i]].every((v) => v);
+    final draftIds = (ob['companyIds'] as List<dynamic>? ?? const [])
+        .map((e) => (e as num).toInt())
+        .toList();
+    final sameCompanies =
+        ids.length == draftIds.length &&
+        [for (var i = 0; i < ids.length; i++) ids[i] == draftIds[i]]
+            .every((v) => v);
     if (!_steps(ob).contains('COMPANIES') || !sameCompanies) {
       ob = await _step(ob, 'COMPANIES', {'companyIds': ids});
     }
     if (items.isNotEmpty && items.every((p) => p.hasJob)) {
       final current = _fromDraft(ob);
-      Preparation? cur(String id) => current.where((c) => c.companyId == id).firstOrNull;
-      if (!_steps(ob).contains('JOBS') || items.any((p) => cur(p.companyId) == null || !_sameJob(cur(p.companyId)!, p))) {
+      Preparation? cur(String id) =>
+          current.where((c) => c.companyId == id).firstOrNull;
+      if (!_steps(ob).contains('JOBS') ||
+          items.any(
+            (p) => cur(p.companyId) == null || !_sameJob(cur(p.companyId)!, p),
+          )) {
         ob = await _step(ob, 'JOBS', {
-          'assignments': [for (final p in items) {'companyId': _id(p.companyId), 'job': _job(p)}],
+          'assignments': [
+            for (final p in items)
+              {'companyId': _id(p.companyId), 'job': _job(p)},
+          ],
         });
       }
       final afterJobs = _fromDraft(ob);
-      Preparation? cur2(String id) => afterJobs.where((c) => c.companyId == id).firstOrNull;
-      if (!_steps(ob).contains('DATES') || items.any((p) => cur2(p.companyId)?.interviewDate != p.interviewDate)) {
+      Preparation? cur2(String id) =>
+          afterJobs.where((c) => c.companyId == id).firstOrNull;
+      if (!_steps(ob).contains('DATES') ||
+          items.any(
+            (p) => cur2(p.companyId)?.interviewDate != p.interviewDate,
+          )) {
         ob = await _step(ob, 'DATES', {
-          'dates': [for (final p in items) {'companyId': _id(p.companyId), 'interviewDate': _date(p)}],
+          'dates': [
+            for (final p in items)
+              {'companyId': _id(p.companyId), 'interviewDate': _date(p)},
+          ],
         });
       }
     }
@@ -687,18 +1012,24 @@ class RemoteProfileRepository implements ProfileRepository {
   @override
   Future<List<Preparation>> savePreparations(List<Preparation> items) async {
     if (items.length > AppPolicy.maxCompanies) {
-      throw const AppException(AppErrorKind.validation, message: '준비 기업은 최대 ${AppPolicy.maxCompanies}개까지 고를 수 있어요.');
+      throw const AppException(
+        AppErrorKind.validation,
+        message: '준비 기업은 최대 ${AppPolicy.maxCompanies}개까지 고를 수 있어요.',
+      );
     }
     final ob = await _openOnboarding();
     if (ob != null) return _saveOnboarding(ob, items);
 
     final server = await _server();
     for (final s in server) {
-      if (!items.any((p) => p.companyId == s.companyId)) await _api.delete(ApiPaths.meCompany(s.companyId));
+      if (!items.any((p) => p.companyId == s.companyId))
+        await _api.delete(ApiPaths.meCompany(s.companyId));
     }
     final pending = <Preparation>[];
     for (final p in items) {
-      final existing = server.where((s) => s.companyId == p.companyId).firstOrNull;
+      final existing = server
+          .where((s) => s.companyId == p.companyId)
+          .firstOrNull;
       if (existing == null) {
         if (p.hasJob) {
           await _add(p);
@@ -716,7 +1047,11 @@ class RemoteProfileRepository implements ProfileRepository {
   Future<void> _add(Preparation p) async {
     await _api.post(
       ApiPaths.meCompanies,
-      body: {'companyId': _id(p.companyId), 'job': _job(p), 'interviewDate': ?_date(p)},
+      body: {
+        'companyId': _id(p.companyId),
+        'job': _job(p),
+        'interviewDate': ?_date(p),
+      },
       idempotencyKey: _idem(),
     );
   }
@@ -724,21 +1059,31 @@ class RemoteProfileRepository implements ProfileRepository {
   /// PATCH /users/me/companies/{id}: {version(필수), job?, interviewDate?(null=일정 해제)}
   Future<void> _patch(Preparation p) async {
     if (!_prepVersions.containsKey(p.companyId)) await _server();
-    await _api.patch(ApiPaths.meCompany(p.companyId), body: {
-      'version': _prepVersions[p.companyId] ?? 1,
-      if (p.hasJob) 'job': _job(p),
-      'interviewDate': _date(p),
-    });
+    await _api.patch(
+      ApiPaths.meCompany(p.companyId),
+      body: {
+        'version': _prepVersions[p.companyId] ?? 1,
+        if (p.hasJob) 'job': _job(p),
+        'interviewDate': _date(p),
+      },
+    );
   }
 
   @override
   Future<List<Preparation>> addPreparation(Preparation item) async {
     final ob = await _openOnboarding();
-    if (ob != null) return _saveOnboarding(ob, [..._fromDraft(ob).where((p) => p.companyId != item.companyId), item]);
+    if (ob != null)
+      return _saveOnboarding(ob, [
+        ..._fromDraft(ob).where((p) => p.companyId != item.companyId),
+        item,
+      ]);
     if (item.hasJob) {
       await _add(item);
     } else {
-      _pending = [..._pending.where((p) => p.companyId != item.companyId), item];
+      _pending = [
+        ..._pending.where((p) => p.companyId != item.companyId),
+        item,
+      ];
     }
     return _merged();
   }
@@ -747,7 +1092,10 @@ class RemoteProfileRepository implements ProfileRepository {
   Future<List<Preparation>> updatePreparation(Preparation item) async {
     final ob = await _openOnboarding();
     if (ob != null) {
-      return _saveOnboarding(ob, [for (final p in _fromDraft(ob)) p.companyId == item.companyId ? item : p]);
+      return _saveOnboarding(ob, [
+        for (final p in _fromDraft(ob))
+          p.companyId == item.companyId ? item : p,
+      ]);
     }
     if (_pending.any((p) => p.companyId == item.companyId)) {
       _pending = _pending.where((p) => p.companyId != item.companyId).toList();
@@ -760,12 +1108,19 @@ class RemoteProfileRepository implements ProfileRepository {
   @override
   Future<List<Preparation>> removePreparation(String companyId) async {
     final ob = await _openOnboarding();
-    if (ob != null) return _saveOnboarding(ob, _fromDraft(ob).where((p) => p.companyId != companyId).toList());
+    if (ob != null)
+      return _saveOnboarding(
+        ob,
+        _fromDraft(ob).where((p) => p.companyId != companyId).toList(),
+      );
     if (_pending.any((p) => p.companyId == companyId)) {
       _pending = _pending.where((p) => p.companyId != companyId).toList();
     } else {
       await _api.delete(ApiPaths.meCompany(companyId));
     }
+    // 뺀 기업의 직무·버전이 기기에 남아 다시 쓰이지 않게 지운다
+    _known.remove(companyId);
+    _prepVersions.remove(companyId);
     return _merged();
   }
 
@@ -774,55 +1129,106 @@ class RemoteProfileRepository implements ProfileRepository {
   /// → isActive 가 true 가 아닌 기업을 모두 후보로 두고, 지금 준비 중인 기업은 화면 쪽에서 뺀다.
   @override
   Future<List<PastPreparation>> fetchPastPreparations() async {
-    final data = await _api.get(ApiPaths.reviewCompanies, query: {'page': 0, 'size': 100});
-    return [
-      for (final j in _content(data))
-        if (j['isActive'] != true)
-          () {
-            final c = _company(_map(j['company']) ?? j);
-            return PastPreparation(
-              companyId: c.id,
-              companyName: c.name,
-              industry: c.industry,
-              quizCount: _int(j, ['quizQuestionCount']) ?? 0,
-              answerCount: _int(j, ['interviewQuestionCount']) ?? 0,
-            );
-          }(),
-    ];
+    final data = await _api.get(
+      ApiPaths.reviewCompanies,
+      query: {'page': 0, 'size': 100},
+    );
+    // 뺀 기업에 서버가 보관한 직무: GET /users/me/companies?status=EXCLUDED (실패해도 목록은 보여 준다)
+    final excluded = <String, Preparation>{};
+    try {
+      final ex = await _api.get(
+        ApiPaths.meCompanies,
+        query: {'status': 'EXCLUDED', 'page': 0, 'size': 100},
+      );
+      for (final j in _content(ex)) {
+        final p = _preparation(j);
+        excluded[p.companyId] = p;
+      }
+    } catch (_) {}
+    final seen = <String>{};
+    final out = <PastPreparation>[];
+    for (final j in _content(data)) {
+      if (j['isActive'] == true) continue;
+      final c = _company(_map(j['company']) ?? j);
+      final job = excluded[c.id];
+      seen.add(c.id);
+      out.add(
+        PastPreparation(
+          companyId: c.id,
+          companyName: c.name,
+          industry: c.industry,
+          quizCount: _int(j, ['quizQuestionCount']) ?? 0,
+          answerCount: _int(j, ['interviewQuestionCount']) ?? 0,
+          jobId: job?.jobId,
+          jobName: job?.jobName,
+        ),
+      );
+    }
+    // 학습 기록이 없어도 뺀 기업이면 다시 추가할 수 있게 둔다
+    for (final p in excluded.values) {
+      if (seen.contains(p.companyId)) continue;
+      out.add(
+        PastPreparation(
+          companyId: p.companyId,
+          companyName: p.companyName,
+          industry: p.industry,
+          jobId: p.jobId,
+          jobName: p.jobName,
+        ),
+      );
+    }
+    return out;
   }
 
   Experience _experience(Map<String, dynamic> j) {
     final id = _str(j, ['experienceId', 'id']) ?? '';
     final v = _int(j, ['version']);
     if (v != null) _expVersions[id] = v;
-    return Experience(id: id, title: _str(j, ['title']) ?? '', content: _str(j, ['content']) ?? '');
+    return Experience(
+      id: id,
+      title: _str(j, ['title']) ?? '',
+      content: _str(j, ['content']) ?? '',
+    );
   }
 
   @override
   Future<List<Experience>> fetchExperiences() async {
-    final items = _content(await _api.get(ApiPaths.meExperiences, query: {'page': 0, 'size': 100}));
+    final items = _content(
+      await _api.get(ApiPaths.meExperiences, query: {'page': 0, 'size': 100}),
+    );
     // 목록에 본문이 없으면 상세를 같이 읽는다
-    return Future.wait(items.map((j) async {
-      if (j['content'] is String) return _experience(j);
-      final id = _str(j, ['experienceId', 'id']) ?? '';
-      return _experience(_obj(await _api.get(ApiPaths.meExperience(id))));
-    }));
+    return Future.wait(
+      items.map((j) async {
+        if (j['content'] is String) return _experience(j);
+        final id = _str(j, ['experienceId', 'id']) ?? '';
+        return _experience(_obj(await _api.get(ApiPaths.meExperience(id))));
+      }),
+    );
   }
 
   /// 서버는 경험을 자동으로 나누지 않는다 (명세: 자소서 자동 분리 범위 밖) → 쓴 글을 경험 한 건으로
   @override
   Future<List<ExperienceDraft>> splitExperiences(String text) async {
     final body = text.trim();
-    final firstLine = body.split('\n').map((l) => l.trim()).firstWhere((l) => l.isNotEmpty, orElse: () => '내 경험');
+    final firstLine = body
+        .split('\n')
+        .map((l) => l.trim())
+        .firstWhere((l) => l.isNotEmpty, orElse: () => '내 경험');
     final chars = firstLine.characters;
-    final title = chars.length > AppPolicy.experienceTitleMaxLength ? chars.take(AppPolicy.experienceTitleMaxLength).toString() : firstLine;
+    final title = chars.length > AppPolicy.experienceTitleMaxLength
+        ? chars.take(AppPolicy.experienceTitleMaxLength).toString()
+        : firstLine;
     return [ExperienceDraft(title: title, content: body)];
   }
 
   @override
   Future<List<Experience>> addExperiences(List<ExperienceDraft> items) async {
     for (final d in items) {
-      await _api.post(ApiPaths.meExperiences, body: {'title': d.title.trim(), 'content': d.content.trim()}, idempotencyKey: _idem());
+      await _api.post(
+        ApiPaths.meExperiences,
+        body: {'title': d.title.trim(), 'content': d.content.trim()},
+        idempotencyKey: _idem(),
+      );
     }
     return fetchExperiences();
   }
@@ -834,11 +1240,14 @@ class RemoteProfileRepository implements ProfileRepository {
       _experience(_obj(await _api.get(ApiPaths.meExperience(item.id))));
       version = _expVersions[item.id];
     }
-    final data = await _api.patch(ApiPaths.meExperience(item.id), body: {
-      'version': version ?? 1,
-      'title': item.title.trim(),
-      'content': item.content.trim(),
-    });
+    final data = await _api.patch(
+      ApiPaths.meExperience(item.id),
+      body: {
+        'version': version ?? 1,
+        'title': item.title.trim(),
+        'content': item.content.trim(),
+      },
+    );
     final j = _obj(data);
     return j.isEmpty ? item : _experience(j);
   }
@@ -857,44 +1266,70 @@ class RemoteProfileRepository implements ProfileRepository {
       if (!_steps(ob).contains('DATES')) {
         final current = _fromDraft(ob);
         ob = await _step(ob, 'DATES', {
-          'dates': [for (final p in current) {'companyId': _id(p.companyId), 'interviewDate': _date(p)}],
+          'dates': [
+            for (final p in current)
+              {'companyId': _id(p.companyId), 'interviewDate': _date(p)},
+          ],
         });
       }
       if (!_steps(ob).contains('EXPERIENCE')) {
-        final items = _content(await _api.get(ApiPaths.meExperiences, query: {'page': 0, 'size': 100}));
+        final items = _content(
+          await _api.get(
+            ApiPaths.meExperiences,
+            query: {'page': 0, 'size': 100},
+          ),
+        );
         ob = await _step(ob, 'EXPERIENCE', {
-          'experienceIds': [for (final e in items) ?_int(e, ['experienceId', 'id'])],
+          'experienceIds': [
+            for (final e in items) ?_int(e, ['experienceId', 'id']),
+          ],
         });
       }
       if (!_steps(ob).contains('NOTIFICATION_GUIDANCE')) {
-        ob = await _step(ob, 'NOTIFICATION_GUIDANCE', {'guidanceCompleted': true});
+        ob = await _step(ob, 'NOTIFICATION_GUIDANCE', {
+          'guidanceCompleted': true,
+        });
       }
       await _api.post(ApiPaths.meOnboardingComplete, idempotencyKey: _idem());
     }
     _onboarded = true;
     final user = await _fetchUser(_api, onboardingCompleted: true);
-    return user.onboardingCompleted ? user : user.copyWith(onboardingCompleted: true);
+    return user.onboardingCompleted
+        ? user
+        : user.copyWith(onboardingCompleted: true);
   }
 
   @override
   Future<NotificationSettings> fetchNotificationSettings() async =>
-      NotificationSettings.fromJson(_obj(await _api.get(ApiPaths.meNotificationSettings)));
+      NotificationSettings.fromJson(
+        _obj(await _api.get(ApiPaths.meNotificationSettings)),
+      );
 
   @override
-  Future<NotificationSettings> updateNotificationSettings(NotificationSettings settings) async {
-    final version = settings.version ?? (await fetchNotificationSettings()).version ?? 1;
-    final data = await _api.patch(ApiPaths.meNotificationSettings, body: {
-      'version': version,
-      'enabled': settings.enabled,
-      'scheduledTime': '${settings.hour.toString().padLeft(2, '0')}:${settings.minute.toString().padLeft(2, '0')}',
-      'timeZone': 'Asia/Seoul',
-    });
+  Future<NotificationSettings> updateNotificationSettings(
+    NotificationSettings settings,
+  ) async {
+    final version =
+        settings.version ?? (await fetchNotificationSettings()).version ?? 1;
+    final data = await _api.patch(
+      ApiPaths.meNotificationSettings,
+      body: {
+        'version': version,
+        'enabled': settings.enabled,
+        'scheduledTime':
+            '${settings.hour.toString().padLeft(2, '0')}:${settings.minute.toString().padLeft(2, '0')}',
+        'timeZone': 'Asia/Seoul',
+      },
+    );
     return NotificationSettings.fromJson(_obj(data));
   }
 
   /// 서버는 푸시 토큰을 받지 않는다 (명세: 학습 알림은 앱 로컬 예약)
   @override
-  Future<void> registerPushToken({required String token, required String platform}) async {}
+  Future<void> registerPushToken({
+    required String token,
+    required String platform,
+  }) async {}
 }
 
 // ---------------------------------------------------------------- 홈
@@ -911,35 +1346,49 @@ class RemoteHomeRepository implements HomeRepository {
     ]);
     final user = results[0] as AppUser;
     final items = _content(results[1]);
-    final companies = await Future.wait(items.map((j) async {
-      final prep = _preparation(j);
-      Map<String, dynamic> dash = const {};
-      try {
-        dash = _obj(await _api.get(ApiPaths.meDashboard, query: {'companyId': _id(prep.companyId)}));
-      } on AppException catch (e) {
-        if (e.kind == AppErrorKind.unauthorized) rethrow;
-      }
-      final acc = _map(dash['quizAccuracy']);
-      final eval = _map(dash['interviewEvaluationSummary']);
-      final quiz = _map(j['quizToday']);
-      final interview = _map(j['interviewToday']);
-      return CompanyHome(
-        preparation: prep,
-        quizCorrect: _int(acc, ['firstCorrectCount']) ?? 0,
-        quizSolved: _int(acc, ['firstAnsweredCount']) ?? 0,
-        interviewAnswered: _int(eval, ['evaluatedQuestionCount']) ?? 0,
-        interviewCompleted: 0,
-        quiz: TodayTask(done: _int(quiz, ['submittedCount']) ?? 0, total: _int(quiz, ['totalCount']) ?? AppPolicy.quizQuestionCount),
-        interview: TodayTask(
-          done: _int(interview, ['questionUsed']) ?? 0,
-          total: _int(interview, ['questionLimit']) ?? AppPolicy.interviewDailyCount,
-        ),
-        focusMode: (_str(j, ['learningMode']) ?? '').toUpperCase().contains('FOCUS'),
-        adBonusAvailable: false,
-        dday: _int(j, ['daysUntilInterview']),
-        interviewScorePercent: _int(eval, ['averageScorePercent']),
-      );
-    }));
+    final companies = await Future.wait(
+      items.map((j) async {
+        final prep = _preparation(j);
+        Map<String, dynamic> dash = const {};
+        try {
+          dash = _obj(
+            await _api.get(
+              ApiPaths.meDashboard,
+              query: {'companyId': _id(prep.companyId)},
+            ),
+          );
+        } on AppException catch (e) {
+          if (e.kind == AppErrorKind.unauthorized) rethrow;
+        }
+        final acc = _map(dash['quizAccuracy']);
+        final eval = _map(dash['interviewEvaluationSummary']);
+        final quiz = _map(j['quizToday']);
+        final interview = _map(j['interviewToday']);
+        return CompanyHome(
+          preparation: prep,
+          quizCorrect: _int(acc, ['firstCorrectCount']) ?? 0,
+          quizSolved: _int(acc, ['firstAnsweredCount']) ?? 0,
+          interviewAnswered: _int(eval, ['evaluatedQuestionCount']) ?? 0,
+          interviewCompleted: 0,
+          quiz: TodayTask(
+            done: _int(quiz, ['submittedCount']) ?? 0,
+            total: _int(quiz, ['totalCount']) ?? AppPolicy.quizQuestionCount,
+          ),
+          interview: TodayTask(
+            done: _int(interview, ['questionUsed']) ?? 0,
+            total:
+                _int(interview, ['questionLimit']) ??
+                AppPolicy.interviewDailyCount,
+          ),
+          focusMode: (_str(j, ['learningMode']) ?? '').toUpperCase().contains(
+            'FOCUS',
+          ),
+          adBonusAvailable: false,
+          dday: _int(j, ['daysUntilInterview']),
+          interviewScorePercent: _int(eval, ['averageScorePercent']),
+        );
+      }),
+    );
     return HomeSummary(nickname: user.nickname, companies: companies);
   }
 }
@@ -954,7 +1403,9 @@ class RemoteQuizRepository implements QuizRepository {
 
   @override
   Future<QuizSet> fetchTodaySet(String companyId) async {
-    final summary = _obj(await _api.post(ApiPaths.quizToday(companyId), idempotencyKey: _idem()));
+    final summary = _obj(
+      await _api.post(ApiPaths.quizToday(companyId), idempotencyKey: _idem()),
+    );
     final setId = _str(summary, ['quizSetId', 'id']) ?? '';
     var total = _int(summary, ['totalCount']) ?? AppPolicy.quizQuestionCount;
     var submitted = _int(summary, ['submittedCount']) ?? 0;
@@ -963,73 +1414,138 @@ class RemoteQuizRepository implements QuizRepository {
       final detail = _obj(await _api.get(ApiPaths.quizSet(setId)));
       total = _int(detail, ['totalCount']) ?? total;
       submitted = _int(detail, ['submittedCount']) ?? submitted;
-      current = _current(detail, _int(detail, ['nextItemPosition']) ?? _int(summary, ['nextItemPosition']) ?? submitted + 1);
+      current = _current(
+        detail,
+        _int(detail, ['nextItemPosition']) ??
+            _int(summary, ['nextItemPosition']) ??
+            submitted + 1,
+      );
     }
     return QuizSet(
       id: setId,
       companyId: companyId,
       companyName: _companyNames[companyId] ?? '',
       questions: [
-        for (var i = 0; i < total; i++) i == submitted && current != null ? current : _placeholder(i + 1),
+        for (var i = 0; i < total; i++)
+          i == submitted && current != null ? current : _placeholder(i + 1),
       ],
       answers: [
-        for (var i = 0; i < submitted; i++) const QuizAnswerResult(questionId: '', answer: '', correct: false, explanation: ''),
+        for (var i = 0; i < submitted; i++)
+          const QuizAnswerResult(
+            questionId: '',
+            answer: '',
+            correct: false,
+            explanation: '',
+          ),
       ],
     );
   }
 
   // 서버 QuizPlay.Detail: {quizSetId, submittedCount, totalCount, nextItemPosition, currentItem{itemId, position, question, options}, savedAnswers}
   QuizQuestion? _current(Map<String, dynamic> d, int nextPosition) {
-    for (final key in ['currentItem', 'currentQuestion', 'item', 'nextItem', 'question']) {
+    for (final key in [
+      'currentItem',
+      'currentQuestion',
+      'item',
+      'nextItem',
+      'question',
+    ]) {
       final m = _map(d[key]);
       if (m != null && m['options'] is List) return _quizQuestion(m);
     }
     if (d['options'] is List) return _quizQuestion(d);
-    final items = _list(d['items'] ?? d['questions']).where((m) => m['options'] is List).toList();
-    final byPosition = items.where((m) => _int(m, ['position']) == nextPosition).firstOrNull;
-    final open = items.where((m) => m['selectedOptionId'] == null && m['answered'] != true && m['submitted'] != true).firstOrNull;
+    final items = _list(d['items'] ?? d['questions'])
+        .where((m) => m['options'] is List)
+        .toList();
+    final byPosition = items
+        .where((m) => _int(m, ['position']) == nextPosition)
+        .firstOrNull;
+    final open = items
+        .where(
+          (m) =>
+              m['selectedOptionId'] == null &&
+              m['answered'] != true &&
+              m['submitted'] != true,
+        )
+        .firstOrNull;
     final pick = byPosition ?? open;
     return pick == null ? null : _quizQuestion(pick);
   }
 
   /// 진행 중에는 채점 결과를 주지 않는다 → 결과 화면에서 본다
   @override
-  Future<QuizAnswerResult> submitAnswer({required String setId, required String questionId, required String answer}) async {
+  Future<QuizAnswerResult> submitAnswer({
+    required String setId,
+    required String questionId,
+    required String answer,
+  }) async {
     await _api.post(
       ApiPaths.quizAnswers(setId),
       body: {'itemId': _id(questionId), 'selectedOptionId': _id(answer)},
       idempotencyKey: _idem(),
     );
-    return QuizAnswerResult(questionId: questionId, answer: answer, correct: false, explanation: '');
+    return QuizAnswerResult(
+      questionId: questionId,
+      answer: answer,
+      correct: false,
+      explanation: '',
+    );
   }
 
   // 서버 QuizPlay.ResultItem: {question, answerId, selectedOptionId, correctOptionId, isCorrect, explanation, evidence[], revisionNotice}
   @override
   Future<QuizResult> fetchResult(String setId) async {
     final d = _obj(await _api.get(ApiPaths.quizResult(setId)));
-    final items = _list(d['items'] ?? d['results'] ?? d['answers'] ?? d['questions']).map(_resultItem).toList();
+    final items = _list(
+      d['items'] ?? d['results'] ?? d['answers'] ?? d['questions'],
+    ).map(_resultItem).toList();
     final acc = _map(d['quizAccuracy']) ?? _map(d['accuracy']);
     // QuizPlay.Result: {quizSetId, company{companyId, companyName}, correctCount, totalCount, accuracyBefore{percent}, accuracyAfter, items}
     final company = _map(d['company']);
-    final companyId = _str(d, ['companyId']) ?? _str(company, ['companyId']) ?? '';
+    final companyId =
+        _str(d, ['companyId']) ?? _str(company, ['companyId']) ?? '';
     return QuizResult(
       setId: setId,
       companyId: companyId,
-      companyName: _str(company, ['companyName']) ?? _str(d, ['companyName']) ?? _companyNames[companyId] ?? '',
-      correctCount: _int(d, ['correctCount']) ?? items.where((i) => i.correct).length,
+      companyName:
+          _str(company, ['companyName']) ??
+          _str(d, ['companyName']) ??
+          _companyNames[companyId] ??
+          '',
+      correctCount:
+          _int(d, ['correctCount']) ?? items.where((i) => i.correct).length,
       total: _int(d, ['totalCount', 'total']) ?? items.length,
-      accuracyBefore: _percent(d, ['accuracyBefore', 'previousAccuracyPercent', 'beforePercent']) ?? _percent(acc, ['before', 'beforePercent', 'previousPercent']),
-      accuracyAfter: _percent(d, ['accuracyAfter', 'accuracyPercent', 'afterPercent']) ?? _percent(acc, ['after', 'percent', 'afterPercent']),
+      accuracyBefore:
+          _percent(d, [
+            'accuracyBefore',
+            'previousAccuracyPercent',
+            'beforePercent',
+          ]) ??
+          _percent(acc, ['before', 'beforePercent', 'previousPercent']),
+      accuracyAfter:
+          _percent(d, ['accuracyAfter', 'accuracyPercent', 'afterPercent']) ??
+          _percent(acc, ['after', 'percent', 'afterPercent']),
       items: items,
+      retryRemaining: _int(d, [
+        'retryRemaining',
+        'remainingRetryCount',
+        'retryRemainingCount',
+      ]),
     );
   }
 
   QuizResultItem _resultItem(Map<String, dynamic> j) {
     final q = _map(j['question']) ?? j;
-    final options = _list(q['options'])..sort((a, b) => (_int(a, ['position']) ?? 0).compareTo(_int(b, ['position']) ?? 0));
+    final options = _list(q['options'])
+      ..sort(
+        (a, b) =>
+            (_int(a, ['position']) ?? 0).compareTo(_int(b, ['position']) ?? 0),
+      );
     String? label(String? optionId) {
       if (optionId == null) return null;
-      final i = options.indexWhere((o) => _str(o, ['optionId', 'id']) == optionId);
+      final i = options.indexWhere(
+        (o) => _str(o, ['optionId', 'id']) == optionId,
+      );
       if (i < 0) return null;
       return '${_letters[i.clamp(0, _letters.length - 1)]}. ${_str(options[i], ['text']) ?? ''}';
     }
@@ -1039,7 +1555,9 @@ class RemoteQuizRepository implements QuizRepository {
     return QuizResultItem(
       questionId: _str(q, ['questionId', 'itemId', 'id']) ?? '',
       title: _str(q, ['question', 'title']) ?? '',
-      correct: _bool(j, ['isCorrect', 'correct']) ?? (selected != null && selected == correct),
+      correct:
+          _bool(j, ['isCorrect', 'correct']) ??
+          (selected != null && selected == correct),
       explanation: _str(j, ['explanation']) ?? '',
       myAnswer: label(selected),
       correctAnswer: label(correct),
@@ -1049,16 +1567,26 @@ class RemoteQuizRepository implements QuizRepository {
 
   /// 오류 제보는 문의(구글폼)로 받는다 (명세: 문의는 구글폼 링크)
   @override
-  Future<void> reportQuestion({required String questionId, required String reason}) async {
-    throw const AppException(AppErrorKind.validation, message: '오류 제보는 마이 > 서비스 문의 및 오류제보에서 보내 주세요.');
+  Future<void> reportQuestion({
+    required String questionId,
+    required String reason,
+  }) async {
+    throw const AppException(
+      AppErrorKind.validation,
+      message: '오류 제보는 마이 > 서비스 문의 및 오류제보에서 보내 주세요.',
+    );
   }
 }
 
 // ---------------------------------------------------------------- 면접
 
 class RemoteInterviewRepository implements InterviewRepository {
-  RemoteInterviewRepository(this._api, {LocalStore? store, String? Function()? ownerId})
-      : _store = store, _ownerId = ownerId;
+  RemoteInterviewRepository(
+    this._api, {
+    LocalStore? store,
+    String? Function()? ownerId,
+  }) : _store = store,
+       _ownerId = ownerId;
   final ApiClient _api;
   final LocalStore? _store;
   final String? Function()? _ownerId;
@@ -1100,7 +1628,8 @@ class RemoteInterviewRepository implements InterviewRepository {
       return null;
     }
     final cached = _pending[key];
-    if (cached != null && cached.idempotencyKey == saved['idempotencyKey']) return cached;
+    if (cached != null && cached.idempotencyKey == saved['idempotencyKey'])
+      return cached;
     final pending = PendingInterviewSubmission.fromJson(saved);
     _pending[key] = pending;
     return pending;
@@ -1123,7 +1652,10 @@ class RemoteInterviewRepository implements InterviewRepository {
   }
 
   @override
-  Future<void> acknowledgeSubmission(String questionId, String attemptId) async {
+  Future<void> acknowledgeSubmission(
+    String questionId,
+    String attemptId,
+  ) async {
     final key = _submissionKey(questionId);
     if (_readPending(key)?.attemptId == attemptId) await _forget(key);
   }
@@ -1147,7 +1679,11 @@ class RemoteInterviewRepository implements InterviewRepository {
     }
   }
 
-  Future<String> _acceptAnswer(String key, String questionId, String content) async {
+  Future<String> _acceptAnswer(
+    String key,
+    String questionId,
+    String content,
+  ) async {
     _requireActive();
     var pending = _readPending(key);
     if (pending?.attemptId != null) return pending!.attemptId!;
@@ -1156,8 +1692,12 @@ class RemoteInterviewRepository implements InterviewRepository {
         final latest = await fetchQuestion(questionId);
         _requireActive();
         if (latest.blocked) {
-          throw AppException(AppException.kindFromCode(latest.effectiveBlockedReason, 409),
-            code: latest.effectiveBlockedReason, message: latest.blockedMessage, statusCode: 409);
+          throw AppException(
+            AppException.kindFromCode(latest.effectiveBlockedReason, 409),
+            code: latest.effectiveBlockedReason,
+            message: latest.blockedMessage,
+            statusCode: 409,
+          );
         }
         _draftsToReload.remove(questionId);
       }
@@ -1170,15 +1710,20 @@ class RemoteInterviewRepository implements InterviewRepository {
     // 응답을 못 받으면 같은 본문·같은 키를 유지한다. 초안 버전도 다시 계산하지 않는다.
     await _remember(key, pending);
     try {
-      final accepted = _obj(await _api.post(
-        ApiPaths.interviewAttempts(questionId),
-        body: pending.body,
-        idempotencyKey: pending.idempotencyKey,
-      ));
+      final accepted = _obj(
+        await _api.post(
+          ApiPaths.interviewAttempts(questionId),
+          body: pending.body,
+          idempotencyKey: pending.idempotencyKey,
+        ),
+      );
       _requireActive();
       final attemptId = _str(accepted, ['attemptId']);
       if (attemptId == null) {
-        throw const AppException(AppErrorKind.server, message: '답변 접수 결과를 확인하지 못했어요. 같은 답변으로 다시 확인해 주세요.');
+        throw const AppException(
+          AppErrorKind.server,
+          message: '답변 접수 결과를 확인하지 못했어요. 같은 답변으로 다시 확인해 주세요.',
+        );
       }
       pending = pending.withAccepted(attemptId, accepted);
       _drafts.remove(questionId);
@@ -1186,8 +1731,12 @@ class RemoteInterviewRepository implements InterviewRepository {
       return attemptId;
     } on AppException catch (e) {
       const rejected = {
-        'INVALID_INPUT', 'VALIDATION_ERROR', 'QUESTION_LIMIT_EXCEEDED',
-        'DAILY_LIMIT_EXCEEDED', 'COMPANY_INACTIVE', 'CONTENT_UNAVAILABLE',
+        'INVALID_INPUT',
+        'VALIDATION_ERROR',
+        'QUESTION_LIMIT_EXCEEDED',
+        'DAILY_LIMIT_EXCEEDED',
+        'COMPANY_INACTIVE',
+        'CONTENT_UNAVAILABLE',
         'VERSION_CONFLICT',
       };
       // 접수되지 않았음이 명확한 경우만 새 작성·제출을 허용한다.
@@ -1224,45 +1773,87 @@ class RemoteInterviewRepository implements InterviewRepository {
         questionId = await _waitForQuestion(companyId, _str(task, ['taskId']));
       case 'GENERATE':
         if (task != null && _isRunning(taskStatus)) {
-          questionId = await _waitForQuestion(companyId, _str(task, ['taskId']));
+          questionId = await _waitForQuestion(
+            companyId,
+            _str(task, ['taskId']),
+          );
         } else {
-          final accepted = _obj(await _api.post(ApiPaths.interviewQuestionTasks(companyId), idempotencyKey: _idem()));
-          questionId = _str(accepted, ['questionId']) ?? await _waitForQuestion(companyId, _str(accepted, ['taskId']));
+          final accepted = _obj(
+            await _api.post(
+              ApiPaths.interviewQuestionTasks(companyId),
+              idempotencyKey: _idem(),
+            ),
+          );
+          questionId =
+              _str(accepted, ['questionId']) ??
+              await _waitForQuestion(companyId, _str(accepted, ['taskId']));
         }
       default: // REVIEW: 오늘 한도를 다 썼거나 준비 기업이 아님
         questionId = null;
     }
-    if (remaining == 0 && questionId == null) return TodayInterview(companyId: companyId, questionIds: const [], doneIds: const []);
-    return TodayInterview(companyId: companyId, questionIds: [?questionId], doneIds: const []);
+    if (remaining == 0 && questionId == null)
+      return TodayInterview(
+        companyId: companyId,
+        questionIds: const [],
+        doneIds: const [],
+      );
+    return TodayInterview(
+      companyId: companyId,
+      questionIds: [?questionId],
+      doneIds: const [],
+    );
   }
 
   /// 질문 생성 작업이 끝날 때까지 interview-entry?taskId= 를 조회 (최대 약 90초)
   Future<String> _waitForQuestion(String companyId, String? taskId) async {
     for (var i = 0; i < 60; i++) {
       await Future<void>.delayed(_poll);
-      final entry = _obj(await _api.get(ApiPaths.interviewEntry(companyId), query: {'taskId': taskId}));
+      final entry = _obj(
+        await _api.get(
+          ApiPaths.interviewEntry(companyId),
+          query: {'taskId': taskId},
+        ),
+      );
       final task = _map(entry['generationTask']);
       final status = (_str(task, ['status']) ?? '').toUpperCase();
       if (_isFailed(status)) {
-        throw AppException(AppErrorKind.server, message: _str(_map(task?['error']), ['message']) ?? '질문을 만들지 못했어요. 다시 시도해 주세요.');
+        throw AppException(
+          AppErrorKind.server,
+          message:
+              _str(_map(task?['error']), ['message']) ??
+              '질문을 만들지 못했어요. 다시 시도해 주세요.',
+        );
       }
       final id = _str(task, ['questionId']) ?? _str(entry, ['questionId']);
       if (id != null && !_isRunning(status)) return id;
     }
-    throw const AppException(AppErrorKind.timeout, message: '질문을 만드는 데 시간이 걸리고 있어요. 잠시 후 다시 시도해 주세요.');
+    throw const AppException(
+      AppErrorKind.timeout,
+      message: '질문을 만드는 데 시간이 걸리고 있어요. 잠시 후 다시 시도해 주세요.',
+    );
   }
 
   @override
   Future<InterviewQuestion> fetchQuestion(String questionId) async {
     final d = _obj(await _api.get(ApiPaths.interviewQuestion(questionId)));
     final company = _map(d['company']);
-    final companyId = _str(d, ['companyId']) ?? _str(company, ['companyId']) ?? '';
-    final companyName = _str(d, ['companyName']) ?? _str(company, ['companyName']) ?? _companyNames[companyId] ?? '';
+    final companyId =
+        _str(d, ['companyId']) ?? _str(company, ['companyId']) ?? '';
+    final companyName =
+        _str(d, ['companyName']) ??
+        _str(company, ['companyName']) ??
+        _companyNames[companyId] ??
+        '';
     // InterviewGeneration.Detail: {questionId, company, jobSnapshot, question, evidence, draft, latestAttempt, usage}
-    final jobName = _str(_map(d['jobSnapshot']), ['jobName']) ?? _str(_map(d['job']), ['jobName']);
+    final jobName =
+        _str(_map(d['jobSnapshot']), ['jobName']) ??
+        _str(_map(d['job']), ['jobName']);
     final draft = _map(d['draft']);
     if (draft != null) {
-      _drafts[questionId] = (text: _str(draft, ['text']) ?? '', version: _int(draft, ['version']));
+      _drafts[questionId] = (
+        text: _str(draft, ['text']) ?? '',
+        version: _int(draft, ['version']),
+      );
     } else {
       _drafts.remove(questionId);
     }
@@ -1288,7 +1879,11 @@ class RemoteInterviewRepository implements InterviewRepository {
     required String content,
     required AnswerInputType inputType,
   }) async {
-    final attemptId = await submitAnswerForEvaluation(questionId: questionId, content: content, inputType: inputType);
+    final attemptId = await submitAnswerForEvaluation(
+      questionId: questionId,
+      content: content,
+      inputType: inputType,
+    );
     final pending = pendingSubmission(questionId);
     final evaluation = await _waitForEvaluation(attemptId);
     final feedback = _feedback(
@@ -1304,7 +1899,10 @@ class RemoteInterviewRepository implements InterviewRepository {
   }
 
   /// 평가 결과가 나올 때까지 조회 (AI 평가는 수십 초 걸릴 수 있다)
-  Future<Map<String, dynamic>> _waitForEvaluation(String attemptId, {int tries = 80}) async {
+  Future<Map<String, dynamic>> _waitForEvaluation(
+    String attemptId, {
+    int tries = 80,
+  }) async {
     for (var i = 0; i < tries; i++) {
       Map<String, dynamic>? v;
       try {
@@ -1315,50 +1913,88 @@ class RemoteInterviewRepository implements InterviewRepository {
       }
       if (v != null) {
         final status = _evaluationStatus(v);
-        if (status == EvaluationStatus.failed || status == EvaluationStatus.cancelled) {
-          throw EvaluationFailed(answerId: attemptId, status: status, message: _str(_map(v['error']), ['message']));
+        if (status == EvaluationStatus.failed ||
+            status == EvaluationStatus.cancelled) {
+          throw EvaluationFailed(
+            answerId: attemptId,
+            status: status,
+            message: _str(_map(v['error']), ['message']),
+          );
         }
         if (status == EvaluationStatus.succeeded) {
           final result = _map(v['result']) ?? v;
           if (_int(result, ['scorePercent', 'totalScore', 'score']) == null) {
-            throw const AppException(AppErrorKind.server, message: '완료된 평가의 점수를 불러오지 못했어요. 다시 확인해 주세요.');
+            throw const AppException(
+              AppErrorKind.server,
+              message: '완료된 평가의 점수를 불러오지 못했어요. 다시 확인해 주세요.',
+            );
           }
           return v;
         }
         if (status == EvaluationStatus.unknown) {
-          throw const AppException(AppErrorKind.server, message: '평가 상태를 확인하지 못했어요. 다시 확인해 주세요.');
+          throw const AppException(
+            AppErrorKind.server,
+            message: '평가 상태를 확인하지 못했어요. 다시 확인해 주세요.',
+          );
         }
       }
       await Future<void>.delayed(_poll);
     }
-    throw const AppException(AppErrorKind.timeout, message: '평가가 늦어지고 있어요. 잠시 후 복습 탭에서 결과를 확인해 주세요.');
+    throw const AppException(
+      AppErrorKind.timeout,
+      message: '평가가 늦어지고 있어요. 잠시 후 복습 탭에서 결과를 확인해 주세요.',
+    );
   }
 
   /// POST /interview-attempts/{id}/evaluation-tasks (202) → 다시 평가. 결과는 fetchFeedback 이 기다린다.
   @override
   Future<void> retryEvaluation(String answerId) async {
-    await _api.post(ApiPaths.attemptEvaluationTasks(answerId), idempotencyKey: _idem());
+    await _api.post(
+      ApiPaths.attemptEvaluationTasks(answerId),
+      idempotencyKey: _idem(),
+    );
   }
 
   @override
   Future<AnswerFeedback> fetchFeedback(String answerId) async {
-    final results = await Future.wait([_api.get(ApiPaths.attempt(answerId)), _waitForEvaluation(answerId, tries: 40)]);
-    return _feedback(attemptId: answerId, evaluation: _obj(results[1]), attempt: _obj(results[0]));
+    final results = await Future.wait([
+      _api.get(ApiPaths.attempt(answerId)),
+      _waitForEvaluation(answerId, tries: 40),
+    ]);
+    return _feedback(
+      attemptId: answerId,
+      evaluation: _obj(results[1]),
+      attempt: _obj(results[0]),
+    );
   }
 
   @override
-  Future<void> saveDraft({required String questionId, required String content}) async {
+  Future<void> saveDraft({
+    required String questionId,
+    required String content,
+  }) async {
     if (pendingSubmission(questionId) != null) {
-      throw const AppException(AppErrorKind.validation, message: '제출한 답변의 접수 여부를 먼저 확인해 주세요.');
+      throw const AppException(
+        AppErrorKind.validation,
+        message: '제출한 답변의 접수 여부를 먼저 확인해 주세요.',
+      );
     }
     Future<void> put() async {
       // InterviewSubmission.SaveDraft: {text, version} 둘 다 필수 (처음 저장이면 version=null)
-      final data = _obj(await _api.put(ApiPaths.interviewDraft(questionId), body: <String, dynamic>{
-        'text': content,
-        'version': _drafts[questionId]?.version,
-      }));
+      final data = _obj(
+        await _api.put(
+          ApiPaths.interviewDraft(questionId),
+          body: <String, dynamic>{
+            'text': content,
+            'version': _drafts[questionId]?.version,
+          },
+        ),
+      );
       final draft = _map(data['draft']);
-      _drafts[questionId] = (text: content, version: _int(draft, ['version']) ?? _drafts[questionId]?.version);
+      _drafts[questionId] = (
+        text: content,
+        version: _int(draft, ['version']) ?? _drafts[questionId]?.version,
+      );
     }
 
     try {
@@ -1381,42 +2017,63 @@ class RemoteInterviewRepository implements InterviewRepository {
   /// 광고 보고 질문 더 받기는 서버 범위 밖 (홈 adBonusAvailable=false 라 부르지 않는다)
   @override
   Future<void> unlockBonusQuestion(String companyId) async {
-    throw const AppException(AppErrorKind.validation, message: '추가 질문은 아직 지원하지 않아요.');
+    throw const AppException(
+      AppErrorKind.validation,
+      message: '추가 질문은 아직 지원하지 않아요.',
+    );
   }
 }
 
 // ---------------------------------------------------------------- 복습
 
 class RemoteRecordsRepository implements RecordsRepository {
-  RemoteRecordsRepository(this._api) : _interview = RemoteInterviewRepository(_api);
+  RemoteRecordsRepository(this._api)
+    : _interview = RemoteInterviewRepository(_api);
   final ApiClient _api;
   final RemoteInterviewRepository _interview;
 
   /// 퀴즈 복습 정답 (다시 풀기 채점을 앱에서 한다 — 서버에 다시 풀기 API 가 없다)
-  final Map<String, ({String? correctId, String explanation, Evidence? evidence})> _answers = {};
+  final Map<
+    String,
+    ({String? correctId, String explanation, Evidence? evidence})
+  >
+  _answers = {};
 
   // 서버 query: companyId · page · size (· filter). 모르는 query 는 400
   @override
-  Future<List<QuizReviewItem>> fetchQuizReview({required String companyId}) async {
-    final page = await _api.get(ApiPaths.reviewQuizzes, query: {'companyId': _id(companyId), 'page': 0, 'size': 50});
-    return Future.wait(_content(page).map((j) async {
-      final questionId = _str(j, ['questionId']) ?? '';
-      final d = await _quizDetail(questionId, companyId);
-      final q = _map(d['question']) ?? {'question': j['question']};
-      return QuizReviewItem(
-        id: questionId,
-        companyId: companyId,
-        question: _quizQuestion(q, id: questionId),
-        wrong: !(_bool(j, ['isCorrect']) ?? _bool(d, ['isCorrect']) ?? true),
-        explanation: _str(d, ['explanation']) ?? '',
-        solvedAt: _date(j['lastAnsweredAt']) ?? _date(d['submittedAt']) ?? DateTime.now(),
-        evidence: _firstEvidence(d['evidence']),
-        correctChoiceId: _str(d, ['correctOptionId']),
-      );
-    }));
+  Future<List<QuizReviewItem>> fetchQuizReview({
+    required String companyId,
+  }) async {
+    final page = await _api.get(
+      ApiPaths.reviewQuizzes,
+      query: {'companyId': _id(companyId), 'page': 0, 'size': 50},
+    );
+    return Future.wait(
+      _content(page).map((j) async {
+        final questionId = _str(j, ['questionId']) ?? '';
+        final d = await _quizDetail(questionId, companyId);
+        final q = _map(d['question']) ?? {'question': j['question']};
+        return QuizReviewItem(
+          id: questionId,
+          companyId: companyId,
+          question: _quizQuestion(q, id: questionId),
+          wrong: !(_bool(j, ['isCorrect']) ?? _bool(d, ['isCorrect']) ?? true),
+          explanation: _str(d, ['explanation']) ?? '',
+          solvedAt:
+              _date(j['lastAnsweredAt']) ??
+              _date(d['submittedAt']) ??
+              DateTime.now(),
+          evidence: _firstEvidence(d['evidence']),
+          correctChoiceId: _str(d, ['correctOptionId']),
+        );
+      }),
+    );
   }
 
-  Future<Map<String, dynamic>> _quizDetail(String questionId, String? companyId) async {
+  Future<Map<String, dynamic>> _quizDetail(
+    String questionId,
+    String? companyId,
+  ) async {
     // 상세는 query 를 받지 않는다 (서버가 모르는 query 는 400)
     final d = _obj(await _api.get(ApiPaths.reviewQuiz(questionId)));
     _answers[questionId] = (
@@ -1428,7 +2085,10 @@ class RemoteRecordsRepository implements RecordsRepository {
   }
 
   @override
-  Future<QuizAnswerResult> retryQuiz({required String itemId, required String answer}) async {
+  Future<QuizAnswerResult> retryQuiz({
+    required String itemId,
+    required String answer,
+  }) async {
     if (!_answers.containsKey(itemId)) await _quizDetail(itemId, null);
     final a = _answers[itemId]!;
     return QuizAnswerResult(
@@ -1442,24 +2102,35 @@ class RemoteRecordsRepository implements RecordsRepository {
   }
 
   @override
-  Future<List<InterviewRecord>> fetchInterviewRecords({required String companyId}) async {
-    final page = await _api.get(ApiPaths.reviewInterviews, query: {'companyId': _id(companyId), 'page': 0, 'size': 100});
+  Future<List<InterviewRecord>> fetchInterviewRecords({
+    required String companyId,
+  }) async {
+    final page = await _api.get(
+      ApiPaths.reviewInterviews,
+      query: {'companyId': _id(companyId), 'page': 0, 'size': 100},
+    );
     return [
       for (final j in _content(page))
         () {
-          final latest = _map(j['latestAttempt']) ?? _map(j['latestEvaluation']) ?? _map(j['representativeAttempt']);
-          final score = _int(j, ['scorePercent', 'latestScorePercent', 'score']) ??
+          final latest =
+              _map(j['latestAttempt']) ??
+              _map(j['latestEvaluation']) ??
+              _map(j['representativeAttempt']);
+          final score =
+              _int(j, ['scorePercent', 'latestScorePercent', 'score']) ??
               _int(latest, ['scorePercent']) ??
               _int(_map(latest?['result']), ['scorePercent']);
           // InterviewReview.Question: {questionId, question, hasDraft, latestAttempt, latestScorePercent, completionDecision, questionUsed, ...}
-          final attempts = _int(j, ['questionUsed', 'attemptCount']) ?? (latest == null ? 0 : 1);
+          final attempts =
+              _int(j, ['questionUsed', 'attemptCount']) ??
+              (latest == null ? 0 : 1);
           final decided = _bool(j, ['completionDecision']);
           // QA: 아직 제출 안 한 질문 · 다시 쓰다 저장만 해 둔 질문은 "작성 중" (이어서 답변하기)
           final status = latest == null || j['hasDraft'] == true
               ? AnswerStatus.draft
               : (decided ?? (score != null && score >= AppPolicy.completeScore))
-                  ? AnswerStatus.complete
-                  : AnswerStatus.needsWork;
+              ? AnswerStatus.complete
+              : AnswerStatus.needsWork;
           return InterviewRecord(
             questionId: _str(j, ['questionId', 'id']) ?? '',
             companyId: _str(j, ['companyId']) ?? companyId,
@@ -1470,7 +2141,12 @@ class RemoteRecordsRepository implements RecordsRepository {
             evaluationStatus: _str(latest, ['evaluationStatus', 'status']),
             attempts: attempts,
             score: score,
-            lastAt: _date(j['lastSubmittedAt'] ?? j['lastAnsweredAt'] ?? j['updatedAt'] ?? latest?['submittedAt']),
+            lastAt: _date(
+              j['lastSubmittedAt'] ??
+                  j['lastAnsweredAt'] ??
+                  j['updatedAt'] ??
+                  latest?['submittedAt'],
+            ),
             retryRemaining: _int(j, ['questionRemaining']),
             createdAt: _date(j['createdAt']),
           );
@@ -1482,39 +2158,88 @@ class RemoteRecordsRepository implements RecordsRepository {
   Future<InterviewRecordDetail> fetchInterviewRecord(String questionId) async {
     final results = await Future.wait([
       _interview.fetchQuestion(questionId),
-      _api.get(ApiPaths.interviewAttempts(questionId), query: {'page': 0, 'size': 20}),
+      _api.get(
+        ApiPaths.interviewAttempts(questionId),
+        query: {'page': 0, 'size': 20},
+      ),
     ]);
     final question = results[0] as InterviewQuestion;
-    final evaluations = await Future.wait(_content(results[1]).map((a) async {
-      final id = _str(a, ['attemptId', 'id']) ?? '';
-      final number = _int(a, ['attemptNumber']) ?? 1;
-      if (id.isEmpty) throw const AppException(AppErrorKind.server);
-      try {
-        final evaluation = _obj(await _api.get(ApiPaths.attemptEvaluation(id)));
-        final status = _evaluationStatus(evaluation, attempt: a);
-        if (status == EvaluationStatus.succeeded) {
-          return InterviewAttemptEvaluation(answerId: id, attempt: number, status: status,
-            feedback: _feedback(attemptId: id, evaluation: evaluation, attempt: a, questionId: questionId));
+    final evaluations = await Future.wait(
+      _content(results[1]).map((a) async {
+        final id = _str(a, ['attemptId', 'id']) ?? '';
+        final number = _int(a, ['attemptNumber']) ?? 1;
+        if (id.isEmpty) throw const AppException(AppErrorKind.server);
+        try {
+          final evaluation = _obj(
+            await _api.get(ApiPaths.attemptEvaluation(id)),
+          );
+          final status = _evaluationStatus(evaluation, attempt: a);
+          if (status == EvaluationStatus.succeeded) {
+            return InterviewAttemptEvaluation(
+              answerId: id,
+              attempt: number,
+              status: status,
+              feedback: _feedback(
+                attemptId: id,
+                evaluation: evaluation,
+                attempt: a,
+                questionId: questionId,
+              ),
+            );
+          }
+          final error =
+              status == EvaluationStatus.failed ||
+                  status == EvaluationStatus.cancelled
+              ? EvaluationFailed(
+                  answerId: id,
+                  status: status,
+                  message: _str(_map(evaluation['error']), ['message']),
+                )
+              : status == EvaluationStatus.unknown
+              ? const AppException(
+                  AppErrorKind.server,
+                  message: '평가 상태를 확인하지 못했어요.',
+                )
+              : null;
+          return InterviewAttemptEvaluation(
+            answerId: id,
+            attempt: number,
+            status: status,
+            error: error,
+          );
+        } on EvaluationFailed catch (e) {
+          return InterviewAttemptEvaluation(
+            answerId: id,
+            attempt: number,
+            status: e.status,
+            error: e,
+          );
+        } on AppException catch (e) {
+          if (e.kind == AppErrorKind.unauthorized) rethrow;
+          final processing =
+              e.kind == AppErrorKind.notFound &&
+              EvaluationStatus.fromWire(_str(a, ['evaluationStatus'])) ==
+                  EvaluationStatus.processing;
+          return InterviewAttemptEvaluation(
+            answerId: id,
+            attempt: number,
+            status: processing
+                ? EvaluationStatus.processing
+                : EvaluationStatus.unknown,
+            error: processing ? null : e,
+          );
         }
-        final error = status == EvaluationStatus.failed || status == EvaluationStatus.cancelled
-            ? EvaluationFailed(answerId: id, status: status, message: _str(_map(evaluation['error']), ['message']))
-            : status == EvaluationStatus.unknown
-                ? const AppException(AppErrorKind.server, message: '평가 상태를 확인하지 못했어요.') : null;
-        return InterviewAttemptEvaluation(answerId: id, attempt: number, status: status, error: error);
-      } on EvaluationFailed catch (e) {
-        return InterviewAttemptEvaluation(answerId: id, attempt: number, status: e.status, error: e);
-      } on AppException catch (e) {
-        if (e.kind == AppErrorKind.unauthorized) rethrow;
-        final processing = e.kind == AppErrorKind.notFound &&
-            EvaluationStatus.fromWire(_str(a, ['evaluationStatus'])) == EvaluationStatus.processing;
-        return InterviewAttemptEvaluation(answerId: id, attempt: number,
-          status: processing ? EvaluationStatus.processing : EvaluationStatus.unknown, error: processing ? null : e);
-      }
-    }));
+      }),
+    );
     evaluations.sort((a, b) => a.attempt.compareTo(b.attempt));
-    return InterviewRecordDetail(question: question,
-      attempts: [for (final entry in evaluations) if (entry.feedback != null) entry.feedback!],
-      evaluations: evaluations);
+    return InterviewRecordDetail(
+      question: question,
+      attempts: [
+        for (final entry in evaluations)
+          if (entry.feedback != null) entry.feedback!,
+      ],
+      evaluations: evaluations,
+    );
   }
 
   @override
@@ -1544,7 +2269,10 @@ class RemoteInquiryRepository implements InquiryRepository {
     required String platform,
     String? companyId,
   }) async {
-    throw const AppException(AppErrorKind.validation, message: '문의는 마이 > 서비스 문의 및 오류제보의 구글폼으로 보내 주세요.');
+    throw const AppException(
+      AppErrorKind.validation,
+      message: '문의는 마이 > 서비스 문의 및 오류제보의 구글폼으로 보내 주세요.',
+    );
   }
 
   @override

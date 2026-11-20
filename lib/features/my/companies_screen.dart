@@ -20,7 +20,11 @@ class CompaniesScreen extends ConsumerWidget {
     ref.invalidate(homeProvider);
   }
 
-  Future<void> _remove(BuildContext context, WidgetRef ref, Preparation p) async {
+  Future<void> _remove(
+    BuildContext context,
+    WidgetRef ref,
+    Preparation p,
+  ) async {
     final ok = await showConfirmDialog(
       context,
       warning: true,
@@ -32,7 +36,7 @@ class CompaniesScreen extends ConsumerWidget {
     if (!ok) return;
     try {
       await ref.read(profileRepositoryProvider).removePreparation(p.companyId);
-      _refresh(ref);
+      invalidateAfterCompanyRemoved(ref, p.companyId);
     } catch (e) {
       if (context.mounted) showErrorToast(context, e);
     }
@@ -40,85 +44,151 @@ class CompaniesScreen extends ConsumerWidget {
 
   bool _full(BuildContext context, int count) {
     if (count < AppPolicy.maxCompanies) return false;
-    showNoticeDialog(context, title: '준비 기업 ${AppPolicy.maxCompanies}개를 모두 채웠어요', message: '하나를 빼면 새 기업을 추가할 수 있어요');
+    showNoticeDialog(
+      context,
+      title: '준비 기업 ${AppPolicy.maxCompanies}개를 모두 채웠어요',
+      message: '하나를 빼면 새 기업을 추가할 수 있어요',
+    );
     return true;
   }
 
-  Future<void> _search(BuildContext context, WidgetRef ref, List<Preparation> list) async {
+  Future<void> _search(
+    BuildContext context,
+    WidgetRef ref,
+    List<Preparation> list,
+  ) async {
     if (_full(context, list.length)) return;
-    final company = await CompanySearchScreen.open(context, exclude: {for (final p in list) p.companyId});
+    final company = await CompanySearchScreen.open(
+      context,
+      exclude: {for (final p in list) p.companyId},
+    );
     if (company == null || !context.mounted) return;
     await _add(context, ref, company, list.length);
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref, Company c, int count, {PastPreparation? previous}) async {
+  Future<void> _add(
+    BuildContext context,
+    WidgetRef ref,
+    Company c,
+    int count, {
+    Preparation? initial,
+  }) async {
     if (_full(context, count)) return;
-    final past = previous ?? ref.read(pastPreparationsProvider).asData?.value
-        .where((p) => p.companyId == c.id).firstOrNull;
-    final initial = Preparation.fromCompany(c).copyWith(jobId: past?.jobId, jobName: past?.jobName);
     final added = await showAppSheet<bool>(
       context,
       title: c.name,
-      builder: (_) => PrepSheet(initial: initial, isNew: true),
+      builder: (_) => PrepSheet(
+        initial: initial ?? Preparation.fromCompany(c),
+        isNew: true,
+      ),
     );
-    if (added == true && context.mounted) showToast(context, '${withObjectParticle(c.name)} 준비 기업에 추가했어요.');
+    if (added == true && context.mounted)
+      showToast(context, '${withObjectParticle(c.name)} 준비 기업에 추가했어요.');
   }
 
   Future<void> _edit(BuildContext context, Preparation p) async {
-    final saved = await showAppSheet<bool>(context, title: p.companyName, builder: (_) => PrepSheet(initial: p, isNew: false));
+    final saved = await showAppSheet<bool>(
+      context,
+      title: p.companyName,
+      builder: (_) => PrepSheet(initial: p, isNew: false),
+    );
     if (saved == true && context.mounted) showToast(context, '지원 정보를 바꿨어요.');
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final preps = ref.watch(preparationsProvider);
-    final past = ref.watch(pastPreparationsProvider).asData?.value ?? const <PastPreparation>[];
-    final label = AppTypography.body2Medium.copyWith(color: AppColors.textCaption);
+    final past =
+        ref.watch(pastPreparationsProvider).asData?.value ??
+        const <PastPreparation>[];
+    final label = AppTypography.body2Medium.copyWith(
+      color: AppColors.textCaption,
+    );
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AppNavBar(title: '준비 기업 관리'),
       body: preps.when(
         skipLoadingOnReload: true,
         loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(preparationsProvider)),
+        error: (e, _) => ErrorView(
+          error: e,
+          onRetry: () => ref.invalidate(preparationsProvider),
+        ),
         data: (list) => ListView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, AppSpacing.xl),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.md,
+            AppSpacing.screenH,
+            AppSpacing.xl,
+          ),
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.xxs, bottom: AppSpacing.sm),
+              padding: const EdgeInsets.only(
+                left: AppSpacing.xxs,
+                bottom: AppSpacing.sm,
+              ),
               child: Row(
                 children: [
                   Expanded(child: Text('나의 준비 기업', style: label)),
-                  Text('${list.length}/${AppPolicy.maxCompanies}', style: label),
+                  Text(
+                    '${list.length}/${AppPolicy.maxCompanies}',
+                    style: label,
+                  ),
                 ],
               ),
             ),
-            SearchField(hint: '새로운 기업 추가하기', onTap: () => _search(context, ref, list)),
+            SearchField(
+              hint: '새로운 기업 추가하기',
+              onTap: () => _search(context, ref, list),
+            ),
             const SizedBox(height: AppSpacing.lg),
             if (list.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
-                child: StatusMessage(icon: null, title: '아직 준비 중인 기업이 없어요', description: '준비할 기업을 추가하면 오늘의 학습이 시작돼요.'),
+                child: StatusMessage(
+                  icon: null,
+                  title: '아직 준비 중인 기업이 없어요',
+                  description: '준비할 기업을 추가하면 오늘의 학습이 시작돼요.',
+                ),
               ),
             for (final p in list) ...[
-              _PrepCard(prep: p, onRemove: () => _remove(context, ref, p), onEdit: () => _edit(context, p)),
+              _PrepCard(
+                prep: p,
+                onRemove: () => _remove(context, ref, p),
+                onEdit: () => _edit(context, p),
+              ),
               const SizedBox(height: AppSpacing.sm),
             ],
             if (past.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xl),
               Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.xxs, bottom: AppSpacing.sm),
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.xxs,
+                  bottom: AppSpacing.sm,
+                ),
                 child: Text('준비했던 기업  ${past.length}', style: label),
               ),
               for (final p in past) ...[
                 CompanyTile(
                   name: p.companyName,
-                  subtitle: '퀴즈 ${p.quizCount}문제 · 면접 답변 ${p.answerCount}개',
+                  subtitle: [
+                    if (p.jobName != null && p.jobName!.isNotEmpty) p.jobName!,
+                    '퀴즈 ${p.quizCount}문제 · 면접 답변 ${p.answerCount}개',
+                  ].join(' · '),
                   trailing: TextLink(
                     label: '추가',
                     // QA 1529:9898: "빼기"(12)와 글자 크기를 맞춘다 (추가가 14 로 더 컸다)
-                    style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: AppTypography.semibold),
-                    onTap: () => _add(context, ref, p.company, list.length, previous: p),
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.ink,
+                      fontWeight: AppTypography.semibold,
+                    ),
+                    onTap: () => _add(
+                      context,
+                      ref,
+                      p.company,
+                      list.length,
+                      initial: p.asPreparation,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -133,7 +203,11 @@ class CompaniesScreen extends ConsumerWidget {
 
 /// 준비 기업 카드: 로고 · 이름 · "마케팅 · 2026.10.24" · 빼기, 아래 회색 "정보 수정하기"
 class _PrepCard extends StatelessWidget {
-  const _PrepCard({required this.prep, required this.onRemove, required this.onEdit});
+  const _PrepCard({
+    required this.prep,
+    required this.onRemove,
+    required this.onEdit,
+  });
 
   final Preparation prep;
   final VoidCallback onRemove;
@@ -142,10 +216,18 @@ class _PrepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = prep;
-    final sub = [p.jobName ?? '직무 미정', p.interviewDate == null ? '면접일 미정' : formatDot(p.interviewDate!)].join(' · ');
+    final sub = [
+      p.jobName ?? '직무 미정',
+      p.interviewDate == null ? '면접일 미정' : formatDot(p.interviewDate!),
+    ].join(' · ');
     return OutlinedBox(
       radius: AppRadius.button,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -157,13 +239,29 @@ class _PrepCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p.companyName, style: AppTypography.cardTitle.copyWith(color: AppColors.ink)),
+                    Text(
+                      p.companyName,
+                      style: AppTypography.cardTitle.copyWith(
+                        color: AppColors.ink,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(sub, style: AppTypography.caption.copyWith(color: AppColors.textCaption)),
+                    Text(
+                      sub,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textCaption,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              TextLink(label: '빼기', style: AppTypography.caption.copyWith(color: AppColors.textCaption), onTap: onRemove),
+              TextLink(
+                label: '빼기',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textCaption,
+                ),
+                onTap: onRemove,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -175,7 +273,9 @@ class _PrepCard extends StatelessWidget {
                 backgroundColor: AppColors.fillSecondary,
                 foregroundColor: AppColors.textStrong,
                 textStyle: AppTypography.body2Strong,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialogButton)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.dialogButton),
+                ),
                 splashFactory: NoSplash.splashFactory,
               ),
               child: const Text('정보 수정하기'),
@@ -199,7 +299,9 @@ class PrepSheet extends ConsumerStatefulWidget {
 }
 
 class _PrepSheetState extends ConsumerState<PrepSheet> {
-  late Job? _job = widget.initial.hasJob ? Job(id: widget.initial.jobId ?? '', name: widget.initial.jobName!) : null;
+  late Job? _job = widget.initial.hasJob
+      ? Job(id: widget.initial.jobId ?? '', name: widget.initial.jobName!)
+      : null;
   late DateTime? _date = widget.initial.interviewDate;
   bool _saving = false;
 
@@ -232,7 +334,12 @@ class _PrepSheetState extends ConsumerState<PrepSheet> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xxs, AppSpacing.screenH, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.xxs,
+        AppSpacing.screenH,
+        AppSpacing.md,
+      ),
       child: SafeArea(
         top: false,
         child: Column(
@@ -244,7 +351,11 @@ class _PrepSheetState extends ConsumerState<PrepSheet> {
               value: _job?.name,
               placeholder: '직무를 선택해주세요',
               onTap: () async {
-                final job = await showJobPicker(context, companyName: widget.initial.companyName, selectedName: _job?.name);
+                final job = await showJobPicker(
+                  context,
+                  companyName: widget.initial.companyName,
+                  selectedName: _job?.name,
+                );
                 if (job != null) setState(() => _job = job);
               },
             ),

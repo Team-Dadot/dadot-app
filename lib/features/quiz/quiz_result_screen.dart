@@ -37,7 +37,8 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
     final r = result.asData?.value;
     void home() => context.go(Routes.home);
     final homeData = ref.watch(homeProvider).asData?.value;
-    final quizDone = r != null && (homeData?.byId(r.companyId)?.quiz.isDone ?? true);
+    final quizDone =
+        r != null && (homeData?.byId(r.companyId)?.quiz.isDone ?? true);
     if (r == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -105,47 +106,95 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
           },
         ),
         // 피그마 1332:7867: 재답변 (회색) + 다음 질문 (검정). 오늘 퀴즈를 모두 풀었으면 "이어서 면접보기" 1개.
-        bottomNavigationBar: BottomCta(
-          children: [
-            if (quizDone)
-              AppButton(
-                label: '이어서 면접보기',
-                onPressed: () =>
-                    context.pushReplacement(Routes.todayInterview(r.companyId)),
-              )
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: RetryAnswerButton(
-                      prefix: '재답변',
-                      remaining: AppPolicy.retryPerQuestionDaily,
-                      canSubmit: false,
-                      blockedMessage: '퀴즈 결과에서는 다시 답변할 수 없어요',
-                      blockedHelp: '다음 질문으로 이어서 진행해 주세요.',
-                      onRetry: () {},
-                    ),
+        // 피그마 1332:7867 "하단 페이드": 카드가 아래로 갈수록 흰색으로 사라지고, 버튼은 흰 바탕 위에 놓인다
+        bottomNavigationBar: _FadeAbove(
+          child: BottomCta(
+            color: AppColors.white,
+            children: [
+              if (quizDone)
+                AppButton(
+                  label: '이어서 면접보기',
+                  onPressed: () => context.pushReplacement(
+                    Routes.todayInterview(r.companyId),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: AppButton(
-                      label: '다음 질문',
-                      onPressed: () =>
-                          context.pushReplacement(Routes.todayInterview(r.companyId)),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: RetryAnswerButton(
+                        prefix: '재답변',
+                        remaining: r.retryRemaining ?? AppPolicy.retryPerQuestionDaily,
+                        canSubmit: false,
+                        blockedLooksActive: true,
+                        blockedMessage: '퀴즈 결과에서는 다시 답변할 수 없어요',
+                        blockedHelp: '다음 질문으로 이어서 진행해 주세요.',
+                        onRetry: () {},
+                      ),
                     ),
-                  ),
-                ],
-              ),
-          ],
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: AppButton(
+                        label: '다음 질문',
+                        onPressed: () => context.pushReplacement(
+                          Routes.todayInterview(r.companyId),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+/// 아래쪽 버튼 위로 흰색이 서서히 번지는 띠 (피그마 하단 페이드: 투명 → 흰색 약 42px)
+class _FadeAbove extends StatelessWidget {
+  const _FadeAbove({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          left: 0,
+          right: 0,
+          top: -40,
+          height: 42,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.white.withValues(alpha: 0),
+                    AppColors.white,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// 히어로: 절반 이상 맞히면 라임(불꽃), 아니면 주황(느낌표). 진행 바 = 이번 세트 정답 비율.
 class _Summary extends StatelessWidget {
-  const _Summary({required this.result, required this.onBack, required this.onClose});
+  const _Summary({
+    required this.result,
+    required this.onBack,
+    required this.onClose,
+  });
 
   final QuizResult result;
   final VoidCallback onBack;
@@ -192,7 +241,10 @@ class _Summary extends StatelessWidget {
               // 피그마 1313:7832: 숫자만 Zalando SemiBold 24
               TextSpan(
                 text: '${r.correctCount}',
-                style: AppTypography.number(24, color: ink).copyWith(letterSpacing: -1.2),
+                style: AppTypography.number(
+                  24,
+                  color: ink,
+                ).copyWith(letterSpacing: -1.2),
               ),
               const TextSpan(text: '문제 맞혔어요'),
             ],
@@ -409,7 +461,9 @@ class _ResultItem extends StatelessWidget {
                 // 피그마 1313:7832: 번호(16 SemiBold) 다음 10 띄우고 문제 한 줄(16 Medium) — 길면 … 로 줄이고, 펼치면 전체.
                 // 번호 칸 최소 너비를 고정해 번호마다 문제 글자의 시작선이 맞도록 한다.
                 child: Row(
-                  crossAxisAlignment: open ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+                  crossAxisAlignment: open
+                      ? CrossAxisAlignment.start
+                      : CrossAxisAlignment.center,
                   children: [
                     Padding(
                       padding: EdgeInsets.only(top: open ? 23 : 0),
@@ -419,7 +473,11 @@ class _ResultItem extends StatelessWidget {
                         child: Text(
                           '$number',
                           textAlign: TextAlign.center,
-                          style: AppTypography.number(16, color: AppColors.textStrong, height: 1.45).copyWith(letterSpacing: -0.32),
+                          style: AppTypography.number(
+                            16,
+                            color: AppColors.textStrong,
+                            height: 1.45,
+                          ).copyWith(letterSpacing: -0.32),
                         ),
                       ),
                     ),
@@ -430,7 +488,9 @@ class _ResultItem extends StatelessWidget {
                         child: Text(
                           item.title,
                           maxLines: open ? null : 1,
-                          overflow: open ? TextOverflow.visible : TextOverflow.ellipsis,
+                          overflow: open
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
                           style: AppTypography.subheading.copyWith(
                             fontWeight: AppTypography.medium,
                             color: AppColors.textStrong,
@@ -444,7 +504,9 @@ class _ResultItem extends StatelessWidget {
                     Padding(
                       padding: EdgeInsets.only(top: open ? 23 : 0),
                       child: Icon(
-                        open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        open
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
                         color: const Color(0xFFD2D7DC),
                       ),
                     ),

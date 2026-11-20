@@ -217,6 +217,7 @@ class QuizResult {
     required this.accuracyBefore,
     required this.accuracyAfter,
     required this.items,
+    this.retryRemaining,
   });
 
   factory QuizResult.fromJson(Map<String, dynamic> json) => QuizResult(
@@ -227,6 +228,7 @@ class QuizResult {
         total: json['total'] as int,
         accuracyBefore: json['accuracyBefore'] as int?,
         accuracyAfter: json['accuracyAfter'] as int?,
+        retryRemaining: json['retryRemaining'] as int?,
         items: (json['items'] as List<dynamic>? ?? const [])
             .map((e) => QuizResultItem.fromJson((e as Map).cast<String, dynamic>()))
             .toList(),
@@ -242,6 +244,9 @@ class QuizResult {
   final int? accuracyBefore;
   final int? accuracyAfter;
   final List<QuizResultItem> items;
+
+  /// "재답변 (2/3)" 의 남은 횟수. 서버가 안 주면 null (화면에서 최대 횟수로 표시)
+  final int? retryRemaining;
 
   int get wrongCount => total - correctCount;
 }

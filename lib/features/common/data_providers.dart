@@ -118,12 +118,29 @@ class SelectedCompanyController extends Notifier<String?> {
     state = companyId;
     ref.read(localStoreProvider).setLastCompanyId(companyId);
   }
+
+  /// 준비 기업에서 뺀 기업이 기억돼 있으면 잊는다
+  void forget(String companyId) {
+    if (state != companyId) return;
+    state = null;
+    ref.read(localStoreProvider).clearLastCompanyId();
+  }
 }
 
 /// 고른 기업이 목록에 없으면(빠졌거나 처음) 첫 기업
 CompanyHome? resolveSelected(HomeSummary home, String? selectedId) => home.byId(selectedId) ?? home.companies.firstOrNull;
 
 /// 답변·퀴즈 등으로 기록이 바뀌었을 때 한 번에 새로고침
+/// 준비 기업을 뺐을 때: 그 기업의 직무·기록이 다른 화면에 남지 않게 기업과 묶인 값을 모두 새로 받는다
+void invalidateAfterCompanyRemoved(WidgetRef ref, String companyId) {
+  ref.read(selectedCompanyIdProvider.notifier).forget(companyId);
+  ref.invalidate(preparationsProvider);
+  ref.invalidate(pastPreparationsProvider);
+  ref.invalidate(homeProvider);
+  ref.invalidate(quizReviewProvider);
+  ref.invalidate(interviewRecordsProvider);
+}
+
 void invalidateProgress(WidgetRef ref) {
   ref.invalidate(homeProvider);
   ref.invalidate(quizReviewProvider);
